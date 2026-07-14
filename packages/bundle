@@ -1,0 +1,6 @@
+# Fast and simple Node.js version manager (pi is installed via fnm's node)
+brew "fnm"
+# GitHub command-line tool
+brew "gh"
+# Organize software neatly under a single directory tree — `dot stow` depends on this
+brew "stow"

@@ -1,0 +1,19 @@
+{
+  "lastChangelogVersion": "0.80.6",
+  "theme": "dark",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-fable-5",
+  "defaultThinkingLevel": "xhigh",
+  "packages": [
+    "npm:@gotgenes/pi-anthropic-auth",
+    "npm:@plannotator/pi-extension",
+    "npm:pi-web-access",
+    "npm:pi-mcp-adapter",
+    "git:github.com/jnsahaj/trio"
+  ],
+  "warnings": {
+    "anthropicExtraUsage": false
+  },
+  "showCacheMissNotices": false,
+  "quietStartup": true
+}

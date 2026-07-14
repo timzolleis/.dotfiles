@@ -1,0 +1,13 @@
+[user]
+	name = Tim Zolleis
+	email = tim@zolleis.net
+[core]
+	autocrlf = input
+[http]
+	postBuffer = 157286400
+[credential "https://github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential

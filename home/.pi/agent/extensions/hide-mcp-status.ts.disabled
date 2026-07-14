@@ -1,0 +1,32 @@
+import type {
+	ExtensionAPI,
+	ExtensionContext,
+} from "@earendil-works/pi-coding-agent";
+
+/**
+ * Hides the "MCP: n/m servers" footer segment set by pi-mcp-adapter
+ * (init.ts updateStatusBar). Footer status keys live in one shared
+ * last-write-wins map, so clearing the "mcp" key removes the segment.
+ *
+ * The adapter rewrites the segment on session start (async) and whenever
+ * servers connect (lazy connects happen during mcp tool execution), so we
+ * clear on those same occasions. Delete this file to get the segment back.
+ */
+
+/** Covers the adapter's asynchronous status write during startup. */
+const STARTUP_CLEAR_DELAYS_MS = [250, 1_000, 3_000];
+
+export default function hideMcpStatus(pi: ExtensionAPI) {
+	const clear = (ctx: ExtensionContext) => ctx.ui.setStatus("mcp", undefined);
+
+	pi.on("session_start", (_event, ctx) => {
+		clear(ctx);
+		for (const delayMs of STARTUP_CLEAR_DELAYS_MS) {
+			const timer = setTimeout(() => clear(ctx), delayMs);
+			timer.unref?.();
+		}
+	});
+	pi.on("agent_start", (_event, ctx) => clear(ctx));
+	pi.on("agent_settled", (_event, ctx) => clear(ctx));
+	pi.on("tool_execution_end", (_event, ctx) => clear(ctx));
+}

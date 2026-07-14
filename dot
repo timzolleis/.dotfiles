@@ -1,0 +1,204 @@
+#!/usr/bin/env bash
+#
+# dot — dotfiles management CLI
+#
+# Layout:
+#   home/            mirrored to ~ via `stow --no-folding` (files are symlinked
+#                    individually; runtime dirs like ~/.pi/agent/sessions stay
+#                    real and never touch this repo)
+#   packages/bundle  Brewfile
+#
+set -euo pipefail
+
+DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly DOTFILES_DIR
+readonly BREWFILE="${DOTFILES_DIR}/packages/bundle"
+readonly PI_PACKAGE="@earendil-works/pi-coding-agent"
+readonly NODE_VERSION="24"
+
+readonly RED='\033[0;31m' GREEN='\033[0;32m' YELLOW='\033[0;33m' BLUE='\033[0;34m' BOLD='\033[1m' RESET='\033[0m'
+
+ok()   { echo -e "${GREEN}✓${RESET} $1"; }
+warn() { echo -e "${YELLOW}⚠${RESET} $1"; }
+err()  { echo -e "${RED}✗${RESET} $1" >&2; }
+hdr()  { echo -e "\n${BOLD}${BLUE}==>${RESET} ${BOLD}$1${RESET}"; }
+
+# ─── Extra links ─────────────────────────────────────────────────────────────
+# Links whose *target* is another stowed file — stow can't express these.
+# Format: "<link relative to ~>:<target relative to ~>"
+readonly EXTRA_LINKS=(
+    ".pi/agent/APPEND_SYSTEM.md:.claude/CLAUDE.md"
+    ".pi/agent/skills/coding-standards:.claude/skills/coding-standards"
+    ".pi/agent/skills/commit:.claude/skills/commit"
+    ".pi/agent/skills/design-first:.claude/skills/design-first"
+    ".pi/agent/skills/handoff:.claude/skills/handoff"
+    ".pi/agent/skills/improve-codebase-architecture:.claude/skills/improve-codebase-architecture"
+    ".pi/agent/skills/make-interfaces-feel-better:.claude/skills/make-interfaces-feel-better"
+    ".pi/agent/skills/pr:.claude/skills/pr"
+    ".pi/agent/skills/prune-agent-docs:.claude/skills/prune-agent-docs"
+    ".pi/agent/skills/standards-review:.claude/skills/standards-review"
+    ".pi/agent/skills/tdd:.claude/skills/tdd"
+    ".pi/agent/skills/tech-spec:.claude/skills/tech-spec"
+)
+
+# Paths that must never be committed (secret-guard, checked by `dot doctor`).
+readonly FORBIDDEN_TRACKED='(^|/)(auth\.json|mcp-oauth|sessions|run-history\.jsonl|mcp-cache\.json|node_modules)'
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+# ─── stow ────────────────────────────────────────────────────────────────────
+cmd_stow() {
+    command_exists stow || { err "stow not installed (brew install stow)"; exit 1; }
+
+    hdr "Stowing home/ → ~"
+    stow --dir "$DOTFILES_DIR" --target "$HOME" --restow --no-folding home
+    ok "stowed"
+
+    hdr "Extra links"
+    local entry link target
+    for entry in "${EXTRA_LINKS[@]}"; do
+        link="${HOME}/${entry%%:*}"
+        target="${HOME}/${entry##*:}"
+        mkdir -p "$(dirname "$link")"
+        ln -sfn "$target" "$link"
+        ok "${entry%%:*} → ${entry##*:}"
+    done
+}
+
+# ─── doctor ──────────────────────────────────────────────────────────────────
+cmd_doctor() {
+    local failures=0
+
+    hdr "Tools"
+    local tool
+    for tool in brew stow git gh fnm node pi; do
+        if command_exists "$tool"; then ok "$tool"; else err "$tool missing"; ((failures++)); fi
+    done
+
+    hdr "Stowed files"
+    local rel file link
+    while IFS= read -r file; do
+        rel="${file#"$DOTFILES_DIR"/home/}"
+        link="${HOME}/${rel}"
+        if [[ -L "$link" && -e "$link" ]]; then
+            :
+        else
+            err "$link is not a resolving symlink"
+            ((failures++))
+        fi
+    done < <(find "$DOTFILES_DIR/home" -type f)
+    [[ $failures -eq 0 ]] && ok "all stowed files resolve"
+
+    hdr "Extra links"
+    local entry
+    for entry in "${EXTRA_LINKS[@]}"; do
+        link="${HOME}/${entry%%:*}"
+        if [[ -L "$link" && -e "$link" ]]; then
+            ok "${entry%%:*}"
+        else
+            err "${entry%%:*} broken or missing"
+            ((failures++))
+        fi
+    done
+
+    hdr "Secret guard"
+    local tracked
+    if tracked=$(git -C "$DOTFILES_DIR" ls-files | grep -E "$FORBIDDEN_TRACKED"); then
+        err "forbidden files tracked in git:"
+        echo "$tracked" >&2
+        ((failures++))
+    else
+        ok "no secrets/runtime files tracked"
+    fi
+
+    hdr "Brewfile"
+    if brew bundle check --no-upgrade --file "$BREWFILE" >/dev/null 2>&1; then
+        ok "all Brewfile packages installed"
+    else
+        warn "some Brewfile packages missing (run: brew bundle --file $BREWFILE)"
+    fi
+
+    echo
+    if [[ $failures -gt 0 ]]; then
+        err "doctor found $failures problem(s)"
+        exit 1
+    fi
+    ok "healthy"
+}
+
+# ─── init ────────────────────────────────────────────────────────────────────
+cmd_init() {
+    hdr "1/4 Homebrew"
+    if command_exists brew; then
+        ok "already installed"
+    else
+        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+        eval "$(/opt/homebrew/bin/brew shellenv)"
+        ok "installed"
+    fi
+
+    hdr "2/4 Brewfile packages"
+    brew bundle --file "$BREWFILE"
+    ok "brew bundle done"
+
+    hdr "3/4 Node + pi"
+    eval "$(fnm env)"
+    fnm install "$NODE_VERSION"
+    fnm use "$NODE_VERSION"
+    if command_exists pi; then
+        ok "pi already installed"
+    else
+        npm install -g "$PI_PACKAGE"
+        ok "pi installed"
+    fi
+
+    hdr "4/4 Symlinks"
+    cmd_stow
+
+    hdr "Done — manual next steps"
+    echo "  1. pi            # first run reinstalls packages from settings.json, then: /login"
+    echo "  2. gh auth login"
+    echo "  3. exec zsh      # pick up stowed .zshrc"
+}
+
+# ─── update ──────────────────────────────────────────────────────────────────
+cmd_update() {
+    hdr "Pulling dotfiles"
+    git -C "$DOTFILES_DIR" pull --rebase
+
+    hdr "Brew packages"
+    brew bundle --file "$BREWFILE"
+
+    cmd_stow
+}
+
+# ─── brew-dump ───────────────────────────────────────────────────────────────
+cmd_brew_dump() {
+    hdr "Dumping Brewfile"
+    brew bundle dump --file "$BREWFILE" --describe --force
+    ok "wrote $BREWFILE — review with: git -C $DOTFILES_DIR diff packages/bundle"
+}
+
+usage() {
+    cat <<EOF
+${BOLD}dot${RESET} — dotfiles management
+
+Usage: dot <command>
+
+Commands:
+  init        Fresh-machine bootstrap (brew → packages → node/pi → stow)
+  stow        Symlink home/ into ~ and maintain extra links
+  doctor      Verify tools, symlinks, and that no secrets are tracked
+  update      git pull + brew bundle + stow
+  brew-dump   Regenerate packages/bundle from installed packages
+EOF
+}
+
+case "${1:-}" in
+    init)      cmd_init ;;
+    stow)      cmd_stow ;;
+    doctor)    cmd_doctor ;;
+    update)    cmd_update ;;
+    brew-dump) cmd_brew_dump ;;
+    *)         usage; [[ -n "${1:-}" ]] && exit 1 ;;
+esac

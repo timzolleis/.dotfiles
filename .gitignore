@@ -1,0 +1,10 @@
+# Belt-and-braces: `stow --no-folding` keeps runtime files out of this repo,
+# but these must never be committed even if something goes sideways.
+auth.json
+mcp-oauth/
+sessions/
+run-history.jsonl
+mcp-cache.json
+mcp-onboarding.json
+node_modules/
+.DS_Store
