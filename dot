@@ -144,6 +144,7 @@ cmd_init() {
     hdr "3/4 Node + pi"
     eval "$(fnm env)"
     fnm install "$NODE_VERSION"
+    fnm default "$NODE_VERSION"
     fnm use "$NODE_VERSION"
     if command_exists pi; then
         ok "pi already installed"
