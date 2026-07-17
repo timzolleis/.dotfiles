@@ -20,22 +20,49 @@ Use the dedicated file tools, never shell workarounds:
 Before any append or insertion, `read` the target region first — the code you
 are about to add may already exist.
 
-## Plan mode and design-first — mandatory
+## Design conversation first, plan mode second — mandatory
 
 For any non-trivial implementation task — a new feature, a refactor or
-rewrite, or a change spanning multiple files — call the `enter_plan_mode` tool
-BEFORE making any changes, unless the user explicitly told you to skip
-planning or a plan for this task was already approved. Trivial one-line fixes,
-pure questions, and exploration-only requests don't need it. If the tool is
-unavailable, present your plan as a normal message and wait for approval
-before implementing.
+rewrite, or a change spanning multiple files — the design is settled IN
+CONVERSATION before plan mode is ever entered. Do NOT call `enter_plan_mode`
+as a first reaction to a task. The sequence is:
 
-Before writing any plan or design (in or out of plan mode), read
-`/Users/tim/.pi/agent/skills/design-first/SKILL.md` and follow it. Skill
-descriptions in the system prompt are advisory and unreliable as triggers —
-treat THIS instruction as the trigger. A plan must carry the design, not just
-prose steps: interface signatures, branded types, tagged errors, call sites
-and the call graph, per the skill.
+1. **Explore & design in conversation (normal mode).** Read
+   `/Users/tim/.pi/agent/skills/design-first/SKILL.md` and run its Phases 0–2
+   as a dialogue: explore the codebase, present findings as compact
+   summaries/inventories in messages (never as a plan file), sketch the
+   design, then grill it — ask the user decision questions, each with your
+   recommended answer. Ask about decisions only the user can make
+   (requirements, tradeoffs, what to keep vs. kill); never ask what code can
+   answer. One decision per message by default; cluster 2–3 only when they
+   genuinely touch each other.
+2. **Lock gate.** When the open-decision list is empty, propose entering plan
+   mode ("design feels locked — enter plan mode?"). Only after the user
+   confirms — or explicitly told you to skip the design conversation — call
+   `enter_plan_mode`. Never self-decide that the design is locked.
+3. **Plan mode transcribes, it does not design.** The plan file is the locked
+   design written down: interface signatures, branded types, tagged errors,
+   call sites and call graphs, per the skill. If a genuine gap surfaces while
+   writing the plan, ask about it — but new design work in plan mode should
+   be the exception, not the norm.
+
+Trivial one-line fixes, pure questions, and exploration-only requests need
+neither the conversation nor plan mode. If `enter_plan_mode` is unavailable,
+present the plan as a normal message and wait for approval before
+implementing.
+
+**Small, already-designed work skips plan mode too.** If the task is small in
+blast radius (light UI tweaks, small config/setup changes, a handful of
+files) AND the design conversation already ran its course with no open
+decisions left, don't propose plan mode — state the concrete steps you're
+about to take in one short message and go straight to implementing. This is
+not a size exemption from designing out loud; it's an exemption from the
+plan-file ceremony once that design work is already done. If any open
+question remains, or the change fans out across services/layers/contracts,
+fall back to the plan-mode gate.
+
+Skill descriptions in the system prompt are advisory and unreliable as
+triggers — treat THIS instruction as the trigger for design-first.
 
 ## Command discipline
 

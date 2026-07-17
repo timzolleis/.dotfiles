@@ -1,19 +1,17 @@
 {
-  "lastChangelogVersion": "0.80.6",
+  "lastChangelogVersion": "0.80.10",
   "theme": "dark",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-fable-5",
-  "defaultThinkingLevel": "xhigh",
+  "defaultThinkingLevel": "high",
   "packages": [
-    "npm:@gotgenes/pi-anthropic-auth",
     "npm:@plannotator/pi-extension",
     "npm:pi-web-access",
-    "npm:pi-mcp-adapter",
-    "git:github.com/jnsahaj/trio"
+    "npm:pi-anthropic-oauth"
   ],
   "warnings": {
     "anthropicExtraUsage": false
   },
-  "showCacheMissNotices": false,
+  "showCacheMissNotices": true,
   "quietStartup": true
 }
