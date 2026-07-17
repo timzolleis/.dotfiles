@@ -7,6 +7,10 @@ description: Interface-first engineering loop. Design the interfaces, call sites
 
 A solid, agreed-upon design is the product of this skill. Implementation is a downstream, mechanical step. **Never write implementation code before the design is locked and tests exist against it.** When the design turns out wrong, rewind and redesign — do not polish a flawed shape.
 
+## Harness integration — where each phase lives
+
+Phases 0–2 are a **conversation in normal mode**, not a plan-file exercise. Exploration findings, design sketches, and grilling questions go into chat messages the user can respond to — never into a plan document. Plan mode (`enter_plan_mode` / plannotator) is entered only at the **lock gate**: when the open-decision list is empty, propose "design feels locked — enter plan mode?" and wait for the user's confirmation. Never enter plan mode as a first reaction to a task, and never self-decide the design is locked. Inside plan mode the plan file *transcribes* the locked design; if a genuine gap surfaces while writing it, ask — but plan-mode design work is the exception. Phase 3 (tests) and Phase 4 (implementation) begin only after the plan is approved.
+
 The output that matters is a **concise interface spec in TypeScript pseudocode**: service interfaces, branded domain types, tagged errors, the call graph, seams, adapters, and layer composition. Signatures and wiring — no implementation bodies — until the design is locked.
 
 ## Vocabulary (use these words exactly)
@@ -56,7 +60,7 @@ Keep it tight — signatures and wiring, not prose.
 
 This phase is where the value is — spend time here. Iterate until the user explicitly approves.
 
-- **Grill the design relentlessly.** Walk each branch of the design tree, resolving dependencies between decisions one at a time. Ask questions **one at a time**, and for each give your recommended answer. If a question can be answered by reading the codebase, read it instead of asking.
+- **Grill the design relentlessly.** Walk each branch of the design tree, resolving dependencies between decisions one at a time. Default to **one decision per message**, each with your recommended answer; cluster 2–3 questions only when they genuinely touch each other (e.g. "delete X — and if so, where does its logic move?"). Never dump the full question list as a survey. Ask only decisions the user must make — requirements, tradeoffs, what to keep vs. kill; if a question can be answered by reading the codebase, read it instead of asking.
 - **Invite line-anchored feedback** on the spec and fold it in. After any substantive change, re-output the full revised spec so the user is always reviewing the current shape, not a diff in their head.
 - **Pressure-test against the vocabulary:** Is each module deep? Is every seam justified by ≥2 adapters (one usually the in-memory test adapter)? Does each error channel name real, distinct failure modes? Would deleting any module concentrate complexity (good) or just move it (cut it)?
 - **Record load-bearing decisions** — and the alternatives you rejected and why — so they aren't re-litigated.

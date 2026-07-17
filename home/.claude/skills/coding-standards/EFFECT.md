@@ -66,7 +66,9 @@ unchanged. Class form (note the flipped arg order):
 - `Service.layerMemory` — in-memory adapter; **only add when a test concretely needs it**, never speculatively.
 - `Service.layerFromEnv` — built from environment config (only where needed).
 
-Wired production compositions belong on the class as `layerLive`, not as standalone `<Name>Live` exported consts (legacy form — migrate on touch). This naming is unchanged under **[v4]**.
+Wired production compositions belong on the class as `layerLive`, not as standalone `<Name>Live` exported consts (legacy form — migrate on touch).
+
+**[v4]** The names invert to match Effect v4 upstream: the bare `layer` becomes the fully-wired production composition (`R = never`), and the raw implementation with deps in `R` is renamed `layerNoDeps`. So v3 `layer`→ v4 `layerNoDeps`, v3 `layerLive`→ v4 `layer`; `layerMemory`/`layerFromEnv` are unchanged (test/env variants may also use `layerTest`/`layerConfig`).
 
 **Testing-seam pattern — pick based on where the logic lives:**
 1. **Logic is in X, dependency is external** → test X's real `.layer`, providing a `layerMemory` or `Layer.succeed` stub for its *dependency*. Don't stub X itself.
@@ -189,7 +191,7 @@ in v3, `Schema.toArbitrary(schema)` **[v4]** — rather than assuming one form.
 - **"Effect is present somewhere, so all new code must use Effect."** Only use this file for responsibilities that depend on Effect-specific semantics or established Effect architecture.
 - **"Effect lets failures die."** Expected failures stay in the typed error channel.
 - **"`Effect.Service` is fine for new modules."** It is legacy; new/changed dependency-bearing modules use the `Context.Tag` interface-first form (collapsing to `Context.Service` under v4).
-- **"Any Layer shape is fine."** Follow the `layer` / `layerLive` / `layerMemory` / `layerFromEnv` naming and keep resource ownership explicit.
+- **"Any Layer shape is fine."** Follow the `layer` / `layerLive` / `layerMemory` / `layerFromEnv` naming (v4: `layerNoDeps` / `layer` / …, per the Layer naming section) and keep resource ownership explicit.
 - **"Version-specific examples are universal."** Check the installed Effect version before applying **[v4]** guidance.
 
 ## [v4] migration appendix — apply only on `effect@4`
