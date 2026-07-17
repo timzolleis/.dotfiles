@@ -27,18 +27,18 @@ hdr()  { echo -e "\n${BOLD}${BLUE}==>${RESET} ${BOLD}$1${RESET}"; }
 # Links whose *target* is another stowed file — stow can't express these.
 # Format: "<link relative to ~>:<target relative to ~>"
 readonly EXTRA_LINKS=(
-    ".pi/agent/APPEND_SYSTEM.md:.claude/CLAUDE.md"
-    ".pi/agent/skills/coding-standards:.claude/skills/coding-standards"
-    ".pi/agent/skills/commit:.claude/skills/commit"
-    ".pi/agent/skills/design-first:.claude/skills/design-first"
-    ".pi/agent/skills/handoff:.claude/skills/handoff"
-    ".pi/agent/skills/improve-codebase-architecture:.claude/skills/improve-codebase-architecture"
-    ".pi/agent/skills/make-interfaces-feel-better:.claude/skills/make-interfaces-feel-better"
-    ".pi/agent/skills/pr:.claude/skills/pr"
-    ".pi/agent/skills/prune-agent-docs:.claude/skills/prune-agent-docs"
-    ".pi/agent/skills/standards-review:.claude/skills/standards-review"
-    ".pi/agent/skills/tdd:.claude/skills/tdd"
-    ".pi/agent/skills/tech-spec:.claude/skills/tech-spec"
+    ".pi/agent/APPEND_SYSTEM.md:.agents/AGENTS.md"
+    ".pi/agent/skills/coding-standards:.agents/skills/coding-standards"
+    ".pi/agent/skills/commit:.agents/skills/commit"
+    ".pi/agent/skills/design-first:.agents/skills/design-first"
+    ".pi/agent/skills/handoff:.agents/skills/handoff"
+    ".pi/agent/skills/improve-codebase-architecture:.agents/skills/improve-codebase-architecture"
+    ".pi/agent/skills/make-interfaces-feel-better:.agents/skills/make-interfaces-feel-better"
+    ".pi/agent/skills/pr:.agents/skills/pr"
+    ".pi/agent/skills/prune-agent-docs:.agents/skills/prune-agent-docs"
+    ".pi/agent/skills/standards-review:.agents/skills/standards-review"
+    ".pi/agent/skills/tdd:.agents/skills/tdd"
+    ".pi/agent/skills/tech-spec:.agents/skills/tech-spec"
 )
 
 # Paths that must never be committed (secret-guard, checked by `dot doctor`).

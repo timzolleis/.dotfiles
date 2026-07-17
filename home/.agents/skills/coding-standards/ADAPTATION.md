@@ -12,11 +12,11 @@ changes — re-apply the deltas below if you do.
 - **Effect version.** `EFFECT.md` is now **v3-authoritative** (every repo here is `effect@3.21.x`)
   with v4 deltas labeled `**[v4]**` for the planned migration, instead of v4-beta-only.
 - **Service form settled.** `EFFECT.md` now mandates `Context.Tag` (interface-first) for new/changed
-  modules and marks `Effect.Service` as legacy — matching the global `~/.claude/CLAUDE.md`. Upstream
+  modules and marks `Effect.Service` as legacy — matching the global `~/.agents/AGENTS.md`. Upstream
   left this an open "known gap."
 - **Layer naming settled.** `layer` (deps in `R`) / `layerLive` (fully-wired production, `R = never`) / `layerMemory` / `layerFromEnv`. Standalone `<Name>Live` consts are the legacy form of the wired layer.
 - **Tagged errors.** `Schema.TaggedError` (v3) / `Schema.TaggedErrorClass` (v4), not v4-only.
-- **v4 migration appendix.** The v4 deltas that used to live in `~/.claude/CLAUDE.md` (packages/imports,
+- **v4 migration appendix.** The v4 deltas that used to live in the global agents file (packages/imports,
   catch renames, HttpApi config-object shape, middleware, `toWebHandler`, `Context.Reference`, layer
   memoization, `Runtime` removal) were consolidated into `EFFECT.md`'s appendix so the always-loaded
   global file stays lean. Cloudflare-specific notes (`@effect/sql-d1` + drizzle) were dropped per the

@@ -42,7 +42,7 @@ Trivial changes (a one-line fix, a rename, a config tweak) are exempt — don't 
 
 ## Effect-TS conventions (apply in every Effect codebase)
 
-The full standard lives in the **`coding-standards`** skill (`~/.claude/skills/coding-standards/`) — load the topic files matching what you touch (`EFFECT.md`, `TESTING_AND_VERIFICATION.md`, `DOMAIN_MODELING.md`, `ERROR_HANDLING.md`, …) whenever working on TypeScript or Effect code. This section is only the headline rules that must hold even when the skill isn't loaded.
+The full standard lives in the **`coding-standards`** skill (`~/.agents/skills/coding-standards/`) — load the topic files matching what you touch (`EFFECT.md`, `TESTING_AND_VERIFICATION.md`, `DOMAIN_MODELING.md`, `ERROR_HANDLING.md`, …) whenever working on TypeScript or Effect code. This section is only the headline rules that must hold even when the skill isn't loaded.
 
 Every repo is on **Effect v3**. Persistence default is **Prisma**; the deployment runtime is deferred to each repo's local CLAUDE.md. **Effect v4** deltas live in the skill's `EFFECT.md` (inline `[v4]` notes + the migration appendix) — apply them only in a codebase actually on `effect@4`.
 
