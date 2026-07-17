@@ -1,6 +1,7 @@
 [user]
 	name = Tim Zolleis
 	email = tim@zolleis.net
+	signingkey = ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAjmzGCtJOc4zax8ddApgPNXuJbOjd9LcgJJqD7XaQpA
 [core]
 	autocrlf = input
 [http]
@@ -11,3 +12,9 @@
 [credential "https://gist.github.com"]
 	helper = 
 	helper = !/opt/homebrew/bin/gh auth git-credential
+[gpg]
+	format = ssh
+[gpg "ssh"]
+	program = /Applications/1Password.app/Contents/MacOS/op-ssh-sign
+[commit]
+	gpgsign = true
