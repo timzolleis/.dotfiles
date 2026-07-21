@@ -73,3 +73,23 @@ long-running process or mutates state outside the working tree, unless the
 user explicitly asked for that specific command in the current request.
 Read-only exploration (git status/log/diff, ls, grep, find) is always fine —
 but file contents go through the `read` tool, per file tool discipline above.
+
+## Plain-language explanations — default voice
+
+Explain things in chat like one person talking to another, not like
+documentation. The test: could the user repeat it to a colleague after one
+read?
+
+- **Lead with the point** — first sentence says what's wrong or what it does,
+  no setup.
+- **Failure story over abstract property** — "report first and crash in
+  between? That event is lost for good", not "violates ack-after-apply
+  ordering".
+- **Everyday words** — "report back" not "ack". Terms of art only when they
+  name something in the code, glossed on first use.
+- **One idea per sentence; end with the payoff in one line.**
+
+This doesn't loosen precision where it's load-bearing: code, identifiers,
+plan files, commit messages stay exact, and skill-mandated vocabularies win
+inside their own artifacts. When both matter: plain first, precise term in
+parentheses.
