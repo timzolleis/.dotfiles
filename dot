@@ -23,24 +23,6 @@ warn() { echo -e "${YELLOW}⚠${RESET} $1"; }
 err()  { echo -e "${RED}✗${RESET} $1" >&2; }
 hdr()  { echo -e "\n${BOLD}${BLUE}==>${RESET} ${BOLD}$1${RESET}"; }
 
-# ─── Extra links ─────────────────────────────────────────────────────────────
-# Links whose *target* is another stowed file — stow can't express these.
-# Format: "<link relative to ~>:<target relative to ~>"
-readonly EXTRA_LINKS=(
-    ".pi/agent/APPEND_SYSTEM.md:.agents/AGENTS.md"
-    ".pi/agent/skills/coding-standards:.agents/skills/coding-standards"
-    ".pi/agent/skills/commit:.agents/skills/commit"
-    ".pi/agent/skills/design-first:.agents/skills/design-first"
-    ".pi/agent/skills/handoff:.agents/skills/handoff"
-    ".pi/agent/skills/improve-codebase-architecture:.agents/skills/improve-codebase-architecture"
-    ".pi/agent/skills/make-interfaces-feel-better:.agents/skills/make-interfaces-feel-better"
-    ".pi/agent/skills/pr:.agents/skills/pr"
-    ".pi/agent/skills/prune-agent-docs:.agents/skills/prune-agent-docs"
-    ".pi/agent/skills/standards-review:.agents/skills/standards-review"
-    ".pi/agent/skills/tdd:.agents/skills/tdd"
-    ".pi/agent/skills/tech-spec:.agents/skills/tech-spec"
-)
-
 # Paths that must never be committed (secret-guard, checked by `dot doctor`).
 readonly FORBIDDEN_TRACKED='(^|/)(auth\.json|mcp-oauth|sessions|run-history\.jsonl|mcp-cache\.json|node_modules)'
 
@@ -53,16 +35,6 @@ cmd_stow() {
     hdr "Stowing home/ → ~"
     stow --dir "$DOTFILES_DIR" --target "$HOME" --restow --no-folding home
     ok "stowed"
-
-    hdr "Extra links"
-    local entry link target
-    for entry in "${EXTRA_LINKS[@]}"; do
-        link="${HOME}/${entry%%:*}"
-        target="${HOME}/${entry##*:}"
-        mkdir -p "$(dirname "$link")"
-        ln -sfn "$target" "$link"
-        ok "${entry%%:*} → ${entry##*:}"
-    done
 }
 
 # ─── doctor ──────────────────────────────────────────────────────────────────
@@ -88,18 +60,6 @@ cmd_doctor() {
         fi
     done < <(find "$DOTFILES_DIR/home" -type f)
     [[ $failures -eq 0 ]] && ok "all stowed files resolve"
-
-    hdr "Extra links"
-    local entry
-    for entry in "${EXTRA_LINKS[@]}"; do
-        link="${HOME}/${entry%%:*}"
-        if [[ -L "$link" && -e "$link" ]]; then
-            ok "${entry%%:*}"
-        else
-            err "${entry%%:*} broken or missing"
-            ((failures++))
-        fi
-    done
 
     hdr "Secret guard"
     local tracked

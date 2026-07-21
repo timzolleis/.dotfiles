@@ -27,7 +27,6 @@ home/            # mirrored to ~ via `stow --no-folding`
 ## How it works
 
 - `stow --no-folding` symlinks **individual files** from `home/` into `~`. Runtime dirs (`~/.pi/agent/sessions`, `npm/`, `auth.json`, …) stay as real files outside the repo — secrets structurally can't end up here.
-- `dot stow` also maintains links stow can't express: `~/.pi/agent/APPEND_SYSTEM.md → ~/.agents/AGENTS.md` and `~/.pi/agent/skills/* → ~/.agents/skills/*`.
 - pi's extensions from npm/git (plannotator, pi-web-access, …) are **not** checked in — `home/.pi/agent/settings.json`'s `packages` list is the manifest; pi reinstalls them on first run. Same for the `plannotator-*` skills.
 - `dot doctor` verifies tools, symlink health, and fails if any secret/runtime file is ever tracked by git.
 
