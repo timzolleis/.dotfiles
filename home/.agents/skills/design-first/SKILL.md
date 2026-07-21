@@ -48,7 +48,7 @@ Produce a **concise** TS-pseudocode spec — the artifact the user reviews. Incl
 3. **Tagged errors** — one `Schema.TaggedError` per failure mode, listed in each method's error channel.
 4. **Call sites** — how a caller actually uses it: `const catalog = yield* LinkCatalog`.
 5. **Call graph (MANDATORY — every design has one before implementation)** — production *and* test, top to bottom, showing each seam and the adapter behind it. This is the item most easily deferred into a "consolidation later" that never delivers, so treat it as non-optional: a spec without both call graphs is **incomplete and cannot be locked**. Draw it early, not at the end — it grounds the grilling in *who actually calls what* instead of abstract reasoning, and it's where you discover missing seams, wrong fibers, and adapters with no second implementation. Show the seam→adapter pair at each node so the "two adapters = real seam" check is concrete.
-6. **Layer composition** — `Service.layer` (prod default), `Service.layerMemory` (in-memory test/dev adapter), `Service.layerFromEnv` (env-built) where needed. **No `Live` suffix.**
+6. **Layer composition** — `Service.layer` (prod default), plus test/dev adapters (in-memory layer, real-infrastructure test layer) and `Service.layerFromEnv` (env-built) where the design calls for them. **No `Live` suffix.**
 
 Keep it tight — signatures and wiring, not prose.
 
@@ -62,7 +62,7 @@ This phase is where the value is — spend time here. Iterate until the user exp
 
 - **Grill the design relentlessly.** Walk each branch of the design tree, resolving dependencies between decisions one at a time. Default to **one decision per message**, each with your recommended answer; cluster 2–3 questions only when they genuinely touch each other (e.g. "delete X — and if so, where does its logic move?"). Never dump the full question list as a survey. Ask only decisions the user must make — requirements, tradeoffs, what to keep vs. kill; if a question can be answered by reading the codebase, read it instead of asking.
 - **Invite line-anchored feedback** on the spec and fold it in. After any substantive change, re-output the full revised spec so the user is always reviewing the current shape, not a diff in their head.
-- **Pressure-test against the vocabulary:** Is each module deep? Is every seam justified by ≥2 adapters (one usually the in-memory test adapter)? Does each error channel name real, distinct failure modes? Would deleting any module concentrate complexity (good) or just move it (cut it)?
+- **Pressure-test against the vocabulary:** Is each module deep? Is every seam justified by ≥2 adapters (often — not necessarily — an in-memory test adapter)? Does each error channel name real, distinct failure modes? Would deleting any module concentrate complexity (good) or just move it (cut it)?
 - **Record load-bearing decisions** — and the alternatives you rejected and why — so they aren't re-litigated.
 
 **Lock gate — before asking for sign-off, confirm the spec contains:** the service interface(s), domain types, tagged errors, call sites, **both the production and test call graphs**, and layer composition. If any is missing — most often the call graphs — the design is not ready to lock. **Do not advance to Phase 3 until the user signs off on a complete spec.**
@@ -72,7 +72,7 @@ This phase is where the value is — spend time here. Iterate until the user exp
 The locked interface is the test surface.
 - Write behavior tests that exercise the **public interface only** — they should read like a specification ("operator can retarget an existing alias") and survive any internal refactor. Never test private functions or internal structure.
 - **Vertical tracer-bullet slices:** one failing test → minimal code to pass → repeat. Never write all tests first (bulk tests verify imagined behavior and test shape, not behavior).
-- For Effect codebases: `@effect/vitest`, `it.effect`, **`assert` not `expect`**; drive the seam under test through its `layerMemory` adapter — no `vi.mock` / `vi.spyOn`. Validate response shapes with the same boundary schema the handler uses.
+- For Effect codebases: `@effect/vitest`, `it.effect`, **`assert` not `expect`**; drive the seam under test through a real layer — an in-memory adapter or a real-infrastructure integration layer (e.g. a test database), whichever the design chose — no `vi.mock` / `vi.spyOn`. Validate response shapes with the same boundary schema the handler uses.
 
 ### Phase 4 — Implement to green
 
