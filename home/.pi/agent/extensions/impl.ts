@@ -4,19 +4,24 @@
  * Workflow:
  *   1. During exploration, when context feels right: /impl-mark
  *      (labels the current leaf "pre-plan" — the rewind target)
- *   2. Do the socratic/planning dance, iterate with /plannotator-last
- *      until the plan is finalized (it need not be the last message).
- *   3. /impl [extra focus...] — an LLM extraction pass locates the
- *      finalized plan in the planning segment and returns it verbatim
- *      (folding in any revisions from annotation rounds). Then pi rewinds
- *      to the "pre-plan" entry: the exploration branch is model-summarized,
- *      and the extracted plan is attached untouched as a custom message.
+ *   2. Do the socratic/planning dance; write the finalized plan to
+ *      plans/<name>.md (Plannotator does this on submit).
+ *   3. /impl [name-or-focus...] — reads the plan from plans/*.md, rewinds to
+ *      the "pre-plan" entry (the exploration branch is model-summarized), and
+ *      attaches the plan file's contents untouched as a custom message.
+ *
+ * Plan selection: bare /impl uses the most-recently-modified plans/*.md. An
+ * arg that resolves to a file (plans/<arg>.md, plans/<arg>, or <arg>) selects
+ * that plan; any other arg is treated as extra focus for the summarizer.
  */
 
-import { complete } from "@earendil-works/pi-ai/compat";
+import { promises as fs } from "node:fs";
+import { basename, isAbsolute, resolve } from "node:path";
 import type { ExtensionAPI, ExtensionCommandContext } from "@earendil-works/pi-coding-agent";
+import { BorderedLoader } from "@earendil-works/pi-coding-agent";
 
 const MARK_LABEL = "pre-plan";
+const PLANS_DIR = "plans";
 
 const EXPLORATION_FOCUS = `
 This branch was a planning session. The finalized implementation plan is
@@ -34,81 +39,72 @@ Summarize only the supporting context an implementer needs alongside that plan:
 Omit conversational back-and-forth. The reader has no other context beyond
 this summary and the verbatim plan.`.trim();
 
-const EXTRACTION_PROMPT = `
-The conversation below is a planning session for a software change. Somewhere
-in it, the assistant produced an implementation plan, possibly revised across
-several messages in response to review feedback (annotations).
+type SelectedPlan = { path: string; content: string };
 
-Your job is EXTRACTION, not summarization:
-
-- Locate the finalized implementation plan.
-- Return it VERBATIM — exact wording, structure, file paths, code, and
-  interface signatures. Do not compress, reorder, rephrase, or "improve" it.
-- If the plan was revised across messages, reconstruct the final authoritative
-  version: start from the most complete plan statement and apply only the
-  later agreed revisions, keeping original wording wherever unchanged.
-- Output ONLY the plan text. No preamble, no commentary, no code fences
-  around the whole output.
-- If you cannot find anything resembling an implementation plan, output
-  exactly: NO_PLAN_FOUND`.trim();
-
-type TextBlock = { type: "text"; text: string };
-
-const isTextBlock = (block: unknown): block is TextBlock =>
-	typeof block === "object" && block !== null &&
-	(block as TextBlock).type === "text" && typeof (block as TextBlock).text === "string";
-
-const entryText = (entry: { type: string; message?: { role?: string; content?: unknown } }): string => {
-	if (entry.type !== "message" || !entry.message) return "";
-	const { content } = entry.message;
-	if (typeof content === "string") return content;
-	if (!Array.isArray(content)) return "";
-	return content.filter(isTextBlock).map((block) => block.text).join("\n");
+const readFileIfExists = async (path: string): Promise<string | undefined> => {
+	try {
+		const stat = await fs.stat(path);
+		if (!stat.isFile()) return undefined;
+		return await fs.readFile(path, "utf8");
+	} catch {
+		// ENOENT / EISDIR — treat any access failure as "not a plan file here".
+		return undefined;
+	}
 };
 
-const extractPlan = async (
-	planningSegmentText: string,
-	ctx: ExtensionCommandContext,
-): Promise<string | undefined> => {
-	const model = ctx.model;
-	if (!model) {
-		ctx.ui.notify("No model selected — cannot extract plan", "error");
-		return undefined;
+/**
+ * Resolve which plan file to use. If `arg` names an existing file (as
+ * plans/<arg>.md, plans/<arg>, or <arg> relative to cwd), that plan is chosen
+ * and no extra focus is carried. Otherwise the plan is the most-recently-
+ * modified plans/*.md and `arg` (if any) becomes summarizer focus.
+ */
+const selectPlan = async (
+	arg: string,
+	cwd: string,
+): Promise<
+	| { ok: true; plan: SelectedPlan; extraFocus: string }
+	| { ok: false; error: string }
+> => {
+	const plansDir = resolve(cwd, PLANS_DIR);
+
+	if (arg) {
+		const candidates = [
+			resolve(plansDir, `${arg}.md`),
+			resolve(plansDir, arg),
+			isAbsolute(arg) ? arg : resolve(cwd, arg),
+		];
+		for (const candidate of candidates) {
+			const content = await readFileIfExists(candidate);
+			if (content !== undefined) {
+				return { ok: true, plan: { path: candidate, content }, extraFocus: "" };
+			}
+		}
 	}
 
-	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
-	if (!auth.ok || !auth.apiKey) {
-		ctx.ui.notify(`No credentials for ${model.id} — cannot extract plan`, "error");
-		return undefined;
+	let names: string[];
+	try {
+		names = await fs.readdir(plansDir);
+	} catch {
+		return { ok: false, error: `No ${PLANS_DIR}/ directory in ${cwd}` };
 	}
 
-	const response = await complete(
-		model,
-		{
-			messages: [
-				{
-					role: "user" as const,
-					content: [
-						{
-							type: "text" as const,
-							text: `<conversation>\n${planningSegmentText}\n</conversation>\n\n${EXTRACTION_PROMPT}`,
-						},
-					],
-					timestamp: Date.now(),
-				},
-			],
-		},
-		{ apiKey: auth.apiKey, headers: auth.headers, env: auth.env },
+	const mdFiles = names.filter((name) => name.endsWith(".md"));
+	if (mdFiles.length === 0) {
+		return { ok: false, error: `No ${PLANS_DIR}/*.md plan files in ${cwd}` };
+	}
+
+	const withMtime = await Promise.all(
+		mdFiles.map(async (name) => {
+			const path = resolve(plansDir, name);
+			const stat = await fs.stat(path);
+			return { path, mtimeMs: stat.mtimeMs };
+		}),
 	);
+	withMtime.sort((a, b) => b.mtimeMs - a.mtimeMs);
+	const chosen = withMtime[0];
+	const content = await fs.readFile(chosen.path, "utf8");
 
-	const plan = response.content
-		.filter(isTextBlock)
-		.map((block) => block.text)
-		.join("\n")
-		.trim();
-
-	if (!plan || plan === "NO_PLAN_FOUND") return undefined;
-	return plan;
+	return { ok: true, plan: { path: chosen.path, content }, extraFocus: arg };
 };
 
 export default function (pi: ExtensionAPI) {
@@ -134,8 +130,8 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.registerCommand("impl", {
-		description: `Rewind to "${MARK_LABEL}": exploration summarized, plan extracted verbatim (args: extra focus)`,
-		handler: async (args, ctx) => {
+		description: `Rewind to "${MARK_LABEL}": exploration summarized, plan read from ${PLANS_DIR}/*.md (args: plan name or extra focus)`,
+		handler: async (args: string, ctx: ExtensionCommandContext) => {
 			const branch = ctx.sessionManager.getBranch();
 			const markIndex = branch.findIndex(
 				(entry) => ctx.sessionManager.getLabel(entry.id) === MARK_LABEL,
@@ -153,44 +149,47 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			// Only user/assistant text after the mark: the planning segment. Tool
-			// output is exploration noise for extraction and blows the budget.
-			const planningSegmentText = branch
-				.slice(markIndex + 1)
-				.filter((entry) => entry.type === "message")
-				.map((entry) => {
-					const role = (entry as { message: { role: string } }).message.role;
-					if (role !== "user" && role !== "assistant") return "";
-					const text = entryText(entry).trim();
-					return text ? `${role === "user" ? "User" : "Assistant"}: ${text}` : "";
-				})
-				.filter(Boolean)
-				.join("\n\n");
-
-			if (!planningSegmentText) {
-				ctx.ui.notify("Nothing after the mark to extract a plan from", "error");
+			const selection = await selectPlan(args.trim(), ctx.cwd);
+			if (!selection.ok) {
+				ctx.ui.notify(`${selection.error} — aborting rewind`, "error");
 				return;
 			}
+			const { plan, extraFocus } = selection;
+			ctx.ui.notify(`Using ${basename(plan.path)}`, "info");
 
-			ctx.ui.notify("Extracting finalized plan…", "info");
-			const plan = await extractPlan(planningSegmentText, ctx);
-			if (!plan) {
-				ctx.ui.notify("No implementation plan found in the planning segment — aborting rewind", "error");
-				return;
-			}
-
-			const extraFocus = args.trim();
 			const customInstructions = extraFocus
 				? `${EXPLORATION_FOCUS}\n\nAdditional focus: ${extraFocus}`
 				: EXPLORATION_FOCUS;
 
-			const result = await ctx.navigateTree(target.id, {
-				summarize: true,
-				customInstructions,
-				replaceInstructions: false,
-				label: "impl-briefing",
+			// navigateTree with summarize runs a full LLM call over the abandoned
+			// branch; the extension bridge shows no indicator, so we wrap it in a
+			// focus-holding loader (blocks the editor for the duration). Not
+			// cancellable: abortBranchSummary() isn't exposed to extensions.
+			const result = await ctx.ui.custom<
+				{ cancelled: boolean } | { error: unknown }
+			>((tui, theme, _keybindings, done) => {
+				const loader = new BorderedLoader(
+					tui,
+					theme,
+					`Summarizing exploration branch (LLM call), then rewinding to "${MARK_LABEL}"...`,
+					{ cancellable: false },
+				);
+				ctx
+					.navigateTree(target.id, {
+						summarize: true,
+						customInstructions,
+						replaceInstructions: false,
+						label: "impl-briefing",
+					})
+					.then(done, (error) => done({ error }));
+				return loader;
 			});
 
+			if ("error" in result) {
+				const message = result.error instanceof Error ? result.error.message : String(result.error);
+				ctx.ui.notify(`Rewind failed: ${message}`, "error");
+				return;
+			}
 			if (result.cancelled) {
 				ctx.ui.notify("Rewind cancelled — plan not carried over", "warning");
 				return;
@@ -200,7 +199,7 @@ export default function (pi: ExtensionAPI) {
 			pi.sendMessage(
 				{
 					customType: "impl-plan",
-					content: `Finalized implementation plan (human-reviewed, authoritative — follow exactly):\n\n${plan}`,
+					content: `Finalized implementation plan (human-reviewed, authoritative — follow exactly):\n\n${plan.content}`,
 					display: true,
 				},
 				{ deliverAs: "nextTurn" },
