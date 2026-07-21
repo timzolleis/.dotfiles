@@ -1,3 +1,5 @@
+# personal scripts
+export PATH="$HOME/bin:$PATH"
 
 # fnm
 FNM_PATH="/opt/homebrew/opt/fnm/bin"

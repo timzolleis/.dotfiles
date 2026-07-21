@@ -1,0 +1,151 @@
+#!/usr/bin/env bash
+#
+# ports — list listening TCP ports with process (and, for Node, project) info
+
+VERSION="1.3.0"
+
+# ANSI-C quoting embeds the real escape byte, so plain echo/printf render it
+# without depending on -e semantics (which bash's echo builtin doesn't apply
+# by default).
+readonly RED=$'\033[0;31m' GREEN=$'\033[0;32m' BOLD=$'\033[1m' DIM=$'\033[2m' RESET=$'\033[0m'
+readonly SEP=$'\x1f' # unit separator: safe delimiter for the collected rows
+
+show_help() {
+  cat <<'EOF'
+Usage: ports [options]
+       ports bye <port>
+
+Show listening ports with process info
+
+Commands:
+  bye <port>     Kill process running on specified port
+
+Options:
+  -u, --user     Show only user-started processes (with project path)
+  -h, --help     Show this help message
+  -v, --version  Show version
+EOF
+}
+
+kill_port() {
+  local port=$1
+
+  if [[ -z "$port" ]]; then
+    echo "${RED}Error: Please specify a port number${RESET}"
+    echo "Usage: ports bye <port>"
+    exit 1
+  fi
+
+  local pid
+  pid=$(lsof -ti "TCP:${port}" -sTCP:LISTEN 2>/dev/null)
+  if [[ -z "$pid" ]]; then
+    echo "${RED}No process found on port ${port}${RESET}"
+    exit 1
+  fi
+
+  local proc_name
+  proc_name=$(lsof -i "TCP:${port}" -sTCP:LISTEN 2>/dev/null | awk 'NR==2 {print $1}')
+
+  if kill -9 "$pid" 2>/dev/null; then
+    echo "${GREEN}✓ Killed ${proc_name} (PID: ${pid}) on port ${port}${RESET}"
+  else
+    echo "${RED}Failed to kill process on port ${port}. Try with sudo.${RESET}"
+    exit 1
+  fi
+}
+
+# For Node processes, resolve the package.json name + cwd so a row reads as
+# the actual project instead of an anonymous "node" interpreter.
+node_project_info() {
+  local pid=$1
+  local cwd
+  cwd=$(lsof -p "$pid" 2>/dev/null | awk '$4 == "cwd" {print $9; exit}')
+
+  if [[ -z "$cwd" || ! -f "$cwd/package.json" ]]; then
+    echo "-${SEP}-"
+    return
+  fi
+
+  local name
+  name=$(sed -n 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$cwd/package.json" | head -1)
+  echo "${name:--}${SEP}${cwd/#$HOME/~}"
+}
+
+list_ports() {
+  local user_only=$1
+  local -a rows=()
+  local seen_ports=""
+  local max_proc_len=7 # width of the "PROCESS" header
+
+  local proc pid rawport port display_path name
+  while read -r proc pid rawport; do
+    [[ -z "$proc" ]] && continue
+    port="${rawport##*:}"
+
+    # lsof lists one line per socket family (IPv4 + IPv6); keep the first per port.
+    case "$seen_ports" in
+    *":${port}:"*) continue ;;
+    esac
+    seen_ports="${seen_ports}:${port}:"
+
+    display_path="-"
+    if [[ "$proc" == "node" ]]; then
+      IFS="$SEP" read -r name display_path <<<"$(node_project_info "$pid")"
+      [[ "$name" != "-" ]] && proc="$name"
+    fi
+
+    [[ "$user_only" == true && "$display_path" == "-" ]] && continue
+
+    # lsof escapes spaces in the COMMAND column as "\x20" to keep
+    # whitespace-delimited column parsing intact; undo it for display.
+    proc="${proc//\\x20/ }"
+
+    ((${#proc} > max_proc_len)) && max_proc_len=${#proc}
+    rows+=("${port}${SEP}${proc}${SEP}${display_path}")
+  done < <(lsof +c 0 -iTCP -sTCP:LISTEN -n -P 2>/dev/null | awk 'NR > 1 {print $1, $2, $9}')
+
+  max_proc_len=$((max_proc_len + 2))
+
+  printf "${BOLD}%-8s %-${max_proc_len}s %s${RESET}\n" "PORT" "PROCESS" "PATH"
+  printf "${DIM}%-8s %-${max_proc_len}s %s${RESET}\n" "----" "-------" "----"
+
+  local row
+  for row in "${rows[@]}"; do
+    IFS="$SEP" read -r port proc display_path <<<"$row"
+    printf "%-8s %-${max_proc_len}s %s\n" "$port" "$proc" "$display_path"
+  done
+}
+
+main() {
+  if [[ "${1:-}" == "bye" ]]; then
+    kill_port "$2"
+    exit 0
+  fi
+
+  local user_only=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+    -h | --help)
+      show_help
+      exit 0
+      ;;
+    -v | --version)
+      echo "ports $VERSION"
+      exit 0
+      ;;
+    -u | --user)
+      user_only=true
+      shift
+      ;;
+    *)
+      echo "Unknown option: $1"
+      show_help
+      exit 1
+      ;;
+    esac
+  done
+
+  list_ports "$user_only"
+}
+
+main "$@"
