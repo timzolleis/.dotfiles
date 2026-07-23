@@ -64,6 +64,11 @@ fall back to the plan-mode gate.
 Skill descriptions in the system prompt are advisory and unreliable as
 triggers — treat THIS instruction as the trigger for design-first.
 
+**Plan file location.** When a plan file is written into a repository, it
+goes in `plans/<descriptive-name>.md` at the repo root — never `PLAN.md` or
+any other top-level plan file. Use a short kebab-case name describing the
+task (e.g. `plans/consent-flow-rework.md`).
+
 ## Command discipline
 
 The only project commands you may run unprompted are code formatting,
