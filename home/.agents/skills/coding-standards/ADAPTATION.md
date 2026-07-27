@@ -12,7 +12,7 @@ changes — re-apply the deltas below if you do.
 - **Effect version.** `EFFECT.md` is now **v3-authoritative** (every repo here is `effect@3.21.x`)
   with v4 deltas labeled `**[v4]**` for the planned migration, instead of v4-beta-only.
 - **Service form settled.** `EFFECT.md` now mandates `Context.Tag` (interface-first) for new/changed
-  modules and marks `Effect.Service` as legacy — matching the global `~/.agents/AGENTS.md`. Upstream
+  modules and marks `Effect.Service` as legacy — matching the global `~/.pi/agent/AGENTS.md`. Upstream
   left this an open "known gap."
 - **Layer naming settled.** `layer` (deps in `R`) / `layerLive` (fully-wired production, `R = never`) / `layerMemory` / `layerFromEnv`. Standalone `<Name>Live` consts are the legacy form of the wired layer.
 - **Tagged errors.** `Schema.TaggedError` (v3) / `Schema.TaggedErrorClass` (v4), not v4-only.
