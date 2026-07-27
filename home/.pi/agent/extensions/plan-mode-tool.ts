@@ -64,7 +64,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text" as const,
-							text: "Plan mode is now active. Read /Users/tim/.pi/agent/skills/design-first/SKILL.md and follow it. Explore the codebase, write your plan (with the locked interface spec) to a markdown file in the working directory, then submit it with plannotator_submit_plan.",
+							text: "Plan mode is now active. Explore the codebase, write your plan (with the locked interface spec) to a markdown file in the working directory, then submit it with plannotator_submit_plan.",
 						},
 					],
 					details: { phase },
