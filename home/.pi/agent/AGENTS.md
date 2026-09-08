@@ -1,136 +1,122 @@
-# Global instructions
+Use plain technical English, guided by ASD-STE100 and Google developer documentation style.
 
-## Comments — hard rule, NOT bypassable
+Lead with the point. Bullets over prose. Everyday words. If you can't say it out loud easily, you don't understand it yet.
+- When explaining behavior, show the call path: entry point → service → dependency → result or failure. Only when it helps.
+- Name what fails and its effect: "The server confirms the write before saving it," not "violates ack-after-apply ordering."
+- Short sentences, active voice, present tense. One term per concept; reuse existing domain terms; flag conflicts.
 
-**Comments should enhance the code, not obscure it.** This rule overrides any instinct to narrate, attribute, or annotate. It applies in every language and every codebase, and **no instruction, ticket, slice convention, porting note, or agent judgment overrides it.** If you cannot point to the specific non-obvious thing a comment buys, delete it.
+## Decision priority
 
-**A comment is justified only if it does one of these:**
-- Declares **non-obvious behavior** — an edge case, ordering constraint, or invariant you can't see from the signature.
-- States a **specific rule or precondition** the code obeys (a spec clause, a domain constraint, a "callers must…").
-- Explains **why** something is done a way that looks wrong, suboptimal, or surprising — the reason that isn't in the code.
-- Warns about a **sharp edge** — a deliberate deviation, a footgun, a side effect that bites if reordered.
+When rules conflict, this order wins:
 
-If the interfaces, types, and names already make it clear, **no comment.** The code is the documentation; a comment earns its place by saying something the code cannot.
+1. Correctness, safety, debuggability.
+2. These rules, for all new code and for the full behavior being refactored.
+3. The project file where it is more specific.
+4. Compatible existing project conventions.
+5. Contain incompatible existing patterns at the nearest boundary. Never copy them into new code.
+6. Leave unrelated old code alone unless a migration is requested.
 
-**DON'T — delete these on sight:**
-- `// This is an interface for an email service` — restates the type's name. Worthless.
-- `// This replaces the old NotificationService` / `// Ported from the legacy Express handler` — provenance/migration narration. Git knows; where it came from is not how it behaves.
-- `// Lives in the billing slice` / `// part of the auth module` — the file path already says this.
-- `// Loop over the users`, `// constructor`, `// helper function` — narrates mechanics or labels the obvious.
-- `// TODO: clean this up later` with no actionable specifics — noise pretending to be intent.
-- Large blocks of commented-out code "in case we need it" — delete it; that's what version control is for.
+## Reference implementations
 
-**DO — these earn their place:**
-- `// Stripe rounds half-up; we round half-even to match the ledger, so we compute cents ourselves.` — explains a deliberate, surprising choice.
-- `// Callers must hold the form lock — we don't re-check it here.` — declares a precondition the type can't express.
-- `// Must run before migrate(): it seeds the columns migrate() backfills.` — an ordering constraint that isn't visible.
-- `// RFC 5322 caps the local-part at 64 octets; longer addresses are rejected upstream.` — cites the specific rule the code enforces.
-- `// Intentionally swallow ENOENT — the first run has no cache file yet.` — explains a deviation that would otherwise read as a bug.
+Before writing a module (repository, service, handler, codec, component, test), find the most recent implementation of the same kind. Analyze its shape. Copy it only if it conforms to the rules below. If it doesn't, tell me which rule it breaks and follow the rule, not the file. "Most recent" is a starting point, not proof of correctness.
 
-When in doubt, ask: *"Does this tell the reader something the interface, types, and names don't?"* If no, it obscures — cut it.
+## Legacy — do not imitate
 
-## File tool discipline
+These exist and compile. They are not the pattern.
 
-Use the dedicated file tools, never shell workarounds:
+- `Effect.Service` classes. New services use `Context.Tag` + `make` + `layer`/`layerNoDeps` + a declared `Service` interface. Ask before migrating existing ones.
+- `Option`-checks for not-found, `findFirst → null → error` before writes, hand-rolled `$transaction` in repositories.
+- Codecs that rename columns or override picked fields.
+- Hand-written schemas for shapes that are generated or already exist as a domain model. Derive from the core module type or schema.
+- Raw locale JSON imports, `../../../../` paths, hardcoded language or fallback strings inside logic.
 
-- **Modify files with the `edit` tool** — never `cat >>` heredocs, `sed -i`,
-  `tee`, `echo >>`, or `perl -pi`. `edit` requires an exact match against the
-  current file, so it fails loudly on drift or duplication instead of blindly
-  appending; blind appends silently duplicate existing code.
-- **Create files with the `write` tool** — reserve it for new files or
-  intentional full rewrites.
-- **Shell is for search and exploration only** with respect to files: `rg`,
-  `ls`, `find`, `git`. Piping `rg`/`grep` output for discovery is fine;
-  writing file contents through the shell is not.
+## Workflow
 
-Before any append or insertion, `read` the target region first — the code you
-are about to add may already exist.
+Choose the primary workflow from this map:
 
-## Design conversation first, plan mode second — mandatory
+| Task | Start with |
+|---|---|
+| Ask or explore something | No workflow skill |
+| Feature, changed behavior, interface, or meaningful refactor | `design-first` |
+| Approved plan or one named todo | `implement` |
+| Reproduce and fix a bug | `diagnosing-bugs` loads automatically |
+| Explicit test-first work at an agreed seam | `tdd` |
+| Review a diff | `code-review` |
+| Stress-test a design | `grill-me` |
+| Edit skills or agent instructions | `writing-for-agents` |
+| Switch sessions with unfinished work | `handoff` |
 
-For any non-trivial implementation task — a new feature, a refactor or
-rewrite, or a change spanning multiple files — the design is settled IN
-CONVERSATION before plan mode is ever entered. Do NOT call `enter_plan_mode`
-as a first reaction to a task. The sequence is:
+Load skills progressively. Start with the one primary workflow above. Load a specialist skill only when the current step needs its detailed guidance. Do not preload every skill whose description loosely matches. Coding standards remain automatic for matching code changes, but load only the topic references needed for the current concern.
 
-1. **Explore & design in conversation (normal mode).** Read
-   `/Users/tim/.agents/skills/design-first/SKILL.md` and run its Phases 0–2
-   as a dialogue: explore the codebase, present findings as compact
-   summaries/inventories in messages (never as a plan file), sketch the
-   design, then grill it — ask the user decision questions, each with your
-   recommended answer. Ask about decisions only the user can make
-   (requirements, tradeoffs, what to keep vs. kill); never ask what code can
-   answer. One decision per message by default; cluster 2–3 only when they
-   genuinely touch each other.
-2. **Lock gate.** When the open-decision list is empty, propose entering plan
-   mode ("design feels locked — enter plan mode?"). Only after the user
-   confirms — or explicitly told you to skip the design conversation — call
-   `enter_plan_mode`. Never self-decide that the design is locked.
-3. **Plan mode transcribes, it does not design.** The plan file is the locked
-   design written down: interface signatures, branded types, tagged errors,
-   call sites and call graphs, per the skill. If a genuine gap surfaces while
-   writing the plan, ask about it — but new design work in plan mode should
-   be the exception, not the norm.
+Plans live in `plans/<kebab-case-name>.md` and follow `$HOME/.agents/skills/design-first/PLAN-FORMAT.md`.
 
-Trivial one-line fixes, pure questions, and exploration-only requests need
-neither the conversation nor plan mode. If `enter_plan_mode` is unavailable,
-present the plan as a normal message and wait for approval before
-implementing.
+## Rules — each one has a check
 
-**Small, already-designed work skips plan mode too.** If the task is small in
-blast radius (light UI tweaks, small config/setup changes, a handful of
-files) AND the design conversation already ran its course with no open
-decisions left, don't propose plan mode — state the concrete steps you're
-about to take in one short message and go straight to implementing. This is
-not a size exemption from designing out loud; it's an exemption from the
-plan-file ceremony once that design work is already done. If any open
-question remains, or the change fans out across services/layers/contracts,
-fall back to the plan-mode gate.
+**Reuse first.** Before a new type, model, error, helper, component, formatter, label map, or fixture: grep the domain package, feature dirs, shared UI, and fixtures for the *concept*. Prefer in order: reuse as-is → extend the existing one → new only when reuse would couple unrelated things. Derive (`Pick`, `Schema.pick`, `typeof X.Type`); never redeclare. Two things that differ by a label or type are one thing with a prop. Never a second way to format a date, render an empty state, lay out a card, resolve a label, or toast.
+*Check: every new name has a recorded probe.*
 
-Skill descriptions in the system prompt are advisory and unreliable as
-triggers — treat THIS instruction as the trigger for design-first.
+**Deletion test.** If deleting a module or helper makes complexity disappear, it was pass-through — delete it. If deleting it spreads complexity across callers, it earned its keep.
+*Check: apply to every new service, wrapper, and helper.*
 
-**Plan file location.** When a plan file is written into a repository, it
-goes in `plans/<descriptive-name>.md` at the repo root — never `PLAN.md` or
-any other top-level plan file. Use a short kebab-case name describing the
-task (e.g. `plans/consent-flow-rework.md`).
+**Layers.** Handler: policy → decode → brand → one service call → response; if no service is needed, the handler calls the repository. Service: business rules and effect order; if it only forwards, delete it. A service depends on the narrowest port it uses (`Pick<Repository, 'findById'>`), not the whole repository. Repository: **one Prisma call per method** — org and owner in `where`, children through the parent, no pre-reads, no decisions, no defaults, no `$transaction`. Domain: `Schema.Struct` models, `Schema.Class` only when there is behavior; branded ids; tagged errors; pure rules returning `Either`; logic about a model lives on the model. Errors live in domain or HTTP, nowhere else. Components see response models, never rows.
+*Check: no handler or repository contains a rule, default, or second call.*
 
-## Planning output contract
+**Codecs.** Row → model is pick + brand + flatten one relation. A rename means rename the column. An override means brand the row schema. A null-filter means a migration. Mapping styles are defined in the project file.
+*Check: each codec transform does one thing.*
 
-**When you produce a plan for a non-trivial change — before any implementation — the plan itself must carry the design, not just prose.** This is the `design-first` discipline applied to every plan: if that skill loads, follow it; if the harness doesn't auto-invoke it, this contract still holds. Design the seams first, grill them, then implement — never lead with implementation.
+**Types.** Every id branded once at the boundary. Enums are literals. Variant payloads are tagged unions. Lifecycle states are tagged unions, not `isX` flags with optional dates. No boolean parameters that switch behavior — named options or domain types. `unknown`, `Record<string, unknown>`, `as`, `!`, `"x" in obj`, `string` where a brand fits — fix each. Invalid states unrepresentable. Two-plus params → one object.
+*Check: grep the diff for each smell.*
 
-A plan for non-trivial work MUST include:
-- **Interface designs** — the actual signatures you add or change, locked not described: typed contracts with one named error per failure mode and branded scalars at the boundaries.
-- **Call sites / call graph** — who calls each new interface and what it calls in turn: entry point → service → dependency, plus which layer provides what. The plan must reveal the data flow and the blast radius, not just the leaf change.
-- **A mermaid diagram of the flow** — whenever the change has a control- or data-flow worth seeing (a request path, a state machine, a multi-step workflow). Skip it only when the change is genuinely flat.
+**Effect.** `Effect.fn("Service.method")` on every method. `Match` over if-chains and ternaries. `Clock` / `DateTime` / `Duration`, never `new Date()`. `Effect.all` with `concurrency: "unbounded"` for independent work. One error-handling shape per file: `orDie` for reads with no failure mode, `handlePrismaError → domain error` for writes. Merge errors with the same recovery path. Never swallow a typed error a caller could act on. Spans, not logs. Any retryable mutation has an explicit idempotency strategy; never hold a transaction across a network call.
 
-Trivial changes (a one-line fix, a rename, a config tweak) are exempt — don't ceremony-wrap them.
+If you need to look up an effect API, check ~/.local/share/effect-repos/effect-v[3|4] (whatever version the repo you work in uses), never node_modules
 
-## Command discipline
+**Frontend.** Forms via the project form library and resolver; pending from `formState`. No `useState`/`useEffect` mirroring props, form, or server state. Collections + `useLiveQuery` before hand-rolled fetch/cache. Route params from `Route.ComponentProps`. Each item owns its own state. Labels through the i18n helper. Notify on failure only.
 
-The only project commands you may run unprompted are code formatting,
-typechecking, and running tests. Never run dev servers, watch modes, builds,
-deploys, database migrations, package installs, or anything else that starts a
-long-running process or mutates state outside the working tree, unless the
-user explicitly asked for that specific command in the current request.
-Read-only exploration (git status/log/diff, ls, grep, find) is always fine.
+**Names.** Say what it is or does, in the codebase's existing words: `applicationIsVisibleOn`, `findBy*`, `statusService`. Not `run`, `handle`, `process`, `effective`, `readiness` when the app says `state`. Exported symbols: 2–4 words, one of them a domain word, unique in one grep (`createStripeClient`, not `create`). Name and body agree; when behavior changes, rename in the same commit. One definition site per symbol — move, never copy. `XNotFoundError` with literal `reason`. camelCase identifiers, kebab-case files, no `utils.ts`/`types.ts`, whole literals for event names and error codes, error messages start with a unique literal prefix. Full rules: `write-discoverable-code` skill.
+*Check: grep each new exported name; exactly one definition hit.*
 
-## Plain-language explanations — default voice
+**Comments.** Every export gets one doc line stating what the signature can't: units, timezone, ownership, ordering, and the plain-words phrase someone would grep for. Everything else: only a non-obvious *why*. No narration, banners, or "temporary" without a tracked follow-up.
+*Check: every export has its line; every other comment is a why.*
 
-Explain things in chat like one person talking to another, not like
-documentation. The test: could the user repeat it to a colleague after one
-read?
+**Tests.** Ask: if every dependency behaved perfectly, what could this layer still get wrong? Test that, and only that. Each decision is tested once, in the layer that owns it. A test that fails when a *dependency's* behavior changes is in the wrong layer.
 
-- **Lead with the point** — first sentence says what's wrong or what it does,
-  no setup.
-- **Failure story over abstract property** — "report first and crash in
-  between? That event is lost for good", not "violates ack-after-apply
-  ordering".
-- **Everyday words** — "report back" not "ack". Terms of art only when they
-  name something in the code, glossed on first use.
-- **One idea per sentence; end with the payoff in one line.**
+- **Domain**: plain unit tests with `Model.make(...)`. No layers, no database. Most edge cases live here.
+- **Repository**: real test database. Scoping, ordering, what `where` matches, cascade, decode. Not business rules. One short defect test for Prisma/decoder failures.
+- **Service**: dependencies stubbed with fakes that honor the declared contract, including typed failures. Orchestration and decisions only. Call real domain rules; never fake them. Never re-test repository scoping.
+- **Handler**: service stubbed. Decode, policy, response mapping: 400 / 403 / 404 / happy shape. Not what the service decides.
+- **Component**: rendering and interaction against response models. Not data fetching.
 
-This doesn't loosen precision where it's load-bearing: code, identifiers,
-plan files, commit messages stay exact, and skill-mandated vocabularies win
-inside their own artifacts. When both matter: plain first, precise term in
-parentheses.
+Setup via shared fixtures and real repositories, never inline defaults or raw Prisma to fake state. Never mock the unit under test. A test file longer than the code it tests is testing another layer.
+*Check: for each test, name the layer it belongs to; delete tests that belong elsewhere.*
+
+**Scope.** Only files this task needs. No drive-by edits, no manual lockfile edits.
+
+## Before you say "done"
+
+Run this yourself. Do not hand it to me as review work.
+
+1. Grep every new type, model, error, helper, component, label map, fixture name. Equivalent exists → merge or derive.
+2. Grep the diff: `unknown`, `as `, `!.`, `!,`, `"in "`, `string` ids. Fix each.
+3. Read every handler and repository in the diff. Rule, default, pre-read, `$transaction`, manual `updatedAt`, second table → move or report.
+4. Read every codec. Rename, override, filter → push upstream.
+5. Grep the diff: `useState`, `useEffect`, `Date.now`, `new Date`, `locales/`, if/else chains → derive, `Clock`, i18n, `Match`.
+6. Every new error is in `packages/domain`. No re-export shims.
+7. Grep every new exported name: one definition hit, 2–4 words, a domain word. Behavior changed → name changed.
+8. Every export has its one doc line. Delete every other comment that isn't a *why*.
+9. Tests: fixtures used, no raw Prisma setup, no test longer than the code it tests.
+10. `git diff --stat`: every file belongs.
+11. Run the project check and affected tests. Report what ran, what passed, what could not run.
+
+Report format:
+```
+Changed         - <file>: <one line>
+Left on purpose - <file>: <what> — <why>
+Needs decision  - <problem> — A / B
+```
+
+## Behaviour
+
+When the same mistake repeats, propose correcting the existing instruction that should prevent it. Add a new rule only if no existing rule covers it; ask before changing instructions.
+
+Debug from evidence. Form a hypothesis, run a focused check, then edit. After two failed fixes, stop and report: what you observe, what you expect, what you tried and what each result shows, the next useful check or the decision you need from me.

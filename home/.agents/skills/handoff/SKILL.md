@@ -1,6 +1,7 @@
 ---
 name: handoff
-description: Compact the current conversation into a handoff document so a fresh agent can continue the work. Use when the user says "hand off", "write a handoff", "summarize for the next session", or context is running low and work needs to continue in a new session.
+description: Compact the current conversation into a handoff document for another session.
+disable-model-invocation: true
 ---
 
 # Handoff

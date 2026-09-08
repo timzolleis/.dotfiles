@@ -1,64 +1,48 @@
 ---
 name: tdd
-description: Test-driven development with a red-green-refactor loop. Tests verify behavior through public interfaces, not implementation details, via vertical tracer-bullet slices (one test → one implementation → repeat). Use when building features or fixing bugs test-first, when the user mentions "red-green-refactor" or "TDD", or as the test/implement phase after design-first.
+description: Test-driven development through pre-agreed public seams using vertical red → green tracer bullets.
+disable-model-invocation: true
 ---
 
 # Test-Driven Development
 
-## Philosophy
+TDD is a red → green loop through public interfaces. Tests describe observable behavior and survive internal refactors.
 
-**Core principle:** Tests verify behavior through public interfaces, not implementation details. The code inside can change entirely; the tests shouldn't.
+Read the nearest project testing instructions first. They own framework choice, fixtures, database use, test-layer boundaries, and verification commands. Use [`tests.md`](tests.md) to check test quality and [`mocking.md`](mocking.md) to choose a test double.
 
-**Good tests** are integration-style: they exercise real code paths through public APIs and read like a specification — "user can checkout with valid cart" tells you exactly what capability exists. They survive refactors because they don't care about internal structure.
+## Agree the seam
 
-**Bad tests** are coupled to implementation: they mock internal collaborators, test private functions, or verify through side channels (querying the DB directly instead of through the interface). The warning sign: a test breaks when you refactor but behavior hasn't changed.
+Before writing a test, name the public seam and behaviors under test. Use seams already approved in the spec. If the seam is absent or disputed, return to `design-first` instead of inventing it during implementation.
 
-## Anti-pattern: horizontal slices
+A good test:
 
-**Do NOT write all tests first, then all implementation.** Treating RED as "write every test" and GREEN as "write every implementation" produces crap tests:
+- exercises the public interface;
+- reads like a behavior specification;
+- uses expected values from an independent source such as a literal example or spec;
+- fails when that behavior breaks, not when internals move.
 
-- Tests written in bulk test *imagined* behavior, not *actual* behavior.
-- You end up testing the *shape* of things (signatures, data structures) rather than user-facing behavior.
-- Tests become insensitive to real changes — they pass when behavior breaks.
+Avoid tests of private functions, internal call sequences, tautological expectations, module mocks, and side-channel verification.
 
-```
-WRONG (horizontal):                 RIGHT (vertical):
-  RED:   test1..test5                 RED→GREEN: test1 → impl1
-  GREEN: impl1..impl5                 RED→GREEN: test2 → impl2
-                                      RED→GREEN: test3 → impl3
-```
+## Run vertical slices
 
-Vertical slices via tracer bullets. Each test responds to what you learned from the previous cycle.
+For each behavior:
 
-## Workflow
+1. **Red:** write one test and run it to observe the expected failure.
+2. **Green:** add only enough implementation to pass that test.
+3. Run the focused test and relevant typecheck.
+4. Repeat with the next behavior, using what the previous slice taught you.
 
-### 1. Plan
-- Confirm the public interface (ideally already locked via the `design-first` skill).
-- List the *behaviors* to test, not implementation steps. You can't test everything — confirm with the user which behaviors matter most (critical paths, complex logic), and get approval on the plan.
+Do not write all tests before all implementation. Do not anticipate later slices. Refactor only while green, then rerun the focused check.
 
-### 2. Tracer bullet
-Write ONE test for ONE behavior. RED (fails) → GREEN (minimal code to pass). This proves the path works end to end.
+## Effect projects
 
-### 3. Incremental loop
-For each remaining behavior: write the next test → fails → minimal code to pass → passes.
-- One test at a time. Only enough code to pass the current test. Don't anticipate future tests. Keep tests on observable behavior.
+Follow the repository's Effect version and test conventions. Unless the repository says otherwise:
 
-### 4. Refactor (only while GREEN)
-After tests pass: extract duplication, deepen modules (move complexity behind simple interfaces), apply SOLID where natural. Run tests after each step. **Never refactor while RED.**
+- use `@effect/vitest` and `assert` for Effect code;
+- use ordinary Vitest for pure TypeScript;
+- replace dependencies through Effect services and Layers rather than `vi.mock`, global stubs, or spies;
+- use a real test database when SQL, constraints, transactions, cascades, or row decoding are the behavior;
+- use faithful or recording test implementations for orchestration;
+- validate boundary responses with the boundary schema.
 
-## Per-cycle checklist
-```
-[ ] Test describes behavior, not implementation
-[ ] Test uses the public interface only
-[ ] Test would survive an internal refactor
-[ ] Code is minimal for this test
-[ ] No speculative features added
-```
-
-## Framework conventions
-
-Follow the project's testing setup (`AGENTS.md` / `CLAUDE.md`). For Effect codebases:
-- Effect / Stream / Layer / TestClock: `@effect/vitest` — `import { assert, describe, it } from "@effect/vitest"`, use `it.effect(...)`. **Always `assert`, never `expect`** (mixing them breaks the runtime).
-- Pure TS: regular `vitest` with `expect`.
-- No `vi.mock` / `vi.stubGlobal` / `vi.spyOn` — design for dependency injection and use the in-memory adapter (`Service.layerMemory`) for the seam under test.
-- Validate response shapes with the same boundary schema the handler uses.
+Finish by running the complete affected checks named by the repository or approved spec.

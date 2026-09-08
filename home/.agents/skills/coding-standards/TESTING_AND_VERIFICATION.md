@@ -18,6 +18,7 @@ Tests should prove behavior through the same interfaces callers use. Confidence 
 
 - Tests assert observable outcomes: returned values/failures, persisted state, emitted messages, rendered responses, sent fake-adapter records, or runtime effects.
 - Tests do not depend on private helpers, internal call order, or incidental implementation structure when behavior can be tested through the interface.
+- Tests do not prove that a library, framework, runtime, or dependency implements its own documented contract. Test only the changed module's configuration, mapping, policy, or use of that contract.
 - Do not use module-patching APIs such as `vi.mock`, `jest.mock`, or equivalents.
 - Do not use method-spy APIs such as `vi.spyOn`, `jest.spyOn`, or equivalents.
 - When replacing behavior, replace it through a real seam.
@@ -92,6 +93,27 @@ Match evidence to risk:
 
 Do not demand tests just because lines changed. Map each material changed invariant, failure path, boundary, async behavior, or runtime assumption to evidence, and prefer the highest-confidence proof that remains proportionate. If a representative environment is unavailable, state which claim remains unproven rather than pretending a lower-level test proves it.
 
+## Test only what the code decides
+
+Ask of the code under test: **what would still be wrong if every dependency were perfect?** That answer is the test. Data a layer only forwards belongs to the layer that produces it; asserting it twice buys no confidence and breaks twice.
+
+| Layer | What it decides |
+|---|---|
+| HTTP handler | rejecting malformed input, authorizing, request → call args, failure → status |
+| Service | ordering, transactions, compensation, which collaborator runs when |
+| Repository / adapter | query semantics, constraint violations, row ↔ domain mapping |
+| Presenter / mapper | domain → wire shape, and what a missing lookup does |
+| Domain module | rules, invariants, transitions |
+
+What remains is grid coverage, so favour breadth over depth: walk every case × every failure through a table rather than asserting one case exhaustively.
+
+Signs a test sits at the wrong layer:
+
+- the assertion restates what the fake was told to return;
+- the assertion proves generic library or framework behavior instead of a choice made by the named production module;
+- the fixture carries fields the code under test never reads;
+- a dependency is faked only so an unrelated layer can run in-process — stub that layer instead, and the rig shrinks with it.
+
 ## Domain behavior and properties
 
 Parsers, smart constructors, transitions, and pure decisions need focused behavior tests. Use properties where the invariant is general:
@@ -146,13 +168,15 @@ Avoid:
 - returning `false` from a property callback without making the test fail;
 - snapshots that do not encode stable semantics;
 - retries that hide flakiness;
-- mutable fixture state leaking through shared layers/resources.
+- mutable fixture state leaking through shared layers/resources;
+- loose equality (`assert.equal`, `==`) where `null` versus `undefined` is the behavior under test.
 
 ## Rejected framings
 
 - **"It's a unit test, so mocks are fine."** The seam matters more than the test label.
 - **"We tested the private helper."** Callers use the module interface; tests should too.
 - **"Coverage went up."** Coverage is not behavior evidence.
+- **"It flows through this layer, so this layer's test should assert it."** Passing data through is not deciding it. Test where the decision is made.
 - **"A fake proves database behavior."** Fakes prove External Adapter Module contract behavior, not SQL semantics.
 - **"Node tests cover runtime-specific code."** Only when the behavior does not depend on deployment-runtime APIs; otherwise verify on a representative runtime per local instructions.
 
@@ -161,6 +185,7 @@ Avoid:
 Use this as the final scan after applying the rules above; the rule source of truth remains in the relevant sections.
 
 - Exporting internals just to test them.
+- Asserting downstream behavior the code under test only forwards.
 - Verifying interactions with spies instead of observing fake adapter records.
 - Skipping rejected parser cases.
 - Bypassing smart constructors in test factories.

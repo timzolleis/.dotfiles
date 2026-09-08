@@ -18,6 +18,7 @@ Observability should make failures diagnosable without leaking secrets or coupli
 - Sensitive values are wrapped in a redacted value at the boundary and unwrapped only where the raw value is needed.
 - Unknown thrown values and arbitrary payloads are not `JSON.stringify`'d for diagnostics.
 - New External Adapter Modules and error translations preserve established tracing, logging, metrics, and error-reporting behavior.
+- Privacy review includes automatic framework and vendor instrumentation, not only telemetry calls written in application code.
 - Domain decisions do not depend on a logger or telemetry mechanism.
 
 ## Apply this file
@@ -26,6 +27,7 @@ An observability pass is complete when every touched External Adapter Module, er
 
 - secret redaction at the boundary;
 - safe error summaries and safe telemetry fields;
+- automatic outer spans, request attributes, URLs, headers, and captured exceptions;
 - preservation of existing logs, traces, metrics, error reporting, and correlation hooks;
 - no new telemetry dependency inside domain decisions.
 
@@ -121,6 +123,12 @@ Avoid uncorrelated logs that are only useful by reading source code:
 logger.error("failed");
 ```
 
+## Inspect automatic instrumentation
+
+Frameworks, HTTP clients, database drivers, tracing SDKs, and error reporters can capture data before application code applies redaction. Inspect the outermost generated span or event for each touched path. Check route and URL fields, query strings, headers, request bodies, database statements, exception messages, and resource attributes. Disable, sanitize, or reconfigure unsafe capture at the instrumentation boundary.
+
+A safe inner span does not make an unsafe parent span acceptable. Complete the privacy check against emitted telemetry or the effective instrumentation configuration, not only the application source.
+
 ## Preserve existing observability
 
 Before adding an External Adapter Module, error translator, framework handler, workflow step, or background task, inspect how the repo currently reports:
@@ -168,6 +176,7 @@ Domain Modules may expose explicit telemetry projections for safe fields when us
 Use this as the final scan after applying the rules above; the rule source of truth remains in the relevant sections.
 
 - Including API keys, tokens, raw credentials, env values, or request bodies in thrown messages.
+- Reviewing explicit spans while an automatic parent span still captures sensitive URLs, headers, bodies, statements, or exceptions.
 - Adding a new External Adapter Module that returns typed errors but skips existing error reporting.
 - Logging `cause` directly without a safe summary/classifier.
 - Forgetting retry count, operation name, dependency name, or typed error tag in failure telemetry.

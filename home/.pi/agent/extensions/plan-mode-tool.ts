@@ -13,12 +13,13 @@ type PlanModeResponse =
 	| { status: "unavailable"; error?: string }
 	| { status: "error"; error: string };
 
+/** Enter Plannotator for the final design checks and human-approved plan-file handoff. */
 export default function planModeTool(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "enter_plan_mode",
 		label: "Enter Plan Mode",
 		description:
-			"Switch this session into Plannotator plan mode. Call this BEFORE touching any code when the user asks for a non-trivial implementation task — a new feature, a refactor or rewrite, or any change spanning multiple files — unless the user explicitly asked to skip planning or a plan for this task was already approved. In plan mode you explore the codebase, write a markdown plan file, and submit it with plannotator_submit_plan for human review; execution starts only after approval. Do not call this for trivial one-line fixes, pure questions, or exploration-only requests.",
+			"Enter Plannotator after context building and design discussion, for final checks and human approval. Follow AGENTS.md and read $HOME/.agents/skills/design-first/PLAN-FORMAT.md before recording the agreed design in plans/<name>.md. Preserve the approved types, interfaces, composition, boundaries, call stacks, constraints, and evaluated decisions; do not reduce them to prose. Submit with plannotator_submit_plan before implementation. Do not call this for trivial fixes, questions, exploration-only requests, explicitly skipped planning, or /implement with an already approved plan. After approval, run /implement <plan-path> in this session or another session.",
 		parameters: Type.Object({}),
 		async execute() {
 			const response = await new Promise<PlanModeResponse | "timeout">((resolve) => {
@@ -64,7 +65,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text" as const,
-							text: "Plan mode is now active. Explore the codebase, write your plan (with the locked interface spec) to a markdown file in the working directory, then submit it with plannotator_submit_plan.",
+							text: "Plan mode is active. Follow the Plannotator planning instructions and AGENTS.md. Read $HOME/.agents/skills/design-first/PLAN-FORMAT.md, preserve the agreed code-shaped design in plans/<name>.md, and submit with plannotator_submit_plan only after the lock gate passes.",
 						},
 					],
 					details: { phase },

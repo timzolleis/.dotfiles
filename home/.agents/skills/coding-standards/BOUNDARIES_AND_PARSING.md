@@ -22,6 +22,7 @@ Every external, serialized, persisted, or framework-shaped value is less structu
 - A successful parse returns the refined value; do not validate and then keep passing the unrefined input.
 - Core/service code does not repeatedly downcast, shape-check, or defensively revalidate values already parsed, unless they crossed a new boundary.
 - Storage/ORM rows are boundary input and are parsed before service logic sees them.
+- Persisted representation selection fails closed: an unknown discriminator, version, or shape is rejected instead of entering a default or fallback variant.
 - Runtime-hop payloads satisfy the transport serialization contract and are parsed/reconstructed on receipt.
 - Protocol DTOs and persistence records are different projections; do not reuse one as the other by convenience.
 - Environment/runtime config is parsed at startup or the earliest composition seam into typed config.
@@ -134,6 +135,8 @@ function parseInvoiceRow(row: InvoiceRow): Result<Invoice, InvalidStoredInvoice>
 
 Reject contradictory persisted states. Do not silently normalize an impossible row such as `state = "open"` with a non-null `completedAt`.
 
+Treat the persisted discriminator and version as authority. Decode only an exact supported representation. A catch-all branch, default member, or fallback to the newest shape can reinterpret stored data after deployment and hide a required migration.
+
 Use schema-inferred row/insert/update DTOs where the storage library supports them, but parse rows before service logic sees them.
 
 ## Runtime and serialization boundaries
@@ -200,6 +203,7 @@ Use this as the final scan after applying the rules above; the rule source of tr
 - Typing request bodies as `any` for convenience.
 - Casting `Response.json()` output to an app type.
 - Passing Prisma/ORM rows directly to Service Modules.
+- Falling back to a default model for an unknown persisted discriminator or version.
 - Reusing public API JSON as persistence records.
 - Accepting unknown fields in mutating commands by default.
 - Parsing config in many modules instead of one composition seam.
