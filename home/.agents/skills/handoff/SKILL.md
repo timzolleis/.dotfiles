@@ -14,7 +14,7 @@ Include:
 - **Progress** — Done / In progress / Blocked.
 - **Key decisions** — load-bearing choices and *why* (and notable rejected alternatives).
 - **Next steps** — concrete, ordered.
-- **Suggested skills** — which skills the next agent should invoke (e.g. `design-first`, `tdd`, `improve-codebase-architecture`).
+- **Suggested skills** — which skills the next agent should invoke (e.g. `tech-spec`, `tdd`, `improve-codebase-architecture`).
 
 Rules:
 - Do **not** duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.

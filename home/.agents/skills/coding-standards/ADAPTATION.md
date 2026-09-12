@@ -29,8 +29,9 @@ changes — re-apply the deltas below if you do.
 - **Toolchain.** Vite+ (`vp test`, `vite-plus/test`, Oxlint/Oxfmt) genericized to "the project's
   established toolchain" — these are `pnpm` monorepos.
 - **Workflow routing.** `tech-spec` / `improve-codebase-architecture` route their grilling step to the
-  installed **`design-first`** skill (upstream `grill-me` / `grill-with-docs` are not installed) and
-  to the installed **`tdd`** skill.
+  installed **`grill-me`** skill and their testing step to the installed **`tdd`** skill.
+- **Load timing.** This package is loaded while specifying and reviewing, not during implementation.
+  See `SKILL.md`.
 - **`code-review` → `standards-review`.** Renamed to avoid shadowing the built-in `/code-review`
   (cloud "ultra" mode). Same standards-backed, proof-required, review-only behavior.
 
@@ -41,5 +42,5 @@ changes — re-apply the deltas below if you do.
 - `standards-review/` — standards-backed review (user-invoked).
 - `improve-codebase-architecture/` — replaced the prior same-named skill (user-invoked).
 
-Not installed (existing equivalents kept): `tdd`, `design-first`, upstream `grilling` / `grill-me` /
-`grill-with-docs` / `code-review`.
+Not installed (existing equivalents kept): `tdd`, upstream `grilling` / `grill-with-docs` /
+`code-review`.

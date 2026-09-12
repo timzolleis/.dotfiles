@@ -25,26 +25,24 @@ Completion criterion: the branch is chosen from actual available context; missin
 
 ### 1. Load standards and local context
 
-Read:
+Read the repository's own instructions first. They win over everything below.
 
-- `../coding-standards/SKILL.md`
-- `../coding-standards/VOCABULARY.md`
-- `../coding-standards/DESIGNING_MODULES.md`
-- `../coding-standards/DOMAIN_MODELING.md`
-- `../coding-standards/BOUNDARIES_AND_PARSING.md`
-- `../coding-standards/ERROR_HANDLING.md`
-- `../coding-standards/OBSERVABILITY.md`
-- `../coding-standards/TESTING_AND_VERIFICATION.md`
-- `../tdd/SKILL.md`
+Load only the `../coding-standards/` topic files the change actually touches:
 
-Load additional standards when relevant:
+- `DOMAIN_MODELING.md` for new domain values, states, or transitions.
+- `BOUNDARIES_AND_PARSING.md` for a new or changed runtime boundary.
+- `ERROR_HANDLING.md` for a new failure taxonomy.
+- `DESIGNING_MODULES.md` for a new seam or ownership move.
+- `ASYNC_AND_WORKFLOWS.md` for cancellation, concurrency, retries, transactions, idempotency, or durable workflows.
+- `TYPESCRIPT_CONTRACTS.md` for public contracts, casts, `any`, or exports.
+- `EFFECT.md` for Effect Services/Layers, typed error channels, Schema, or Effect RPC.
+- `OBSERVABILITY.md`, `TESTING_AND_VERIFICATION.md`, `VOCABULARY.md` when the spec makes a decision they own.
 
-- `../coding-standards/ASYNC_AND_WORKFLOWS.md` for cancellation, concurrency, retries, transactions, idempotency, or durable workflows.
-- `../coding-standards/TYPESCRIPT_CONTRACTS.md` for public contracts, casts, `any`, collection/object-shape issues, exports, JSDoc, or toolchain changes.
-- The **local repo's instructions** for deployment-runtime / platform specifics (Node, edge, serverless, Workers, bindings, runtime hops) — the core standards stay runtime-agnostic.
-- `../coding-standards/EFFECT.md` for Effect Services/Layers, typed error channels, Schema, Redacted values, Effect tests, or Effect RPC.
+Do not load the whole standards package by default. If the repository already states a rule concretely, use the repository's version and skip the topic file.
 
-Inspect existing code/docs for local vocabulary, module layout, domain concepts, error handling, adapters, observability, runtime patterns, and test style.
+Verify library APIs against the pinned source named in the global instructions, matching the repo's installed major.
+
+Inspect existing code for local vocabulary, module layout, domain concepts, error handling, adapters, and test style.
 
 Completion criterion: the spec uses project vocabulary and does not introduce a pattern, library, adapter, schema style, or test strategy before checking local precedent.
 
@@ -71,7 +69,7 @@ Completion criterion: every claimed requirement or constraint is grounded in con
 
 ### 3. Explore design alternatives
 
-Produce materially different alternatives before choosing the recommended design. Alternatives should differ in interface shape, seam placement, ownership, call stack, runtime topology, or module boundaries — not just names.
+Produce alternatives only where a genuine trade-off exists. Do not invent options to satisfy a count; a spec with one obvious design states the design and the discarded direction in one line. When alternatives are real, they differ in interface shape, seam placement, ownership, call stack, runtime topology, or module boundaries — not just names.
 
 For each alternative, sketch:
 
@@ -192,7 +190,7 @@ Completion criterion: the output follows the outline below and is implementation
    - State that there is not enough context for an implementation-ready tech spec.
    - Completion criterion: the agent has not invented requirements, APIs, files, or call stacks.
 2. Start a grilling interview.
-   - Use the `design-first` skill to grill the design one decision at a time (it owns the interview + interface-locking loop).
+   - Use the `grill-me` skill to stress-test the direction one decision at a time.
    - Ask one question at a time and provide the recommended answer with each question.
    - If a question can be answered by exploring the codebase, inspect the codebase instead of asking.
    - Completion criterion: the interview has enough context for Path A: problem, users/callers, constraints, affected systems, desired behavior, boundaries, likely APIs, invariants, risks, and acceptance tests.
@@ -200,68 +198,58 @@ Completion criterion: the output follows the outline below and is implementation
    - Once grilling context is sufficient, run Path A.
    - Completion criterion: the final artifact is a typed call-stack architecture handoff, not interview notes.
 
-## Required spec outline
+## Spec outline
 
-Use this shape unless the task is tiny enough to compress without losing contracts or call stacks:
+The spec is code with the minimum prose that makes it decidable. One numbered section per seam, then the call graph, then files and tests:
 
 ```md
 # <Title>
 
-## Summary
+One paragraph: what changes for the caller, and where it stops.
+Naming or convention notes, if the spec introduces any.
 
-## Context / Current State
+## 1. <Seam name>
 
-## Goals
+Typed contract: interface, inputs, outputs, expected errors, layers.
+Semantics that the contract cannot express, as a short list.
 
-## Non-Goals
+## 2. <Next seam>
+...
 
-## Invariants
+## Call graph
 
-## Design Constraints
+Production stack and test stack, entrypoint to effect to result.
+Failure, retry, cancellation, idempotency, or observability flow only where reachable.
 
-## Alternatives Considered
+## Files to add / change / delete
 
-### Option 1: <name>
+## Test slices
 
-### Option 2: <name>
+RGR order: one failing behavior test, minimal implementation, repeat.
 
-### Option 3: <name>
+## Slices
 
-## Recommendation
+One line per implementable slice, in dependency order. This is the work queue and the
+record of what happened; it lives here so the spec stays the only artifact.
 
-## Proposed Design
+- [ ] 1. <name> — sections <n>, <n>
+- [ ] 2. <name> — sections <n>
 
-## Domain Model and Types
+Mark a slice done only after its review is accepted, and append its outcome to the line.
 
-## Types, Interfaces, and APIs
-
-## Seams, Boundaries, Adapters, and Implementations
-
-## Call Stacks and Data Flow
-
-### Current / Old Flow
-
-### Proposed / New Flow
-
-### Failure Flow
-
-### Retry / Cancellation / Idempotency Flow
-
-### Observability Flow
-
-## Files to Add / Change / Delete
-
-## RGR TDD Test Plan
-
-## Risks and Open Questions
+## Open questions
 ```
 
-Omit sections that truly do not apply, but do not omit typed contracts, seams, call stacks, or tests merely because they are hard to specify.
+Add `Goals`, `Non-Goals`, `Invariants`, `Constraints`, `Alternatives`, or `Risks` as their own sections only when the decision is not already visible in the contracts. Never omit typed contracts, seams, call stacks, tests, or slices because they are hard to specify.
+
+A slice is one implementation and review target: self-contained, dependent only on earlier slices, and provable by its own tests. Size it so one run can hold the whole thing. Prefer fewer, larger slices over a dependency graph.
+
+Delete from the current model explicitly. A spec that replaces a shape names what disappears.
 
 ## Writing rules
 
-- Code first: TypeScript pseudocode defines contracts, APIs, and data flow.
-- Prose explains why; types and call stacks define what changes.
+`AGENTS.md` owns the code-shape register: pseudocode for contracts, call stacks for behavior, prose for the why. A spec applies it to every affected seam instead of the one under discussion.
+
 - Focus on types, interfaces, APIs, inputs/outputs, seams, boundaries, adapters, domain modules, service modules, external adapters, and call stacks.
 - Prefer precise domain values over strings, booleans, nullable bags, and loosely shaped objects.
 - Keep seams real: adapters translate framework, persistence, network, time, randomness, telemetry, runtime, or platform boundaries.

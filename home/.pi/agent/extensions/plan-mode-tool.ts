@@ -13,13 +13,13 @@ type PlanModeResponse =
 	| { status: "unavailable"; error?: string }
 	| { status: "error"; error: string };
 
-/** Enter Plannotator for the final design checks and human-approved plan-file handoff. */
+/** Enter Plannotator for the final design checks and human approval of a written spec. */
 export default function planModeTool(pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "enter_plan_mode",
 		label: "Enter Plan Mode",
 		description:
-			"Enter Plannotator after context building and design discussion, for final checks and human approval. Follow AGENTS.md and read $HOME/.agents/skills/design-first/PLAN-FORMAT.md before recording the agreed design in plans/<name>.md. Preserve the approved types, interfaces, composition, boundaries, call stacks, constraints, and evaluated decisions; do not reduce them to prose. Submit with plannotator_submit_plan before implementation. Do not call this for trivial fixes, questions, exploration-only requests, explicitly skipped planning, or /implement with an already approved plan. After approval, run /implement <plan-path> in this session or another session.",
+			"Enter Plannotator for human approval of a spec that is already written. Follow AGENTS.md and the tech-spec skill: typed contracts, call graph, files, and test slices as TypeScript pseudocode, not prose. Submit with plannotator_submit_plan. Most work does not need this \u2014 the user normally reviews a spec inline as a message annotation. Do not call this for trivial fixes, questions, exploration-only requests, or /implement with an approved spec. After approval, run /implement <spec-path> [slice].",
 		parameters: Type.Object({}),
 		async execute() {
 			const response = await new Promise<PlanModeResponse | "timeout">((resolve) => {
@@ -65,7 +65,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text" as const,
-							text: "Plan mode is active. Follow the Plannotator planning instructions and AGENTS.md. Read $HOME/.agents/skills/design-first/PLAN-FORMAT.md, preserve the agreed code-shaped design in plans/<name>.md, and submit with plannotator_submit_plan only after the lock gate passes.",
+							text: "Plan mode is active. Follow the Plannotator planning instructions and AGENTS.md. Use the tech-spec outline, preserve the agreed code-shaped design, and submit with plannotator_submit_plan only after the lock gate passes.",
 						},
 					],
 					details: { phase },

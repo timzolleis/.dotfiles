@@ -12,7 +12,7 @@ Read the nearest project testing instructions first. They own framework choice, 
 
 ## Agree the seam
 
-Before writing a test, name the public seam and behaviors under test. Use seams already approved in the spec. If the seam is absent or disputed, return to `design-first` instead of inventing it during implementation.
+Before writing a test, name the public seam and behaviors under test. Use seams already approved in the spec. If the seam is absent or disputed, say so and report it as a deviation instead of inventing it silently.
 
 A good test:
 
