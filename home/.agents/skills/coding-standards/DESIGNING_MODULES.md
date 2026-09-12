@@ -19,7 +19,9 @@ This file uses these local terms:
 When designing or changing a module, check all touched concerns:
 
 - depth and deletion test;
+- shortest truthful call path;
 - interface burden;
+- top-to-bottom readability and file cohesion;
 - dependency category;
 - existing External Adapter Module reuse or extension;
 - functional core / imperative shell boundary;
@@ -52,6 +54,8 @@ Shallow abstraction:
 ```
 
 Use the deletion test: if deleting the module makes complexity disappear, it was pass-through waste. If deleting it spreads complexity across callers, it was earning its keep.
+
+Start with the shortest truthful call path. A handler may call an External Adapter Module directly for a plain scoped read, write, or fixed atomic transition. Do not add a Service Module to complete an architectural stack.
 
 ## Domain Modules, Service Modules, and External Adapter Modules
 
@@ -106,6 +110,24 @@ Ask:
 - Would tests naturally exercise the same interface callers use?
 
 Avoid exposing internal steps as public surface just because tests want them.
+
+## Readable, cohesive modules
+
+Organize a dependency-bearing module so a reader encounters its concerns in this order:
+
+```text
+public contract
+→ tag or exported capability
+→ local boundary schemas and mappers, when owned here
+→ construction and stable dependency acquisition
+→ significant private operations in call order
+→ public operations in contract order
+→ runtime wiring
+```
+
+Put the contract before substantial implementation. Acquire stable dependencies once during construction and close over them. Name significant private operations when they hide lookup, validation, recovery, or effect sequencing; keep tiny pure expressions local.
+
+A cohesive module may be large when its contract, construction, and implementation change together. Do not scatter them across interface, factory, helper, implementation, and Layer files merely to reduce file length. Split when another authority, runtime, technology, dependency boundary, or independent reason to change appears.
 
 ## Dependencies and seams
 
@@ -217,6 +239,8 @@ Avoid mutable singletons. If a framework requires singleton-like behavior, isola
 ## Rejected framings
 
 - **"A Service Module per noun."** A module is justified by cohesive behavior, not naming symmetry.
+- **"Every operation needs the full layer stack."** Use only modules that own behavior; a plain adapter operation does not need a forwarding service.
+- **"Long files are incohesive."** File length is not a boundary; split on independent authority or reasons to change.
 - **"A repository per table."** Persistence External Adapter Modules expose service/domain capabilities, not raw table mirrors.
 - **"An interface for every class."** Seams are for variation, translation, and real substitution.
 - **"Deps bags are flexible."** Dependency bags spread ownership and hide module contracts.

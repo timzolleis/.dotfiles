@@ -33,7 +33,7 @@ If one check cannot be fully applied without broader migration, name the compati
 - Functions that semantically require a value do not accept `null`, `undefined`, or optional input. Branch or parse before calling.
 - A branded/refined type is only created by code that establishes the invariant.
 - A value class is immutable and is only instantiated through parsers or smart constructors.
-- Lifecycle transitions accept only legal source states and produce legal target states.
+- Lifecycle transitions either accept only legal source states and produce legal target states, or enforce the same rule with one guarded atomic persistence operation.
 - Decisions over closed variant sets are exhaustive; use the project exhaustiveness helper such as `casesHandled` when it exists.
 - Caller code does not reimplement invariants owned by a parser, smart constructor, or transition.
 
@@ -202,13 +202,15 @@ type Invoice = {
 };
 ```
 
-Transitions should encode legal source states:
+Transitions should encode legal source states when callers manipulate the state in memory:
 
 ```ts
 function markPaid(invoice: SentInvoice, paidAt: Instant): PaidInvoice;
 ```
 
 Do not accept `Invoice` and then hope every caller checked the state.
+
+Do not introduce an in-memory state machine when a database constraint and one guarded mutation fully enforce a fixed persisted transition. Keep public operations intent-specific, such as `submitSubmission`, `archiveWorkspace`, or `reopenSubmission`. A private generic mechanism such as `updateWorkspaceState` may implement those operations.
 
 ## Boolean blindness
 
@@ -251,6 +253,8 @@ Avoid default branches that silently swallow future variants.
 ## Persisted invariants
 
 If the domain forbids `Paid` without `paidAt`, the database should help enforce that. Read-time parsing is still required, but it is not the only protection. Use constraints, unique constraints, and guarded writes where practical.
+
+Prefer one atomic guarded mutation over a read-check-write sequence when persistence can enforce the legal source state. Add a Service Module only when policy must be selected before the mutation or effects must be coordinated across boundaries.
 
 ## Review checklist
 
