@@ -19,9 +19,9 @@ For each round:
 5. Recompute the tree and ask the next frontier.
 
 ```text
-❓ Q1 — <decision title>: <question, choices, and consequences>
+Q1 — <decision title>: <question, choices, and consequences>
 
-➡️ Recommendation: <answer and reason>
+Recommendation: <answer and reason>
 ```
 
 A question whose answer depends on another open question belongs in a later round.
