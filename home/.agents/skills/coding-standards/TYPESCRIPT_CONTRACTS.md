@@ -1,6 +1,6 @@
 # TypeScript Contracts
 
-TypeScript should preserve proof obligations instead of erasing them. Keep contracts precise, immutable by default, documented at exports, and enforced by boring toolchain checks.
+TypeScript should preserve proof obligations instead of erasing them. Keep contracts precise, immutable by default, and enforced by boring toolchain checks.
 
 ## Non-negotiables
 
@@ -11,7 +11,6 @@ TypeScript should preserve proof obligations instead of erasing them. Keep contr
 - Ordinary domain values, builders, interfaces, and classes do not expose callable `then` unless intentionally promise-like and documented.
 - Static checks and established compiler, lint, formatter, and test-runner contracts preserve strictness, exhaustive finite-variant handling, and existing safety checks; do not weaken them to admit changed code.
 - Caller-owned inputs are not mutated unless the function contract explicitly says it mutates a caller-provided builder/accumulator.
-- Direct exports and public methods on exported classes have standard JSDoc explaining their contract.
 
 ## Strong defaults
 
@@ -23,6 +22,7 @@ TypeScript should preserve proof obligations instead of erasing them. Keep contr
 - Use guard clauses for invalid/precondition/failure/non-applicable paths to keep the main path flat.
 - Import directly from the file that owns the abstraction; avoid new barrels unless an external package interface requires one.
 - Use `import type` / `export type` for type-only imports/exports.
+- Name intermediate values with the domain noun and any role or representation needed to distinguish them; avoid stage-only names when related values coexist.
 - Use precise file names; avoid `utils`, `helpers`, `common`, and `misc` dumping grounds.
 - Avoid TypeScript `namespace` unless interop requires it. Namespace imports are fine when they preserve a module shape.
 
@@ -165,6 +165,41 @@ const usersById = new Map<UserId, User>();
 
 Use plain records for finite known keys, serializable config-like shapes, or named domain/service records.
 
+## Names preserve distinctions
+
+A name should tell the reader which domain value it holds and, when relevant, its role or representation.
+
+Prefer:
+
+```ts
+const storedWorkspaceRows = yield* loadWorkspaceRows()
+const parsedWorkspaceRows = yield* parseStoredWorkspaceRows(storedWorkspaceRows)
+const encodedOverseerEvent = yield* encodeOverseerEvent(event)
+const requestedTemplateIds = collectTemplateIds(sources)
+const availableTemplates = yield* findAvailableTemplates(requestedTemplateIds)
+const templatesById = indexTemplatesById(availableTemplates)
+```
+
+Avoid removing the noun:
+
+```ts
+const stored = ...
+const parsed = ...
+const encoded = ...
+const data = ...
+const result = ...
+const processed = ...
+```
+
+When a value changes, name what changed:
+
+```ts
+const formSnapshot = yield* findFormSnapshot(id)
+const hydratedFormSnapshot = yield* hydrateFormSnapshot(formSnapshot)
+```
+
+Short contextual names remain appropriate when no nearby value can be confused, such as `row` in `storedWorkspaceRows.map((row) => workspaceFromStoredRow(row))`. Do not lengthen names mechanically or repeat information already fixed by a narrow scope.
+
 ## Falsy filters and defaults
 
 Avoid:
@@ -306,9 +341,9 @@ Use ordinary `if/else` when branches are true peers in a domain decision.
 
 Export only intended caller interfaces. Do not export internals just for tests.
 
-JSDoc every directly exported function, class, constant, type, and public method on exported classes. Document generics with `@template`. Document typed expected failures as return values, not `@throws`. Use `@throws` only for defects, framework-required behavior, or temporary unimplemented paths.
+Use JSDoc only when it adds contract information that the name and type do not express. Document generics with `@template` when their roles are not obvious. Use `@throws` only for defects, framework-required behavior, or temporary unimplemented paths.
 
-Comments explain invariants, trade-offs, safety, and non-obvious domain rules. Avoid comments that narrate obvious syntax.
+Comments explain invariants, trade-offs, safety, and non-obvious domain rules. Avoid comments that narrate obvious syntax or restate a symbol's name and type.
 
 ## Toolchain
 
@@ -337,6 +372,6 @@ Use this as the final scan after applying the rules above; the rule source of tr
 - `filter(Boolean)` accidentally removing `0`, `false`, or `""`.
 - Spread-in-reduce quadratic accumulation.
 - Conditional object spreads used only to avoid `undefined`.
-- Exported functions/classes/types without JSDoc.
+- JSDoc or comments that only restate a symbol's name and type.
 - Adding barrels or dumping helpers into `utils.ts`.
 - Weakening lint/type config to make changed code pass.
