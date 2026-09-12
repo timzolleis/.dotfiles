@@ -139,6 +139,40 @@ Treat the persisted discriminator and version as authority. Decode only an exact
 
 Use schema-inferred row/insert/update DTOs where the storage library supports them, but parse rows before service logic sees them.
 
+### Decode, then reshape
+
+Use the smallest mapping mechanism that preserves type evidence:
+
+1. **Same shape:** decode with the owning domain schema; add no mapper.
+2. **Structural mismatch with domain-ready fields:** decode a fully refined `Stored<Entity>Row`, then use a pure `<entity>FromStoredRow` mapper.
+3. **Individual field conversion:** put the field codec in the stored representation schema; keep the outer mapper pure.
+4. **Required reverse representation:** use a focused bidirectional codec for that representation.
+5. **Cross-field invariant not proved by the stored schema:** use a decode-only transform or a final domain decode.
+
+```ts
+const StoredWorkspaceRow = Schema.Struct({
+  id: WorkspaceId,
+  name: WorkspaceName,
+  state: WorkspaceState,
+  created_at: Schema.DateTimeUtcFromString,
+})
+
+type StoredWorkspaceRow = typeof StoredWorkspaceRow.Type
+
+const workspaceFromStoredRow = (
+  storedWorkspaceRow: StoredWorkspaceRow,
+): Workspace => ({
+  id: storedWorkspaceRow.id,
+  name: storedWorkspaceRow.name,
+  state: storedWorkspaceRow.state,
+  createdAt: storedWorkspaceRow.created_at,
+})
+```
+
+The decoder establishes brands, refinements, dates, discriminators, and other boundary evidence. The mapper only renames, groups, nests, or constructs values from that evidence. It does not brand raw primitives, apply policy defaults, discard malformed members, or silently normalize invalid state.
+
+Prefer staged decoding over a large representation-to-domain transform. A transform must represent a real conversion or establish a cross-field invariant, not merely rename or nest fields.
+
 ## Runtime and serialization boundaries
 
 Values crossing process, runtime, RPC, queue, workflow, Worker/DO/Agent, or structured-clone boundaries must be serializable for that transport.
