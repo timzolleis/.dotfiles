@@ -1,6 +1,6 @@
 ---
 name: codebase-design
-description: Design a change together with the user — a feature, an integration, or a refactor — growing its spec one locked decision at a time until it goes to Plannotator. Use when a change touches something other code or people depend on and is too large to just do.
+description: Design a change together with the user in conversation — a feature, an integration, or a refactor — one decision per turn. Use when a change touches something other code or people depend on and is too large to just do.
 ---
 
 # Codebase design
@@ -14,6 +14,15 @@ Real changes rarely follow this exactly. Treat it as the direction, and use the 
 ## The rule
 
 **Take next the decision other decisions depend on.** Say which move you are making and why, so the user can redirect. Each decision follows the pairing loop in `AGENTS.md`; the architecture behind every proposal is `effect-architecture`.
+
+## A turn
+
+The work happens in conversation, not in a document. Each turn makes one move and brings one decision (or a small group that belongs together): the recommendation, the smallest sketch, the trade-off, the alternative. Then it stops and waits for the user.
+
+- **First turn:** read the code the change touches, say back the goal in one or two sentences, name the first move and why, and bring its first decision. Nothing more.
+- **Do not draft ahead.** No outline of later moves, no list of every open question, no complete design to react to. Later decisions depend on this one; showing them first decides them silently.
+- **Only the user locks.** A decision is locked when the user agrees, reshapes and agrees, or says so. Your own recommendation is a proposal until then.
+- **Write nothing before the first lock.** No spec file, no skeleton, no headings.
 
 ## Moves
 
@@ -33,10 +42,10 @@ Use-case wording maps onto the architecture: a noun becomes a core type, a phase
 
 ## The spec
 
-A change that fits one context and adds no dependency needs no spec: lock it in conversation, implement it, report, and ask for `/plannotator-review`. Anything larger gets `plans/<change>.md`, created with the first locked decision.
+The spec is the record of the conversation, never its starting point. A change that fits one context and adds no dependency needs no spec: lock it in conversation, implement it, report, and ask for `/plannotator-review`. For anything larger, create `plans/<change>.md` after the user locks the first decision, containing only that decision.
 
 - **Write only what was locked, right after it locks**, and say in one line what changed in the spec. The user never meets a section they have not already agreed to.
-- **Every spec contains**:
+- **By the time it is submitted, every spec contains**:
   - **Decisions**: a table of decision, trade-off, and rejected alternative.
   - **Call trees** for every changed path, each followed by its tests in the defense format of `effect-architecture/testing.md`.
   - **Slices**: a `## Slices` section of `- [ ] 1. <Title> — <what it delivers and its checks>` lines, which `/implement` parses.
@@ -45,7 +54,7 @@ A change that fits one context and adds no dependency needs no spec: lock it in 
 
 ## Review and build
 
-1. When nothing is open and the slices are written, enter Plannotator plan mode and submit the spec.
+1. When nothing is open and the slices are written, enter Plannotator plan mode and submit the spec. Plan mode comes on only now: its planning prompt asks for a skeleton plan and batched questions, which this workflow replaces.
 2. Apply wording fixes from annotations directly. Discuss an annotation that reopens a locked decision one at a time, update the spec, and resubmit.
 3. After approval, the user runs `/implement` per slice and reviews each with `/plannotator-review`.
 4. Delete the spec once its last slice lands. Plannotator's archive keeps the history; `CONTEXT.md` keeps the language.
