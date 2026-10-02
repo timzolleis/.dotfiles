@@ -20,8 +20,8 @@ packages/bundle  # Brewfile
 home/            # mirrored to ~ via `stow --no-folding`
   .zshrc
   .gitconfig
-  .pi/agent/     # AGENTS.md (pi harness), settings.json, plannotator.json, extensions/
-  .agents/       # AGENTS.md (global conventions), skills/ (source of truth)
+  .pi/agent/     # AGENTS.md (global instructions), settings.json, plannotator.json, extensions/
+  .agents/       # skills/ (source of truth; installer-managed skills live only in ~/.agents)
 ```
 
 ## How it works
