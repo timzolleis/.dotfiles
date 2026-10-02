@@ -10,6 +10,19 @@ Use this reference for every document an agent consumes. Make the process predic
 
 When editing a skill, also read [`SKILL-MECHANICS.md`](SKILL-MECHANICS.md).
 
+## Where a rule lives
+
+Every rule has exactly one home, in one of four layers:
+
+| Layer | Owns | Never contains |
+|---|---|---|
+| Global `~/.pi/agent/AGENTS.md` | how we work: pairing, workflow, call trees, reporting, safety | code rules |
+| `effect-architecture` skill | the portable concept: architecture, decoding, naming, testing | repository facts |
+| Repository `AGENTS.md` (`CLAUDE.md` = `@AGENTS.md`) | stack, commands, layout, reuse map, legacy, explicit exceptions to the concept | concept rules |
+| Workflow skills | one activity's steps; they link the concept and `AGENTS.md` | code taste, restated pairing |
+
+When a rule appears in two layers, delete it from the one that does not own it. Skills and global files are authored in `~/.dotfiles/home/` and stowed with `dot stow`.
+
 ## Context pointers
 
 A **context pointer** names material outside the current context and says when to read it. A skill description and an instruction such as “for persistence changes, read X” both act as pointers.

@@ -57,7 +57,7 @@ Complete when one probe identifies the cause or the remaining uncertainty is nam
 
 ## 4. Lock the defect and fix it
 
-Put the regression test at the public seam owned by the faulty decision. The test must reproduce the real pattern and fail before the fix. If no correct seam exists, report that design gap instead of adding a shallow test that gives false confidence.
+Put the regression test at the public seam owned by the faulty decision (`effect-architecture/testing.md`). The test must reproduce the real pattern, fail before the fix, and answer the six admission questions; a permanent test it adds needs the user's approval like any other. If no correct seam exists, report that design gap instead of adding a shallow test that gives false confidence.
 
 Apply the smallest fix that explains all observed evidence. Then run:
 

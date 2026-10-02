@@ -1,48 +1,34 @@
 ---
 name: tdd
-description: Test-driven development through pre-agreed public seams using vertical red → green tracer bullets.
+description: Test-driven development through the seams and claims an approved spec names, in vertical red → green tracer bullets.
 disable-model-invocation: true
 ---
 
-# Test-Driven Development
+# Test-driven development
 
-TDD is a red → green loop through public interfaces. Tests describe observable behavior and survive internal refactors.
+TDD is a red → green loop through public interfaces. Each test proves one claim the spec approved; `effect-architecture/testing.md` owns what is tested where, the six admission questions, and the test doubles.
 
-Read the nearest project testing instructions first. They own framework choice, fixtures, database use, test-layer boundaries, and verification commands. Use [`tests.md`](tests.md) to check test quality and [`mocking.md`](mocking.md) to choose a test double.
+## 1. Take the seam and claims from the spec
 
-## Agree the seam
+List the tests the spec names under each call tree: claim, seam, rig. Check each against the six admission questions before writing it. When a seam is missing, disputed, or a needed test is not in the spec, stop and raise it instead of inventing it.
 
-Before writing a test, name the public seam and behaviors under test. Use seams already approved in the spec. If the seam is absent or disputed, say so and report it as a deviation instead of inventing it silently.
+Complete when every test you will write maps to one approved defense.
 
-A good test:
+## 2. Run vertical slices
 
-- exercises the public interface;
-- reads like a behavior specification;
-- uses expected values from an independent source such as a literal example or spec;
-- fails when that behavior breaks, not when internals move.
+For each claim, in the order the spec's call trees suggest:
 
-Avoid tests of private functions, internal call sequences, tautological expectations, module mocks, and side-channel verification.
+1. **Red:** write one test through the public interface and run it; observe it fail for the claimed reason.
+2. **Green:** add only enough implementation to pass it.
+3. Run the focused test and the type check.
+4. Move to the next claim, using what this one taught you.
 
-## Run vertical slices
+Never write all tests before all implementation, and never anticipate later slices. Refactor only while green, then rerun the focused check.
 
-For each behavior:
+A good test enters through the seam callers use, takes its expected value from a literal example or the spec, fails when the behavior is absent, and survives an internal refactor.
 
-1. **Red:** write one test and run it to observe the expected failure.
-2. **Green:** add only enough implementation to pass that test.
-3. Run the focused test and relevant typecheck.
-4. Repeat with the next behavior, using what the previous slice taught you.
+## 3. Prove sensitivity and finish
 
-Do not write all tests before all implementation. Do not anticipate later slices. Refactor only while green, then rerun the focused check.
+For every test you keep, apply its spec's sensitivity change, watch it fail, restore, watch it pass, and report both runs. Then run the complete checks the repository or spec names.
 
-## Effect projects
-
-Follow the repository's Effect version and test conventions. Unless the repository says otherwise:
-
-- use `@effect/vitest` and `assert` for Effect code;
-- use ordinary Vitest for pure TypeScript;
-- replace dependencies through Effect services and Layers rather than `vi.mock`, global stubs, or spies;
-- use a real test database when SQL, constraints, transactions, cascades, or row decoding are the behavior;
-- use faithful or recording test implementations for orchestration;
-- validate boundary responses with the boundary schema.
-
-Finish by running the complete affected checks named by the repository or approved spec.
+Complete when every approved claim has a green test with a recorded sensitivity check, and the full checks pass.

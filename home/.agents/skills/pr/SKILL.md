@@ -6,7 +6,7 @@ description: Create or update the pull request for the current branch with a con
 # Pull Request
 
 1. Review the whole branch, not just the last commit: `git log --oneline origin/main..HEAD` and `git diff origin/main...HEAD`.
-2. If the work has a spec (`docs/*-tech-spec.md` or a plan file), read it — the "why" and the approved decisions live there, reuse them.
+2. If the work has a spec (`plans/*.md`), read it — the "why" and the approved decisions live there, reuse them.
 3. Check for an existing PR with `gh pr view --json number,title,body`. If one exists, update it with `gh pr edit`; otherwise create it with `gh pr create`.
 4. Draft the title and body, then create or update the PR and print its URL.
 

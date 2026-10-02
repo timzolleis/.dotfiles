@@ -14,8 +14,8 @@ Include:
 - **Progress** — Done / In progress / Blocked.
 - **Key decisions** — load-bearing choices and *why* (and notable rejected alternatives).
 - **Next steps** — concrete, ordered.
-- **Active workflow** — the skill file path in use and the current `AGENTS.md` stage (Understand, Shape, Lock) or skill step, so the next agent re-reads the skill before continuing.
-- **Suggested skills** — which skills the next agent should invoke (e.g. `tech-spec`, `tdd`, `improve-codebase-architecture`).
+- **Active workflow** — the skill file path in use and the open decision or the current skill step, so the next agent re-reads the skill before continuing.
+- **Suggested skills** — which skills the next agent should invoke (e.g. `codebase-design`, `tdd`, `architecture-review`).
 
 Rules:
 - Do **not** duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.

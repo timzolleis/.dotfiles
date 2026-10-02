@@ -6,13 +6,14 @@ disable-model-invocation: true
 
 # Implement
 
-Implement the approved spec or named slice only.
+Implement the approved spec or the named slice only. The spec is the full scope; its decisions are not reopened here.
 
-1. Read the target, repository instructions, and named files. Consult other references only for an unfamiliar API or when the target names them.
+1. Read the target, the repository's `AGENTS.md`, and the files the target names. Read other references only for an unfamiliar API or when the target names them.
 2. Record the working-tree state. Do not modify the Git index or unrelated files.
-3. Implement the approved contracts and remove what the target retires. Do not introduce an unapproved seam, owner, error, transaction, or dependency.
-4. Run the target's checks once. If it names none, run the repository static check and affected existing tests. Use focused reruns only to diagnose a failure.
-5. Inspect only the target diff and target-owned new files.
-6. Report in the `AGENTS.md` Reporting shape. Format only target files when needed. Do not load other workflows, run repository-wide audits, start another slice, or commit unless asked.
+3. Implement the approved contracts and remove what the target retires. Introduce no seam, owner, error, transaction, dependency, or test the spec does not name. When the code contradicts a locked decision, stop and report it as `Needs decision`.
+4. Write each test the slice names, as its defense describes. Prove its sensitivity: apply the defense's sensitivity change, observe the failure, restore, observe the pass.
+5. Run the slice's checks once. When it names none, run the repository's static check and the affected existing tests. Rerun narrowly only to diagnose a failure.
+6. Inspect only the target diff and the target-owned new files.
+7. Report in the `AGENTS.md` shape, adding `Sensitivity - <test>: RED <result>; GREEN <result>` per new test. Do not load other workflows, run repository-wide audits, start another slice, or commit unless asked.
 
-Ask the user to run `/plannotator-review`. After acceptance, mark the target done in the spec.
+Complete when the slice's checks pass and every new test has a recorded sensitivity proof. Ask the user to run `/plannotator-review`; after acceptance, tick the slice (`- [x]`) in the spec. When the last slice is accepted, delete the spec.
