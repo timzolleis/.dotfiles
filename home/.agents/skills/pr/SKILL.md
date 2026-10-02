@@ -12,75 +12,51 @@ description: Create or update the pull request for the current branch with a con
 
 When the branch is `main`, create a feature branch named `<type>/<short-description>` and push it with `-u` before opening the PR. Never push to `main`, and never force-push without asking first.
 
+Renaming a PR's head branch closes the PR. To rename, open a new PR from the new branch and comment `Superseded by <url>` on the old one.
+
 ## Title
 
 Under 60 characters, imperative, no trailing period, no conventional-commit prefix — `Remove unused spass package`, not `fix: some changes`.
 
 ## The rule
 
-**The reviewer can already see which files changed. Explain what they can't see: why, and how the pieces call each other.**
+**The reviewer can already see which files changed. Explain what they can't see: why, and what they have to accept.**
 
 Write for someone who will read the diff after your description, and needs to know what to look for.
 
+## Voice
+
+Write like the user talks to a teammate: casual, direct, first person plural ("we", "us"). Proper capitalization and full sentences, but plain words — "Resend said no", "don't die anymore", "so batches actually fill up". When the user wrote the existing description, keep their wording and only fix capitalization and typos.
+
 ## Body
 
+No headers. Short paragraphs in this order:
+
 ```markdown
-## Why
+<Problem: what hurts today, as a failure story. 1-2 short paragraphs.
+"Before, we … This meant …">
 
-<1-3 sentences or bullets. The problem, as a failure story — what breaks or
-hurts today. Not "the model lacked a category field" but "reasons were free
-text, so nothing downstream could tell sick leave from a school trip.">
+<The change, in one paragraph: what the system does now and how, at the level
+a reviewer needs before reading the diff.>
 
-## What changes
+**Tradeoff:** <Only if the reviewer has to accept a new risk or lost guarantee.
+What we lose, why, and the concrete failure it allows. Skip if none.>
 
-<2-5 bullets of behavior, in user/system terms. What the system does now that
-it didn't before. No file paths unless a path IS the point (new package,
-deleted module).>
-
-## Flow
-
-<A mermaid diagram or an arrow chain of the path through the code.
-Entry point → service → dependency → store. Mark the new/changed hops.
-Skip only if the change is genuinely flat (config bump, copy edit).>
-
-## Decisions
-
-<Only non-obvious ones. Each: the choice, the rejected alternative, and the
-failure that made you reject it. Skip the section if there were none.>
-
-## Watch out
-
-<Migrations, backfills, breaking API changes, manual deploy steps, follow-ups
-deliberately left out of scope. Skip if none.>
+Also in here:
+- <Other behavior changes a reviewer would otherwise have to dig out of the
+  diff. One or two sentences each. Skip anything the change paragraph already
+  says. Skip the list if empty.>
 ```
 
-Adapt: drop sections that would be empty. A one-line fix gets **Why** and nothing else.
-
-### Flow examples
-
-Arrow chain for a linear path:
-
-```
-POST /absence-reasons  →  AbsenceReasonService.create  →  Model.register (+category)
-                       →  AbsenceReasonRepository.create  →  AbsenceReason.category (NOT NULL)
-```
-
-Mermaid when it branches or loops:
-
-```mermaid
-flowchart LR
-    D[reason dialog] --> C[reasons collection]
-    C --> A[POST /absence-reasons]
-    A --> S[AbsenceReasonService]
-    S --> R[repository] --> DB[(AbsenceReason)]
-```
+A one-line fix gets the problem sentence and nothing else.
 
 ## Never
 
-- A per-file or per-area table of changes. That's `git diff --stat` with extra words.
-- Restating the diff ("added `category` to the interface, added it to the mapper, added it to the payload"). Say it once, at the level of the flow.
-- Test plans, generated-by footers, emoji headers — unless asked.
-- Padding a small PR into the full template.
+- Section headers, templates, or a per-file table of changes.
+- Restating the diff ("added `category` to the interface, added it to the mapper, added it to the payload"). Say it once.
+- A bullet that repeats the change paragraph.
+- Test plans, generated-by footers, emoji — unless asked.
+- Formal or corporate phrasing ("This PR introduces", "leverages", "ensures").
 
 ## Posting
 

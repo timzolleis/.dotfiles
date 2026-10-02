@@ -1,13 +1,12 @@
 {
-  "lastChangelogVersion": "0.85.1",
+  "lastChangelogVersion": "1.0.0",
   "theme": "light/dark",
-  "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.6-sol",
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-5-5",
   "defaultThinkingLevel": "high",
   "packages": [
     "npm:@plannotator/pi-extension",
     "npm:pi-web-access",
-    "npm:pi-mcp-adapter",
     "npm:@gotgenes/pi-anthropic-auth"
   ],
   "warnings": {
@@ -15,12 +14,20 @@
   },
   "showCacheMissNotices": true,
   "quietStartup": true,
+  "compaction": {
+    "modelOverrides": {
+      "anthropic/claude-opus-5-5": {
+        "reserveTokens": 32768
+      }
+    }
+  },
   "hideThinkingBlock": false,
   "tuiMode": "regular",
   "modelThinkingLevels": {
     "openai-codex/gpt-5.6-sol": "high",
     "anthropic/claude-fable-5": "medium",
     "openai-codex/gpt-6-astra": "medium",
-    "anthropic/claude-fable-5-1": "medium"
+    "anthropic/claude-fable-5-1": "high",
+    "anthropic/claude-opus-5-5": "high"
   }
 }

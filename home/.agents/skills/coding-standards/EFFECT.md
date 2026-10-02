@@ -38,14 +38,21 @@ settled standard here.
 and ad-hoc exported-function "services" are legacy** — migrate a legacy module to the Tag form when
 you change it; do not bridge or extend it in place.
 
-This is an **interface-first** policy: the Tag's shape *is* the module interface. Design the method
-signatures and their typed error channels before writing the layer that implements them.
+This is an **interface-first** policy: a declaration-merged `Service` namespace interface is the
+module contract. Design its method signatures and typed error channels before writing the layer that
+implements them.
 
 ```ts
-class Foo extends Context.Tag("app/Foo")<Foo, FooShape>() {
+export class Foo extends Context.Tag("app/Foo")<Foo, Foo.Service>() {
   static layer = Layer.effect(Foo, Effect.gen(function* () { /* prod adapter, deps in R */ }))
   static layerLive = Foo.layer.pipe(Layer.provide(Dep.layerLive)) // fully wired, R = never
   static layerMemory = Layer.sync(Foo, () => /* in-memory adapter, only when a test needs it */)
+}
+
+export declare namespace Foo {
+  export interface Service {
+    readonly operation: (args: OperationArgs) => Effect<OperationResult, OperationError>
+  }
 }
 ```
 
@@ -56,8 +63,9 @@ class Foo extends Context.Tag("app/Foo")<Foo, FooShape>() {
 **[v4]** `Context.Tag`, `Effect.Tag`, and `Effect.Service` all collapse into `Context.Service`, so
 the "`Effect.Service` is legacy" framing is moot under v4 — but the interface-first intent is
 unchanged. Class form (note the flipped arg order):
-`class Foo extends Context.Service<Foo, FooShape>()("app/Foo") {}`. No auto `.Default` /
-`dependencies`; define layers explicitly and wire deps via `Layer.provide`.
+`class Foo extends Context.Service<Foo, Foo.Service>()("app/Foo") {}`. Keep the declaration-merged
+`Foo.Service` interface. No auto `.Default` / `dependencies`; define layers explicitly and wire deps
+via `Layer.provide`.
 
 ## Layer naming
 

@@ -12,7 +12,7 @@ Tests should prove behavior through the same interfaces callers use. Confidence 
 
 **Arbitrary** — A Fast-Check generator for valid or intentionally invalid test values, preferably colocated with the domain module it supports.
 
-**Risk-Matched Evidence** — Verification where each material changed invariant, failure path, boundary, async behavior, persistence/runtime assumption, or user-visible consequence has proportionate evidence through the caller-facing interface or representative runtime.
+**Verification Evidence** — A named check tied to one material decision: an existing test, a new test admitted by the gate below, typechecking, static analysis, or a manual/runtime check.
 
 ## Non-negotiables
 
@@ -28,11 +28,21 @@ Tests should prove behavior through the same interfaces callers use. Confidence 
 
 ## Verification completion criterion
 
-Verification is complete when every material changed behavior, invariant, failure path, boundary, async behavior, persistence/runtime assumption, or user-visible consequence has proportionate evidence through the caller-facing interface or representative runtime.
+Verification is complete when each material decision changed by the code has named verification evidence. Evidence can be an existing test, a new admitted test, typechecking, static analysis, or a named manual/runtime check. A changed file, rendered branch, or user-visible consequence does not by itself create a test obligation. No new automated test is a valid outcome.
+
+A new automated test is admitted only when all three are true:
+
+1. the named module owns the decision under assertion;
+2. a plausible regression is not already caught by types, static checks, or an existing test at the owning seam;
+3. the test would fail for that regression without coupling to incidental markup or implementation structure.
+
+For UI and rendered email, default to no new test. Do not test static rendering, copy, styling, layout, component-library output, or trivial wiring. Add rendered tests only for owned interaction state, input transformation, accessibility behavior, or a reproduced regression that requires rendered evidence. Prefer one flow-level test when it replaces several component-state tests.
 
 If a representative environment is unavailable, name the unproven claim instead of presenting a lower-level test as proof.
 
-## Strong defaults
+## Strong defaults for admitted tests
+
+Apply the admission rule before these defaults.
 
 - Prefer e2e tests for critical user flows.
 - Prefer integration tests through real seams for External Adapter Modules and Service Module orchestration.
@@ -83,15 +93,18 @@ const passwordReset = new PasswordReset(users, emails, clock);
 
 Module mocks patch hidden dependencies. They encourage code without seams and tests coupled to implementation structure.
 
-## Risk-matched evidence
+## Choose the verification mechanism
 
-Match evidence to risk:
+For each material decision, use the first mechanism that can catch the named regression:
 
-- **Focused changes** verify changed behavior through the owning module interface.
-- **Elevated changes** also verify affected external, persistence, concurrency, or runtime seams.
-- **Critical/high-consequence flows** verify the end-to-end flow when a representative environment exists.
+1. typechecking or static analysis;
+2. an existing test at the owning seam;
+3. a named manual or representative-runtime check;
+4. a new automated test, only if it passes the admission rule above.
 
-Do not demand tests just because lines changed. Map each material changed invariant, failure path, boundary, async behavior, or runtime assumption to evidence, and prefer the highest-confidence proof that remains proportionate. If a representative environment is unavailable, state which claim remains unproven rather than pretending a lower-level test proves it.
+A database, external-system, concurrency, or runtime claim still requires its representative seam when types and existing tests cannot catch the regression. A critical cross-seam flow may justify one integration or end-to-end test, but criticality does not bypass the admission rule.
+
+Do not demand tests just because lines, files, UI states, or copy changed. Map each admitted test to the smallest owning seam. If a representative environment is unavailable, state which claim remains unproven rather than pretending a lower-level test proves it.
 
 ## Test only what the code decides
 

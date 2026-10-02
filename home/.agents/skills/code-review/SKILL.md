@@ -70,7 +70,7 @@ Read each hunk in this order and stop at its first substantive issue:
 3. **Domain shape:** business meaning outside the domain owner, invalid state representable, hand-copied schemas or unions, unparsed boundary data, or new vocabulary for an existing concept.
 4. **Layer:** rule/default/second call in a handler or repository, forwarding service, broad dependency, row exposed to UI, network call inside transaction, or retryable mutation without idempotency.
 5. **Idioms and safety:** project-forbidden escape hatch, hidden expected failure, ambient time, sequential independent work, swallowed interruption, floating promise, or sensitive data in diagnostics.
-6. **Names and comments:** undiscoverable export, stale name, duplicate definition, or a comment that does not add information.
+6. **Names and contracts:** undiscoverable export, duplicate definition, a name, signature, comment, or test name that is untrue or stale under AGENTS.md "Truthful contracts", or a comment that does not add information.
 7. **Tests:** decision tested in the wrong layer, mocked unit under test, raw setup instead of fixtures, or implementation-coupled assertion.
 
 Every finding needs:

@@ -39,9 +39,18 @@ Put material at the lowest level that still makes it reliable:
 
 Inline what every branch needs. Move branch-specific reference behind a pointer. Keep each concept's definition, rules, and caveats together.
 
+## Two registers
+
+Match the writing to who drives the work.
+
+- **Collaborative guidance** describes how the agent works with the human: design, pairing, specs, reviews. Write the idea and the reason behind it, with one concrete example of a good turn. A model that understands why generalizes to cases the text never named; a model given a state machine follows the letter and loses the intent. Avoid numbered stages, exit criteria, and per-turn quotas here.
+- **Mechanical workflows** run without the human in the loop: commit, implement, release. Write ordered steps with completion criteria.
+
+Hard guardrails (safety, test approval, reporting shape) stay as rules in either register.
+
 ## Steps and completion criteria
 
-End each step with a checkable condition. A completion criterion must tell the agent exactly when the step is complete and demand enough evidence to prevent early exit.
+In a mechanical workflow, end each step with a checkable condition. A completion criterion must tell the agent exactly when the step is complete and demand enough evidence to prevent early exit.
 
 Prefer:
 
@@ -71,4 +80,4 @@ State the positive target behavior. Use prohibitions only for hard guardrails an
 - Prefer a precise pointer over duplicated reference text.
 - Test whether an instruction changes model behavior before expanding it.
 
-Complete when every retained line has one owner, one trigger or workflow role, and a checkable effect on agent behavior.
+Keep a line when it has one owner, one trigger or workflow role, and an effect on agent behavior you could observe.

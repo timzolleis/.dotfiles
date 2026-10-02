@@ -19,7 +19,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 		name: "enter_plan_mode",
 		label: "Enter Plan Mode",
 		description:
-			"Enter Plannotator for human approval of a spec that is already written. Follow AGENTS.md and the tech-spec skill: typed contracts, call graph, files, and test slices as TypeScript pseudocode, not prose. Submit with plannotator_submit_plan. Most work does not need this \u2014 the user normally reviews a spec inline as a message annotation. Do not call this for trivial fixes, questions, exploration-only requests, or /implement with an approved spec. After approval, run /implement <spec-path> [slice].",
+			"Enter Plannotator for human approval of a spec that is already written under plans/, following the tech-spec skill. Submit with plannotator_submit_plan. Call this only when every design decision is locked in conversation and the change is too large for one context; a change implemented inline is reviewed with /plannotator-review instead. Do not call this for trivial fixes, questions, exploration-only requests, or /implement with an approved spec. After approval, run /implement <spec-path> [slice].",
 		parameters: Type.Object({}),
 		async execute() {
 			const response = await new Promise<PlanModeResponse | "timeout">((resolve) => {
@@ -65,7 +65,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 					content: [
 						{
 							type: "text" as const,
-							text: "Plan mode is active. Follow the Plannotator planning instructions and AGENTS.md. Use the tech-spec outline, preserve the agreed code-shaped design, and submit with plannotator_submit_plan only after the lock gate passes.",
+							text: "Plan mode is active. Follow the Plannotator planning instructions and AGENTS.md. The spec records only decisions locked in conversation; if it needs a new one, raise it with the user before submitting. Submit with plannotator_submit_plan.",
 						},
 					],
 					details: { phase },
