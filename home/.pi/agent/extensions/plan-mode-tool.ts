@@ -19,7 +19,7 @@ export default function planModeTool(pi: ExtensionAPI) {
 		name: "enter_plan_mode",
 		label: "Enter Plan Mode",
 		description:
-			"Enter Plannotator for human approval of a spec that is already written under plans/, following the tech-spec skill. Submit with plannotator_submit_plan. Call this only when every design decision is locked in conversation and the change is too large for one context; a change implemented inline is reviewed with /plannotator-review instead. Do not call this for trivial fixes, questions, exploration-only requests, or /implement with an approved spec. After approval, run /implement <spec-path> [slice].",
+			"Enter Plannotator for human approval of a spec that is already written under plans/, grown decision by decision through the codebase-design skill. Submit with plannotator_submit_plan. Call this only when every design decision is locked in conversation, the slices are written, and the change is too large for one context; a change implemented inline is reviewed with /plannotator-review instead. Do not call this for trivial fixes, questions, exploration-only requests, or /implement with an approved spec. After approval, run /implement <spec-path> [slice].",
 		parameters: Type.Object({}),
 		async execute() {
 			const response = await new Promise<PlanModeResponse | "timeout">((resolve) => {
