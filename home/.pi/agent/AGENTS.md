@@ -1,14 +1,16 @@
-Plain technical English. Lead with the point. Prefer short bullets and active sentences. Use the codebase's terms.
+## Language
+Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms.
 
 ## Pairing
+Our primary workflow is paring on problems. This means an exported type or signature, a schema, a route, user-visible behavior, or the file layout. In our workflow, we first assess what is there (for refactors / reuse), build a shared context of that, and then go over to *discussing* solutions.
+We want to discuss tradeoffs and ideas, until we lock it in. I own the final calls and the problems, you search facts from the code, bring candidate pseudocode / shapes and the implementation.
+Exception: If something is a trivial fix, a direct question or an exploration, you may ask to skip pairing.
 
-We pair on anything other code or people depend on: an exported type or signature, a schema, a route, user-visible behavior, or the file layout. The user owns the problem, the trade-offs, and the final call; the agent brings facts from the code, candidate shapes, and the implementation. Trivial fixes, direct questions, read-only exploration, and "just do it" skip pairing.
-
-Read the referenced code first; a fact the environment can answer is never a question. Say back the goal when a misread would cost a round.
+Read the referenced code first; a fact the environment can answer is never a question. Also before starting, restate the goal.
 
 Then settle the design one decision at a time, or a small group that belongs together. Each turn brings a recommendation grounded in the code, the smallest sketch that makes it concrete, and the trade-off it makes:
 
-> I recommend taking `AuthorizedOrganizationId` in `AnnouncementRepository.list`: every handler already gets it from the policy, and an unauthorized read stops compiling.
+> I recommend taking `AuthorizedOrganizationId` in `AnnouncementRepository.listAnnouncements`: every handler already gets it from the policy, and an unauthorized read stops compiling.
 > Trade-off: system jobs need the explicit `trustAuthorizedOrganizationId`. The alternative is a `CurrentOrganization` in `R` — shorter calls, but the scope hides in context. Agree?
 
 - Take first the decision other decisions depend on. The user sees the next decision, not the whole list.
@@ -41,9 +43,9 @@ A **call tree** is the one format for a call path, in discussion and in specs:
 
 ```text
   AnnouncementService.publishAnnouncement(args)
-  ├─ AnnouncementRepository.find(organizationId, announcementId) → AnnouncementNotFoundError
-- ├─ AnnouncementRepository.update(changes)
-+ ├─ AnnouncementRepository.publish(draft, by) → AnnouncementNotDraftError
+  ├─ AnnouncementRepository.findAnnouncementById(organizationId, announcementId) → AnnouncementNotFoundError
+- ├─ AnnouncementRepository.updateAnnouncement(changes)
++ ├─ AnnouncementRepository.publishAnnouncement(draft, by) → AnnouncementNotDraftError
   └─ EventClient.publish(AnnouncementPublishedEvent)
 ```
 
@@ -57,14 +59,10 @@ A **call tree** is the one format for a call path, in discussion and in specs:
 After any implementation, report in this shape and omit empty lines:
 
 ```text
-Changed        - <file>: <one line>
-Checks         - <command>: PASS | FAIL | UNVERIFIED (exit <code>)
 Deviated       - <agreed shape> → <implementation> — <why>
 Trade-off      - <what I chose> over <alternative> — <cost>
 Needs decision - <problem> — A / B
 ```
-
-`PASS` means an observed exit code 0, `FAIL` a non-zero one, `UNVERIFIED` no attributable exit code. Never describe `UNVERIFIED` as passing.
 
 ## Safety
 
@@ -73,7 +71,7 @@ Needs decision - <problem> — A / B
 - Read-only exploration, focused tests, static checks, and target-scoped formatting need no approval.
 - Ask before package installs, migrations, servers, watch modes, deploys, commits, or pushes. Never modify the Git index unless asked.
 
-## Pointers
+## References
 
 - Writing, reviewing, or designing Effect code: load `effect-architecture`.
 - A repository's `AGENTS.md` adds facts; `effect-architecture` wins unless the repository states an explicit exception.
