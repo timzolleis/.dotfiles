@@ -15,7 +15,7 @@ export const decodeAnnouncement = (row: unknown) =>
   Schema.decodeUnknown(Announcement)(row).pipe(Effect.orDie)
 
 // announcement-repository.server.ts
-find: Effect.fn('AnnouncementRepository.find')(function* (organizationId, announcementId) {
+findAnnouncementById: Effect.fn('AnnouncementRepository.findAnnouncementById')(function* (organizationId, announcementId) {
   const row = yield* prisma.use((client) =>
     client.announcement.findFirst({
       where: { id: announcementId, ...announcementInOrganization(organizationId) },
@@ -26,7 +26,7 @@ find: Effect.fn('AnnouncementRepository.find')(function* (organizationId, announ
   return yield* decodeAnnouncement(row)
 }),
 
-publish: Effect.fn('AnnouncementRepository.publish')(function* (draft: DraftAnnouncement, by) {
+publishAnnouncement: Effect.fn('AnnouncementRepository.publishAnnouncement')(function* (draft: DraftAnnouncement, by) {
   const row = yield* prisma.use((client) =>
     client.announcement.update({
       where: { id: draft.id, organizationId: draft.organizationId, status: 'draft' }, // race guard
@@ -44,7 +44,7 @@ publish: Effect.fn('AnnouncementRepository.publish')(function* (draft: DraftAnno
 
 - **One repository per core type**, not per table or feature. A read belongs to the repository of the core type its answer is *about*, even when it counts another table's rows.
 - **Reads return states or read models.** A plain list of states needs no read model.
-- **Writes are named transitions** (`publish`, `editDraft`, `markViewed`) that take the source state and return the next state. Write only the fields the transition sets; Prisma's partial `data` is the diff.
+- **Writes are named transitions** (`publishAnnouncement`, `editAnnouncementDraft`, `markAnnouncementViewed`) that take the source state and return the next state. Write only the fields the transition sets; Prisma's partial `data` is the diff.
 - **Guard the source state in `where`.** Races are the repository's job: zero matched rows become the domain error the type implied.
 - **Scope every query with a visibility predicate** from the shared base. Methods take `AuthorizedOrganizationId`, never a bare `OrganizationId`.
 - **Decode into domain types at the end of every method**, following [decoding.md](decoding.md).

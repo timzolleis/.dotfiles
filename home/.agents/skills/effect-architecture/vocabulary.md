@@ -23,7 +23,7 @@ The one place these terms are defined. Use them exactly; other skills use them w
 
 - **Core type** — the type a module is about: an aggregate, or a type derived from it.
 - **State** — one lifecycle member of a core type (`DraftAnnouncement`), discriminated by `status`.
-- **Transition** — a named write from one state to the next (`publish(draft) → PublishedAnnouncement`).
+- **Transition** — a named write from one state to the next (`publishAnnouncement(draft) → PublishedAnnouncement`).
 - **Use case** — what an actor wants: a **command** (changes something) or a **question** (wants to know something).
 - **Policy** — a pure function over domain types that answers one rule or computes one value.
 - **Read model** — a question's answer: states plus context they do not own, named for the question (`AnnouncementInboxEntry`). Built by **composition**: it nests states rather than spreading their fields.

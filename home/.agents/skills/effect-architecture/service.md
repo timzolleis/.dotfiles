@@ -13,7 +13,7 @@ export declare namespace AnnouncementService {
       readonly announcementId: AnnouncementId
       readonly actorId: UserId
     }) => Effect.Effect<Announcement, AnnouncementNotFoundError | AnnouncementNotDraftError>
-    readonly markAnnouncementViewed: AnnouncementRepository.Service['markViewed']
+    readonly markAnnouncementViewed: AnnouncementRepository.Service['markAnnouncementViewed']
   }
 }
 
@@ -27,17 +27,17 @@ export class AnnouncementService extends Context.Tag('AnnouncementService')<
 
     return AnnouncementService.of({
       publishAnnouncement: Effect.fn('AnnouncementService.publishAnnouncement')(function* ({ organizationId, announcementId, actorId }) {
-        const announcement = yield* announcementRepository.find(organizationId, announcementId)
+        const announcement = yield* announcementRepository.findAnnouncementById(organizationId, announcementId)
         if (announcement.status === 'published') {
           yield* eventClient.publish(AnnouncementPublishedEvent.fromAnnouncement(announcement))
           return announcement
         }
         const publishedAt = yield* DateTime.nowAsDate
-        const published = yield* announcementRepository.publish(announcement, { actorId, publishedAt })
+        const published = yield* announcementRepository.publishAnnouncement(announcement, { actorId, publishedAt })
         yield* eventClient.publish(AnnouncementPublishedEvent.fromAnnouncement(published))
         return published
       }),
-      markAnnouncementViewed: announcementRepository.markViewed, // no rule yet: pass-through
+      markAnnouncementViewed: announcementRepository.markAnnouncementViewed, // no rule yet: pass-through
     })
   })
 

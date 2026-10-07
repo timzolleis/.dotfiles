@@ -48,7 +48,7 @@ Name a double for what it does, and use the narrowest faithful one:
 ## A test in the spec
 
 ```text
-AnnouncementRepository.publish rejects an already-published row      [repository · real database]
+AnnouncementRepository.publishAnnouncement rejects an already-published row      [repository · real database]
   regression   the `status: 'draft'` guard is dropped → double publish, two events
   gap          types cannot see the where clause; service tests use Layer.mock
   burden       one seeded draft row; changes only if the transition changes

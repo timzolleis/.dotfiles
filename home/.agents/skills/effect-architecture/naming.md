@@ -4,7 +4,7 @@ Agents find code by plain-text search and read small windows around the hits. Ev
 
 ## Names are search queries
 
-- **Exported symbols get 2–4 words, at least one a domain word**: `sanitizeEmailHtml`, not `sanitize`. Qualify only until the name greps uniquely; never rely on the folder to disambiguate.
+- **Exported symbols and service or repository methods get 2–4 words, at least one a domain word**: `sanitizeEmailHtml`, not `sanitize`; `findAnnouncementById`, not `find`. One-word names collide with every other module's `find`, `list`, and `delete` (61% globally unique in a large monorepo; three words, 96%). Qualify only until the name greps uniquely; never rely on the folder, the import, or the receiver (`announcementRepository.find`) to disambiguate.
 - **One concept, one spelling.** Reuse the codebase's vocabulary; `organizationId` everywhere, never also `orgId`.
 - **One definition site per symbol.** Move code, never copy it; delete the origin in the same change.
 - **No bare-role filenames** (`config.ts`, `types.ts`, `utils.ts`, `helpers.ts`). Prefix the domain: `billing-plan-config.ts`. `index.ts` only as a thin re-export.
@@ -17,6 +17,7 @@ Agents find code by plain-text search and read small windows around the hits. Ev
 ## Names tell the truth
 
 - **Name an operation for everything it does, verb first**: `getNotificationTemplateForChannel`, not `resolveTemplate`. `get`/`find`/`check` only read; a function that also writes says so (`getOrCreateDraft`).
+- **Name a thing for what its caller can do with it, in domain words, not for the mechanism behind it**: `where`, `store`, `subscribe`, not `subset`, `sink`, `mount`. This holds for internal variables, services, methods, and call-tree nodes as much as for exports.
 - **Name a value for what it is, not who uses it**: `UserStore`, not `UsersForPasswordReset`. The consumer belongs at the call site.
 - **Replace empty labels** (`handle`, `process`, `resolve`, `manager`, `context`, `data`) with the actual action or content. Use an architecture word (`Repository`, `Gateway`) only when it is the thing's established role.
 - **Name for the actual scope.** A broad name fits a broad capability; a module narrowed to one job narrows its name.
@@ -34,7 +35,8 @@ Agents find code by plain-text search and read small windows around the hits. Ev
 | Read model | the question it answers | `AnnouncementInboxEntry` |
 | Domain error | `<Fact>Error` | `AnnouncementNotDraftError` |
 | Policy | verb + question | `getAnnouncementRevision` |
-| Transition | business verb on the state | `publish`, `editDraft`, `markViewed` |
+| Read | `find`/`list`/`count` + core type | `findAnnouncementById`, `listAnnouncements` |
+| Transition | business verb + core type | `publishAnnouncement`, `editAnnouncementDraft`, `markAnnouncementViewed` |
 | Success codec | `<Type>Response` | `PublishedAnnouncementResponse` |
 | Error codec | `<DomainError minus Error>HttpError` | `AnnouncementNotDraftHttpError` |
 | Span | `<Service>.<method>` | `AnnouncementService.publishAnnouncement` |
