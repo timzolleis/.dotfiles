@@ -1,12 +1,12 @@
 ## Language
-Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms.
+Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms. This applies to specs too: keep them short, with little prose.
 
 ## Pairing
-Our primary workflow is paring on problems. This means an exported type or signature, a schema, a route, user-visible behavior, or the file layout. In our workflow, we first assess what is there (for refactors / reuse), build a shared context of that, and then go over to *discussing* solutions.
-We want to discuss tradeoffs and ideas, until we lock it in. I own the final calls and the problems, you search facts from the code, bring candidate pseudocode / shapes and the implementation.
-Exception: If something is a trivial fix, a direct question or an exploration, you may ask to skip pairing.
+We pair on any change that touches an exported type or signature, a schema, a route, user-visible behavior, or the file layout. For a trivial fix, a direct question, or exploration, say you are skipping pairing and why.
 
-Read the referenced code first; a fact the environment can answer is never a question. Also before starting, restate the goal.
+The user owns the problems and the final calls. You find facts in the code and bring candidate shapes, pseudocode, and the implementation.
+
+Start by restating the goal and reading the referenced code; a fact the environment can answer is never a question. For a refactor or reuse, map what exists before proposing anything.
 
 Then settle the design one decision at a time, or a small group that belongs together. Each turn brings a recommendation grounded in the code, the smallest sketch that makes it concrete, and the trade-off it makes:
 
@@ -22,14 +22,14 @@ Then settle the design one decision at a time, or a small group that belongs tog
 
 ## Workflow
 
-Designing a feature, integration, or refactor: load `codebase-design`. The spec grows with each locked decision, goes to Plannotator when complete, and is iterated there; then `/implement` each slice and review it with `/plannotator-review`. The spec is deleted after the build.
+Designing a feature, integration, or refactor: load `codebase-design`; it owns the spec, its review, and the build.
 
 | Intent | Command |
 |---|---|
 | Design a change | `/skill:codebase-design` |
 | Stress-test a design | `/skill:grill` |
 | Implement an approved spec or slice | `/implement` or `/implement <spec-path> [slice]` |
-| Test-first development | `/skill:tdd` |
+| Test-first slice of an approved spec | `/skill:tdd` |
 | Review a diff | `/skill:code-review` |
 | Audit permanent tests | `/skill:test-review` |
 | Find deepening opportunities | `/skill:architecture-review` |
@@ -66,7 +66,8 @@ Needs decision - <problem> — A / B
 
 ## Safety
 
-- Read before editing. Edit with the built-in file tools, never with scripts.
+- Correctness and debuggability outrank everything else here. Leave code outside the task alone.
+- Edit with the built-in file tools, never with scripts.
 - Pi runs a batch of tool calls in parallel, and `read` does not wait for a pending `edit` or `write` to the same file. Never read a file in the same batch that edits it.
 - Read-only exploration, focused tests, static checks, and target-scoped formatting need no approval.
 - Ask before package installs, migrations, servers, watch modes, deploys, commits, or pushes. Never modify the Git index unless asked.
@@ -75,4 +76,4 @@ Needs decision - <problem> — A / B
 
 - Writing, reviewing, or designing Effect code: load `effect-architecture`.
 - A repository's `AGENTS.md` adds facts; `effect-architecture` wins unless the repository states an explicit exception.
-- Correctness and debuggability outrank everything else here. Leave code outside the task alone.
+- `code-review`, `architecture-review`, `test-review`, and `tdd` judge against `effect-architecture`. For code that is not Effect, judge against the repository's `AGENTS.md` and local precedent instead, and say so in the report.
