@@ -1,6 +1,7 @@
 ---
 name: make-interfaces-feel-better
-description: Design engineering principles for making interfaces feel polished — surfaces, typography, and spacing details. Use when building UI components, reviewing frontend code, or working on hover states, shadows, borders, typography, or visual detail work. Triggers on UI polish, design details, "make it feel better", "feels off", border radius, optical alignment, font smoothing, tabular numbers, image outlines, box shadows, hit areas.
+description: Design engineering principles for making interfaces feel polished — surfaces, typography, and spacing details.
+disable-model-invocation: true
 ---
 
 # Details that make interfaces feel better

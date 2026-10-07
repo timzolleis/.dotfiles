@@ -55,6 +55,6 @@ Ask the user to approve, adjust, or reject. An approval covers only the listed c
 
 ## 6. Apply approved verdicts
 
-Apply the approved cuts, moves, merges, and fixes. For each retained test, introduce its sensitivity change, run the narrowest command and observe the expected failure, restore, and rerun to exit 0. When a test does not fail for the claimed reason, restore and stop for a decision. Never leave a mutation in the tree; run the repository's checks.
+Apply the approved cuts, moves, merges, and fixes. For each retained test, prove its sensitivity as `effect-architecture/testing.md` requires, using the narrowest command. When a test does not fail for the claimed reason, restore and stop for a decision. Never leave a mutation in the tree; run the repository's checks.
 
 Report in the `AGENTS.md` shape, adding `Sensitivity - <test>: RED <result>; GREEN <result>` per retained test.

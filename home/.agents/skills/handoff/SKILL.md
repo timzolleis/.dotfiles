@@ -18,6 +18,6 @@ Include:
 - **Suggested skills** — which skills the next agent should invoke (e.g. `codebase-design`, `tdd`, `architecture-review`).
 
 Rules:
-- Do **not** duplicate content already captured in other artifacts (PRDs, plans, ADRs, issues, commits, diffs). Reference them by path or URL instead.
+- Do **not** duplicate content already captured in other artifacts (specs in `plans/`, `CONTEXT.md`, issues, commits, diffs). Reference them by path or URL instead.
 - Redact sensitive information — API keys, passwords, PII.
 - If the user passed arguments, treat them as a description of what the next session will focus on, and tailor the document accordingly.

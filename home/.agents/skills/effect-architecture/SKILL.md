@@ -53,4 +53,4 @@ Read the reference for every module kind the change touches. Also read [naming.m
 - An impossible typed failure dies with its value: `Effect.catchTag('XError', (error) => Effect.die(error))`.
 - A wrapping error keeps a short literal message and carries the original as `cause`; never interpolate the cause into the message.
 - Import from module subpaths (`effect/Effect`, `effect/Schema`), never the root barrel. `pipe` comes from `effect/Function`.
-- Verify Effect APIs against the installed version's source before using them; never guess. Sketches here use Effect 3 (`Context.Tag`); Effect 4 spells it `Context.Service`.
+- Verify Effect APIs against the installed version's source before using them; never guess. Sketches here use Effect 3 (`Context.Tag`); in an Effect 4 repository, the `effect` skill owns API spellings (`Context.Service`).

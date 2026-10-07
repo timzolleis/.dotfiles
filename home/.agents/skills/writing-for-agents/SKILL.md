@@ -1,7 +1,6 @@
 ---
 name: writing-for-agents
-description: Create or revise skills, AGENTS.md, CLAUDE.md, and other instructions consumed by agents.
-disable-model-invocation: true
+description: Create, revise, or audit skills, AGENTS.md, CLAUDE.md, and other instructions consumed by agents. Use when a rule changes and its owning file must be updated, or when a skill's wording, invocation, or placement is in question.
 ---
 
 # Writing for Agents

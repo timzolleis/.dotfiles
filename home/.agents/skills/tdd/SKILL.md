@@ -29,6 +29,6 @@ A good test enters through the seam callers use, takes its expected value from a
 
 ## 3. Prove sensitivity and finish
 
-For every test you keep, apply its spec's sensitivity change, watch it fail, restore, watch it pass, and report both runs. Then run the complete checks the repository or spec names.
+For every test you keep, prove its sensitivity with its spec's sensitivity change, as `effect-architecture/testing.md` requires. Then run the complete checks the repository or spec names.
 
 Complete when every approved claim has a green test with a recorded sensitivity check, and the full checks pass.

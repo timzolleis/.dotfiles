@@ -1,6 +1,6 @@
 ---
 name: diagnosing-bugs
-description: Evidence-first diagnosis for reported failures, regressions, flaky behavior, and performance problems.
+description: Evidence-first diagnosis of a defect. Use when something fails, regresses, flakes, or is slow and the cause is not yet known.
 ---
 
 # Diagnosing Bugs
