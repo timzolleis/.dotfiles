@@ -9,6 +9,10 @@ The portable concept for Effect features. A repository's `AGENTS.md` adds facts 
 
 Terms in **bold** are defined in [vocabulary.md](vocabulary.md).
 
+## Version
+
+The references hold version-neutral rules; their code lives in `examples/v<major>/`, where `<major>` is the installed `effect` major (`node_modules/effect/package.json`). Read only your version's examples.
+
 ## The feature call tree
 
 ```text
@@ -53,4 +57,4 @@ Read the reference for every module kind the change touches. Also read [naming.m
 - An impossible typed failure dies with its value: `Effect.catchTag('XError', (error) => Effect.die(error))`.
 - A wrapping error keeps a short literal message and carries the original as `cause`; never interpolate the cause into the message.
 - Import from module subpaths (`effect/Effect`, `effect/Schema`), never the root barrel. `pipe` comes from `effect/Function`.
-- Verify Effect APIs against the installed version's source before using them; never guess. Sketches here use Effect 3 (`Context.Tag`); in an Effect 4 repository, the `effect` skill owns API spellings (`Context.Service`).
+- Verify Effect APIs against the installed version's source before using them; never guess.

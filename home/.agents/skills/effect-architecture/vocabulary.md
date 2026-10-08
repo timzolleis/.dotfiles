@@ -8,7 +8,7 @@ The one place these terms are defined. Use them exactly; other skills use them w
 - **Interface** — everything a caller must know to use a module correctly: types, invariants, ordering, error modes, configuration, performance. _Avoid_: API, signature (both too narrow).
 - **Implementation** — the body behind the interface.
 - **Depth** — leverage at the interface: behavior a caller or test gets per unit of interface learned. **Deep** = much behavior behind a small interface; **shallow** = the interface is nearly as complex as the body.
-- **Seam** — where behavior can be swapped without editing in place; in Effect, a Tag with more than one Layer. **Internal seams** serve a module's own tests; the **external seam** is its interface. _Avoid_: boundary.
+- **Seam** — where behavior can be swapped without editing in place; in Effect, a service with more than one Layer. **Internal seams** serve a module's own tests; the **external seam** is its interface. _Avoid_: boundary.
 - **Adapter** — a concrete thing that satisfies an interface at a seam (a Layer). Names a role, not a size.
 - **Port** — an interface defined at a seam for a capability the module needs but does not own.
 - **Leverage** — what callers gain from depth: more capability per unit of interface.

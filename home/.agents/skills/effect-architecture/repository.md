@@ -2,43 +2,7 @@
 
 The persistence adapter for one core type. It turns rows into domain types and transitions into guarded writes. Large is fine; logic is not.
 
-## Sketch
-
-```ts
-// announcement-visibility.server.ts — shared base: which rows exist for a caller
-export const announcementInOrganization = (organizationId: AuthorizedOrganizationId) =>
-  ({ organizationId }) satisfies Prisma.AnnouncementWhereInput
-
-// announcement-row.server.ts — shared base: one select and one decoder for the state
-export const announcementStateSelect = { … } satisfies Prisma.AnnouncementSelect
-export const decodeAnnouncement = (row: unknown) =>
-  Schema.decodeUnknown(Announcement)(row).pipe(Effect.orDie)
-
-// announcement-repository.server.ts
-findAnnouncementById: Effect.fn('AnnouncementRepository.findAnnouncementById')(function* (organizationId, announcementId) {
-  const row = yield* prisma.use((client) =>
-    client.announcement.findFirst({
-      where: { id: announcementId, ...announcementInOrganization(organizationId) },
-      select: announcementStateSelect,
-    }),
-  )
-  if (row === null) return yield* new AnnouncementNotFoundError({ announcementId })
-  return yield* decodeAnnouncement(row)
-}),
-
-publishAnnouncement: Effect.fn('AnnouncementRepository.publishAnnouncement')(function* (draft: DraftAnnouncement, by) {
-  const row = yield* prisma.use((client) =>
-    client.announcement.update({
-      where: { id: draft.id, organizationId: draft.organizationId, status: 'draft' }, // race guard
-      data: { status: 'published', publishedAt: by.publishedAt, publishedById: by.actorId },
-      select: announcementStateSelect,
-    }),
-  ).pipe(handlePrismaNotFound(() => new AnnouncementNotDraftError({ announcementId: draft.id })))
-  return yield* decodeAnnouncement(row)
-}),
-```
-
-`prisma.use` and `handlePrismaNotFound` stand for the repository's own Prisma service and error mapper; the repo `AGENTS.md` names the real ones.
+Example: `examples/v<major>/repository.ts` — a visibility predicate, the shared select and decoder, a read, a guarded transition. `prisma.use` and `handlePrismaNotFound` stand for the repository's own Prisma service and error mapper; the repo `AGENTS.md` names the real ones.
 
 ## Rules
 
@@ -53,6 +17,8 @@ publishAnnouncement: Effect.fn('AnnouncementRepository.publishAnnouncement')(fun
 - **A `$transaction` requires a named atomicity decision** in the spec. Keep network calls outside it.
 
 ## Tenancy
+
+Same in Effect 3 and 4:
 
 ```ts
 export type AuthorizedOrganizationId = OrganizationId & Brand.Brand<'AuthorizedOrganizationId'>

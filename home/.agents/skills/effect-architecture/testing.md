@@ -20,7 +20,7 @@ Every permanent test answers all six:
 | Policy | table test, inputs → outputs | it branches or computes | plain values, no Effect |
 | Repository | real database | it owns a persistence guarantee: a visibility predicate, a race guard, a level-3 decode transform | the repo's real test database Layer |
 | Service | orchestration | a branch chooses different effects, or effect order matters | `Layer.mock` for repositories and clients |
-| HTTP edge | codec | a level-3 transform or a `*HttpError` status and body | `Schema.encode`, no server |
+| HTTP edge | codec | a level-3 transform or a `*HttpError` status and body | encode with the codec, no server |
 | Handler, states, field codecs | none | — | types and `tsc` prove them |
 
 Prove each claim at the lowest seam that owns it, once. A heavier rig does not buy broader confidence.

@@ -9,9 +9,9 @@ Classify each dependency of the candidate. The category decides how the deepened
 | Category | Examples | In Effect | Tested with |
 |---|---|---|---|
 | **In-process** | pure computation, in-memory state | a policy or pure module, no Layer | direct calls through the new interface |
-| **Local-substitutable** | Postgres, the filesystem | a Tag whose test Layer is a real local stand-in | the stand-in Layer in the test suite; the seam stays internal |
-| **Remote but owned** | your own services across a network | a **port** Tag beside the operation that needs it, an HTTP or queue adapter Layer | an in-memory adapter Layer |
-| **True external** | Stripe, an identity provider, a school-admin API | a port Tag, a production adapter Layer | `Layer.mock` at the port |
+| **Local-substitutable** | Postgres, the filesystem | a service whose test Layer is a real local stand-in | the stand-in Layer in the test suite; the seam stays internal |
+| **Remote but owned** | your own services across a network | a **port** service beside the operation that needs it, an HTTP or queue adapter Layer | an in-memory adapter Layer |
+| **True external** | Stripe, an identity provider, a school-admin API | a port service, a production adapter Layer | `Layer.mock` at the port |
 
 ## Seam discipline
 
