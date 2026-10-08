@@ -75,5 +75,6 @@ Needs decision - <problem> — A / B
 ## References
 
 - Writing, reviewing, or designing Effect code: load `effect-architecture`.
+- Looking up an Effect API: read the project's installed `effect` source first. When it does not answer, read `~/.local/share/effect-repos/effect-v4` (tracks `main`; start at `LLMS.md` and `ai-docs/src`) or `effect-v3` (branch `v3`).
 - A repository's `AGENTS.md` adds facts; `effect-architecture` wins unless the repository states an explicit exception.
 - `code-review`, `architecture-review`, `test-review`, and `tdd` judge against `effect-architecture`. For code that is not Effect, judge against the repository's `AGENTS.md` and local precedent instead, and say so in the report.
