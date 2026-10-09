@@ -121,7 +121,7 @@ export default function implement(pi: ExtensionAPI) {
 			}
 
 			pi.sendUserMessage(
-				`Implement this approved work: ${path}\n${target.slice ? `Slice: ${target.slice}\n` : ""}\nRead \`${IMPLEMENT_SKILL}\` completely and follow it. Treat the supplied spec${target.slice ? ", limited to that slice," : ""} as the full implementation scope. Do not load standards prose on top of the spec.`,
+				`Implement this approved work: ${path}\n${target.slice ? `Slice: ${target.slice}\n` : ""}\nRead \`${IMPLEMENT_SKILL}\` completely and follow it. Treat the supplied spec${target.slice ? ", limited to that slice," : ""} as the full implementation scope.`,
 			);
 		},
 	});
