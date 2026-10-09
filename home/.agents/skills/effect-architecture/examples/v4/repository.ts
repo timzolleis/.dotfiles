@@ -1,18 +1,19 @@
 // Effect 4 — repository.md
 
-// announcement-visibility.server.ts — shared base: which rows exist for a caller
+// announcement-repository.server.ts
+
+// visibility predicate: which rows exist for a caller
 export const announcementInOrganization = (organizationId: AuthorizedOrganizationId) =>
   ({ organizationId }) satisfies Prisma.AnnouncementWhereInput
 
-// announcement-row.server.ts — shared base: one select and one decoder for the state
+// one select and one decoder for the state
 export const announcementStateSelect = { … } satisfies Prisma.AnnouncementSelect
 export const decodeAnnouncement = (row: unknown) =>
   Schema.decodeUnknownEffect(Announcement)(row).pipe(Effect.orDie)
 
-// announcement-repository.server.ts
 findAnnouncementById: Effect.fn('AnnouncementRepository.findAnnouncementById')(function* (organizationId, announcementId) {
   const row = yield* prisma.use((client) =>
-    client.announcement.findFirst({
+    client.announcement.findUnique({
       where: { id: announcementId, ...announcementInOrganization(organizationId) },
       select: announcementStateSelect,
     }),

@@ -1,6 +1,8 @@
 // Effect 4 — http-edge.md
 
-// announcement-response.ts — explicit wire fields; Type accepts the domain value
+// announcement-api-group.ts — the wire contract, shared by client and server
+
+// explicit wire fields; Type accepts the domain value
 export const PublishedAnnouncementResponse = Schema.Struct({
   status: Schema.Literal('published'),
   id: AnnouncementId,
@@ -8,7 +10,7 @@ export const PublishedAnnouncementResponse = Schema.Struct({
   publishedAt: Schema.DateFromString, // Date ↔ ISO string
 })
 
-// announcement-http-errors.ts — the wire form of a domain error
+// the wire form of a domain error
 /** Encodes `AnnouncementNotDraftError`; handlers fail with the domain error, never construct this. */
 export const AnnouncementNotDraftHttpError = Schema.TaggedStruct('AnnouncementNotDraftError', {
   announcementId: AnnouncementId,
@@ -24,14 +26,13 @@ export const AnnouncementNotDraftHttpError = Schema.TaggedStruct('AnnouncementNo
   HttpApiSchema.status(409), // same as .annotate({ httpApiStatus: 409 })
 )
 
-// announcement-api-group.ts
 HttpApiEndpoint.post('publishAnnouncement', '/announcements/:announcementId/publish', {
   params: AnnouncementPath,
   success: AnnouncementResponse,
   error: [AnnouncementNotFoundHttpError, AnnouncementNotDraftHttpError],
 })
 
-// announcement-api-group.server.ts
+// announcement-api-group.server.ts — handlers; a second file because only the server reads it
 .handle('publishAnnouncement', ({ params }) =>
   Effect.gen(function* () {
     const organizationId = yield* policy.canManageAnnouncements(params.organizationId)

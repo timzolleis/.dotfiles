@@ -8,9 +8,8 @@ Agents find code by plain-text search and read small windows around the hits. Ev
 - **One concept, one spelling.** Reuse the codebase's vocabulary; `organizationId` everywhere, never also `orgId`.
 - **One definition site per symbol.** Move code, never copy it; delete the origin in the same change.
 - **No bare-role filenames** (`config.ts`, `types.ts`, `utils.ts`, `helpers.ts`). Prefix the domain: `billing-plan-config.ts`. `index.ts` only as a thin re-export.
-- **One searchable concept per file, named after the question it answers.** Orchestrators stay thin sequences of calls into named modules.
-- **Keep strings whole.** Never build event names, flags, error codes, or messages by interpolation; write the full literal.
-- **Error messages start with a unique literal prefix**, so a log line greps back to its source.
+- **Keep strings whole.** Never build event names, flags, error codes, or a message's literal phrases by interpolation; write the full literal. A message interpolates only identifiers.
+- **Error messages say what failed, why when known, and how to recover when someone can act.** Start with a unique literal prefix, so a message in a trace greps back to its definition; append identifiers from the error's fields: `` `Procurat is not configured for organization ${organizationId}; add its credentials in the organization settings` ``. Callers branch on the tag and fields, never on message text.
 - **Doc comments use the plain-words phrase someone would search for** ("session has expired" above `SessionExpiryChecker`).
 - **Mark dead ends** with `@deprecated` and a pointer to the replacement.
 

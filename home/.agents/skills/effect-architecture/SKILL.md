@@ -55,6 +55,23 @@ Read the reference for every module kind the change touches. Also read [naming.m
 - Effect-only: no `throw`, `new Error`, Promise-returning domain APIs, or Zod.
 - Match discriminated unions with `Match.discriminatorsExhaustive('<discriminator>')`, not `switch`.
 - An impossible typed failure dies with its value: `Effect.catchTag('XError', (error) => Effect.die(error))`.
-- A wrapping error keeps a short literal message and carries the original as `cause`; never interpolate the cause into the message.
+- A wrapping error keeps its own message ([naming.md](naming.md)) and carries the original as `cause`; never interpolate the cause into the message.
 - Import from module subpaths (`effect/Effect`, `effect/Schema`), never the root barrel. `pipe` comes from `effect/Function`.
 - Verify Effect APIs against the installed version's source before using them; never guess.
+
+## Less code
+
+Every line is read and maintained; write the least the change needs.
+
+- Comment only a constraint the code cannot show (units, ordering, a non-obvious why). No history ("moved from", "copied from"), no restated names, no narration of the change.
+- Use what Effect and Schema already provide (`DateTime`, `Option`, Schema transforms and filters, `Effect.all` with `mode: 'validate'`) before writing a helper. A new helper, type, or wrapper must pass the **deletion test**.
+- Extend the owning service, schema, or file before creating a new one. A new file needs a reason: a new module, or a file too large to read.
+- Models (states, read models) are `Schema.Struct`, not `Schema.Class`. Absence inside the domain is `Option`; `null` exists only in edge shapes.
+- Let inference work. Annotate a type only where it states a contract: an interface or an exported signature.
+
+## Readable code
+
+- A file reads top-down: what a reader opens it for first (the interface, the main use case), details below.
+- A function stays at one level of abstraction. Return early instead of nesting; take no boolean flag parameters.
+- `Effect.fn` or `Effect.gen` for sequences, `pipe` for one or two combinators; no `pipe` chains inside a generator.
+- A file holds one module: the things that change together. Split only when a part gains another reader or another reason to change.

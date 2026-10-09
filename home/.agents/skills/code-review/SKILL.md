@@ -33,7 +33,8 @@ Trace each changed value through `input → codec → policy/decision → transi
 4. **Edges:** undecoded input, `catchTags` instead of a `*HttpError` codec, a response derived from domain fields, a transform where field codecs suffice.
 5. **Effect idioms:** an expected failure hidden as a defect, ambient time or randomness, sequential independent work, a swallowed interruption, a root `effect` import.
 6. **Names and contracts:** anything that breaks `effect-architecture/naming.md`.
-7. **Tests:** a test the spec did not approve, a claim proven at the wrong seam, an assertion that echoes its input or fake.
+7. **Readability:** anything that breaks "Less code" or "Readable code" in `effect-architecture/SKILL.md`: a comment the code could show, a helper Effect or Schema already provides, nesting where an early return reads flat, a function mixing levels, a file that reads bottom-up, a split file without a second reader.
+8. **Tests:** a test the spec did not approve, a claim proven at the wrong seam, an assertion that echoes its input or fake.
 
 ## 4. Prove, then try to disprove
 

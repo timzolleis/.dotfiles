@@ -1,6 +1,8 @@
 // Effect 3 — domain.md
 
-// announcement.ts — states: type-only schemas (Encoded = Type)
+// announcement.ts — the Announcement domain module: states, read models, errors, policies
+
+// states: type-only schemas (Encoded = Type)
 export const DraftAnnouncement = Schema.Struct({
   status: Schema.Literal('draft'),
   id: AnnouncementId,
@@ -20,13 +22,13 @@ export const PublishedAnnouncement = Schema.Struct({
 export const Announcement = Schema.Union(DraftAnnouncement, PublishedAnnouncement)
 export type Announcement = typeof Announcement.Type
 
-// announcement-inbox-entry.ts — a read model nests the state
+// a read model nests the state
 export const AnnouncementInboxEntry = Schema.Struct({
   announcement: PublishedAnnouncement,
   viewedAt: Schema.OptionFromSelf(Schema.DateFromSelf),
 })
 
-// announcement-errors.ts — plain errors, no codec
+// plain errors, no codec
 export class AnnouncementNotDraftError extends Data.TaggedError('AnnouncementNotDraftError')<{
   readonly announcementId: AnnouncementId
 }> {
@@ -35,7 +37,7 @@ export class AnnouncementNotDraftError extends Data.TaggedError('AnnouncementNot
   }
 }
 
-// announcement-revision.ts — a policy: a plain function over domain types
+// a policy: a plain function over domain types
 export const getAnnouncementRevision = (
   announcement: Announcement,
   edit: AnnouncementTextEdit,
