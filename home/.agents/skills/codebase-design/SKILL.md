@@ -87,7 +87,7 @@ Leave out a part that has nothing to say; never fill it. A section that needs ev
 
 | Move | Use when | Output |
 |---|---|---|
-| Map what exists | there is code, a schema, or consumers to respect | the current module map and call trees, fixed constraints (wire contracts, schema, consumers), pain points |
+| Map what exists | there is code, a schema, or consumers to respect | the current module map and call trees, fixed constraints (wire contracts, schema, consumers), the behavior to keep as `Cases`, pain points |
 | Use cases | the intent is fuzzy | actor + intent, each marked command or question |
 | Name it | terms are vague, overloaded, or new | terms written into `CONTEXT.md` as they lock ([context-format.md](context-format.md)) |
 | Lifecycle | something has states | state diagram, the rule on each transition (a type, a policy, or a guard) |

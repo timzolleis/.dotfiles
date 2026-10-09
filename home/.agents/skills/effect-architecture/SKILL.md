@@ -75,3 +75,8 @@ Every line is read and maintained; write the least the change needs.
 - A function stays at one level of abstraction. Return early instead of nesting; take no boolean flag parameters.
 - `Effect.fn` or `Effect.gen` for sequences, `pipe` for one or two combinators; no `pipe` chains inside a generator.
 - A file holds one module: the things that change together. Split only when a part gains another reader or another reason to change.
+
+## Refactors
+
+- **Touched code is new code.** Code a change moves, renames, extends, or rewrites meets this guidance in full; only code the diff leaves alone keeps its old style. "Moved unchanged" or "pre-existing" never justifies keeping a touched line as it was.
+- **Old code is evidence of behavior, never of shape.** Read it for its cases, edge behavior, and wire contracts; record them as `Cases` (or temporary tests); write the target from the spec and this guidance; delete the old code. No line is carried over.

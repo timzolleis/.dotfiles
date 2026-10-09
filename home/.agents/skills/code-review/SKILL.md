@@ -25,7 +25,7 @@ For every new function, type, error, codec, fixture, or service, search for the 
 
 ## 3. Architecture axis
 
-Trace each changed value through `input → codec → policy/decision → transition → effects → result or failure`. Check tenancy (`AuthorizedOrganizationId`, visibility predicates), race guards, transaction lifetime, idempotency, and personal data in diagnostics. Read each hunk in this order and stop at its first substantive issue:
+Trace each changed value through `input → codec → policy/decision → transition → effects → result or failure`. Check tenancy (`AuthorizedOrganizationId`, visibility predicates), race guards, transaction lifetime, idempotency, and personal data in diagnostics. Moved, renamed, and extended code is part of the diff and is judged like new code (`effect-architecture`, Refactors). Read each hunk in this order and stop at its first substantive issue:
 
 1. **Existence:** a duplicate, a pass-through that fails the deletion test, a one-use helper, a speculative seam.
 2. **Domain shape:** a representable illegal state, a rule outside its owner, a read model that spreads a state, a domain type that knows a wire shape or a table.
@@ -38,7 +38,7 @@ Trace each changed value through `input → codec → policy/decision → transi
 
 ## 4. Prove, then try to disprove
 
-A finding survives only with proof: the quoted code with path and line range, plus a value flow, a reachable state, or a reproduction with its observed result. Then try to disprove it: does local precedent, a codec, a Layer, or surrounding code already handle it? Is it only a preference? Downgrade an unproven finding to **Question**, or drop it.
+A finding survives only with proof: the quoted code with path and line range, plus a value flow, a reachable state, or a reproduction with its observed result. Then try to disprove it: does a codec, a Layer, or surrounding code already handle it? Local precedent excuses only code the diff leaves alone. Is it only a preference? Downgrade an unproven finding to **Question**, or drop it.
 
 ## 5. Spec axis
 
