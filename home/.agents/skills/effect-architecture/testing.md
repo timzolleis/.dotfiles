@@ -28,7 +28,7 @@ Prove each claim at the lowest seam that owns it, once. A heavier rig does not b
 ## Rules
 
 - **One test, one confidence claim.** Delete every assertion whose removal would not weaken the claim: inputs, configured fake returns, incidental fixture fields, and type guarantees are known before the call.
-- **Tests are decided in the spec**, under the call tree they cover, as a defense. Plannotator approval of the spec approves the test and its cost. Add no test that the spec does not name.
+- **Tests are decided in the spec**, in the module section they cover (below its call tree when it has one), as a defense. Plannotator approval of the spec approves the test and its cost. Add no test that the spec does not name.
 - **Prove sensitivity before keeping a test**: introduce the claimed regression, watch the test fail for that reason, restore, watch it pass. Report both runs.
 - **Replace, don't layer.** When a module deepens, tests at its new interface replace the old tests on the shallow parts.
 - **Control time, randomness, and IDs** through Effect services (`TestClock`, seeded values); never let them decide an outcome.

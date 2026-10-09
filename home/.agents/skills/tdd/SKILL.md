@@ -10,13 +10,13 @@ TDD is a red → green loop through public interfaces. Each test proves one clai
 
 ## 1. Take the seam and claims from the spec
 
-List the tests the spec names under each call tree: claim, seam, rig. Check each against the six admission questions before writing it. When a seam is missing, disputed, or a needed test is not in the spec, stop and raise it instead of inventing it.
+List the tests the spec names in each module section: claim, seam, rig. Check each against the six admission questions before writing it. When a seam is missing, disputed, or a needed test is not in the spec, stop and raise it instead of inventing it.
 
 Complete when every test you will write maps to one approved defense.
 
 ## 2. Run vertical slices
 
-For each claim, in the order the spec's call trees suggest:
+For each claim, in the order the spec's module sections and call trees suggest:
 
 1. **Red:** write one test through the public interface and run it; observe it fail for the claimed reason.
 2. **Green:** add only enough implementation to pass it.

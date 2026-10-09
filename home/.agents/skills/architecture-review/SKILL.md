@@ -39,6 +39,6 @@ End with a **Top recommendation**. Propose no interfaces yet; ask which candidat
 
 ## 3. Grill the pick
 
-For the chosen candidate, read `~/.agents/skills/grill/SKILL.md` completely and follow it: constraints, dependencies, the deepened shape, what sits behind the seam, which tests survive. For alternative interfaces, use `~/.agents/skills/codebase-design/design-it-twice.md`. Write locked terms into `CONTEXT.md` as they lock.
+For the chosen candidate, read `~/.agents/skills/grill/SKILL.md` completely and follow it: constraints, dependencies, the deepened shape, what sits behind the seam, which tests survive. Bring the deepened shape as a before/after module map first, then one module section per changed module, in the formats of `~/.agents/skills/codebase-design/SKILL.md` (read its "Module map" and "Module section" headings). For alternative interfaces, use `~/.agents/skills/codebase-design/design-it-twice.md`. Write locked terms into `CONTEXT.md` as they lock.
 
 Complete when the candidate is locked or rejected. A locked refactor too large for one context continues in `codebase-design`, which grows its spec.

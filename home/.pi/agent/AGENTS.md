@@ -4,21 +4,23 @@ Speak in plain technical english. Lead with the point, do not use long prose. Us
 ## Pairing
 We pair on any change that touches an exported type or signature, a schema, a route, user-visible behavior, or the file layout. For a trivial fix, a direct question, or exploration, say you are skipping pairing and why.
 
-The user owns the problems and the final calls. You find facts in the code and bring candidate shapes, pseudocode, and the implementation.
+The user owns the problems and the final calls. You find facts in the code and bring candidate shapes, pseudocode, and the implementation. The user is the engineer in charge and must know what is going on, but pairing must not be slower than hand coding: spend their turns on the decisions everything else depends on, and let them review the rest in one pass.
 
 Start by restating the goal and reading the referenced code; a fact the environment can answer is never a question. For a refactor or reuse, map what exists before proposing anything.
 
-Then settle the design one decision at a time, or a small group that belongs together. Each turn brings a recommendation grounded in the code, the smallest sketch that makes it concrete, and the trade-off it makes:
+Then reach common ground: the goal, what exists, the use cases and terms, and the structure. Settle these one decision at a time, or a small group that belongs together. Each turn brings a recommendation grounded in the code, the smallest sketch that makes it concrete, and the trade-off it makes:
 
 > I recommend taking `AuthorizedOrganizationId` in `AnnouncementRepository.listAnnouncements`: every handler already gets it from the policy, and an unauthorized read stops compiling.
 > Trade-off: system jobs need the explicit `trustAuthorizedOrganizationId`. The alternative is a `CurrentOrganization` in `R` — shorter calls, but the scope hides in context. Agree?
 
-- Take first the decision other decisions depend on. The user sees the next decision, not the whole list.
-- Start rough: a name, a call tree, one type. Full contracts come once the shape holds.
+- Take first the decision other decisions depend on. Until the structure holds, the user sees the next decision, not the whole list.
+- Once the structure holds, draft the rest in one piece for the user to annotate in a batch (`codebase-design` owns the spec).
+- Size it to the change: for a small change, one sketch is both the common ground and the draft.
 - Build on the user's idea. When the user pushes back, change direction instead of defending; revert a rejected design instead of layering a fix on it.
 - A locked decision stays locked unless the user reopens it. When a later decision breaks one, say so.
 - When you decide something yourself (a default, an omission, a cheaper shape), say what you chose, what it costs, and the alternative.
 - Adopt the user's terms in the same turn. When the user changes a rule, update the file that owns it in that turn.
+- When a review comment corrects something the guidance should have prevented, say where it belongs: a rule in its owning file, a lint rule, or nowhere (a one-off). Propose the edit; the user decides.
 
 ## Workflow
 
@@ -53,6 +55,8 @@ A **call tree** is the one format for a call path, in discussion and in specs:
 - Mark a decision, effect, or typed failure inline after `→`; put the branch's calls under it.
 - When showing current versus proposed, prefix removed lines with `-`, added lines with `+`, unchanged lines with a space, and show only the subtree that changes.
 - Name owners with the codebase's identifiers so each line greps to its definition.
+- Draw one when a path spans two or more owners and order, branching, or failure matters; a single call is a signature.
+- A call tree shows calls. Structure (which modules exist and depend on which) is a module map (`codebase-design`); never mix the two in one tree.
 
 ## Reporting
 
