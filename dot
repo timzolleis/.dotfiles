@@ -6,6 +6,8 @@
 #   home/            mirrored to ~ via `stow --no-folding` (files are symlinked
 #                    individually; runtime dirs like ~/.pi/agent/sessions stay
 #                    real and never touch this repo)
+#   agents/          own skills; each ~/.agents/skills/<skill> is a directory
+#                    symlink into this repo
 #   packages/bundle  Brewfile
 #
 set -euo pipefail
@@ -13,6 +15,7 @@ set -euo pipefail
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly DOTFILES_DIR
 readonly BREWFILE="${DOTFILES_DIR}/packages/bundle"
+readonly SKILLS_DIR="${DOTFILES_DIR}/agents/.agents/skills"
 readonly PI_PACKAGE="@earendil-works/pi-coding-agent"
 readonly NODE_VERSION="24"
 
@@ -34,7 +37,14 @@ cmd_stow() {
 
     hdr "Stowing home/ → ~"
     stow --dir "$DOTFILES_DIR" --target "$HOME" --restow --no-folding home
-    ok "stowed"
+    ok "stowed home/"
+
+    # ~/.agents/skills must exist as a real directory, so stow links each
+    # skill directory instead of folding ~/.agents into this repo (the skills
+    # installer writes third-party skills there).
+    mkdir -p "${HOME}/.agents/skills"
+    stow --dir "$DOTFILES_DIR" --target "$HOME" --restow agents
+    ok "stowed agents/"
 }
 
 # ─── doctor ──────────────────────────────────────────────────────────────────
@@ -60,6 +70,21 @@ cmd_doctor() {
         fi
     done < <(find "$DOTFILES_DIR/home" -type f)
     [[ $failures -eq 0 ]] && ok "all stowed files resolve"
+
+    hdr "Linked skills"
+    local skill_failures=0 skill_dir
+    for skill_dir in "$SKILLS_DIR"/*/; do
+        skill_dir="${skill_dir%/}"
+        link="${HOME}/.agents/skills/${skill_dir##*/}"
+        if [[ -L "$link" && "$link" -ef "$skill_dir" ]]; then
+            :
+        else
+            err "$link is not a directory symlink into $skill_dir"
+            ((skill_failures++))
+        fi
+    done
+    ((failures += skill_failures))
+    [[ $skill_failures -eq 0 ]] && ok "all skills link into the repo"
 
     hdr "Secret guard"
     local tracked

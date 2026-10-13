@@ -21,11 +21,13 @@ home/            # mirrored to ~ via `stow --no-folding`
   .zshrc
   .gitconfig
   .pi/agent/     # AGENTS.md (global instructions), settings.json, plannotator.json, extensions/
-  .agents/       # skills/ (source of truth; installer-managed skills live only in ~/.agents)
+agents/          # mirrored to ~ via `stow` (folding)
+  .agents/skills/  # own skills; installer-managed skills live only in ~/.agents
 ```
 
 ## How it works
 
+- `agents/` is stowed with folding: each `~/.agents/skills/<skill>` is a directory symlink into the repo, so new files in a skill need no restow. `dot stow` creates `~/.agents/skills` first, so `~/.agents` itself never becomes a symlink.
 - `stow --no-folding` symlinks **individual files** from `home/` into `~`. Runtime dirs (`~/.pi/agent/sessions`, `npm/`, `auth.json`, …) stay as real files outside the repo — secrets structurally can't end up here.
 - pi's extensions from npm/git (plannotator, pi-web-access, …) are **not** checked in — `home/.pi/agent/settings.json`'s `packages` list is the manifest; pi reinstalls them on first run. Same for the `plannotator-*` skills.
 - `dot doctor` verifies tools, symlink health, and fails if any secret/runtime file is ever tracked by git.
