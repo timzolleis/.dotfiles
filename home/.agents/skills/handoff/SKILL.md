@@ -15,7 +15,7 @@ Include:
 - **Key decisions** — load-bearing choices and *why* (and notable rejected alternatives).
 - **Next steps** — concrete, ordered.
 - **Active workflow** — the skill file path in use and the open decision or the current skill step, so the next agent re-reads the skill before continuing.
-- **Suggested skills** — which skills the next agent should invoke (e.g. `codebase-design`, `tdd`, `architecture-review`).
+- **Suggested skills** — which skills the next agent should invoke (e.g. `codebase-design`, `architecture-review`).
 
 Rules:
 - Do **not** duplicate content already captured in other artifacts (specs in `plans/`, `CONTEXT.md`, issues, commits, diffs). Reference them by path or URL instead.

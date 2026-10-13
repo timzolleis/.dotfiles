@@ -31,7 +31,6 @@ Designing a feature, integration, or refactor: load `codebase-design`; it owns t
 | Design a change | `/skill:codebase-design` |
 | Stress-test a design | `/skill:grill` |
 | Implement an approved spec or slice | `/implement` or `/implement <spec-path> [slice]` |
-| Test-first slice of an approved spec | `/skill:tdd` |
 | Review a diff | `/skill:code-review` |
 | Audit permanent tests | `/skill:test-review` |
 | Find deepening opportunities | `/skill:architecture-review` |
@@ -81,4 +80,4 @@ When there are decisions, end with `Reply e.g. 1A 2B`.
 - Writing, reviewing, or designing Effect code: load `effect-architecture`.
 - Looking up an Effect API: read the project's installed `effect` source first. When it does not answer, read `~/.local/share/effect-repos/effect-v4` (tracks `main`; start at `LLMS.md` and `ai-docs/src`). Read `effect-v3` (branch `v3`) only when the installed `effect` major is 3.
 - A repository's `AGENTS.md` adds facts; `effect-architecture` wins unless the repository states an explicit exception.
-- `code-review`, `architecture-review`, `test-review`, and `tdd` judge against `effect-architecture`. For code that is not Effect, judge against the repository's `AGENTS.md` and local precedent instead, and say so in the report.
+- `code-review`, `architecture-review`, and `test-review` judge against `effect-architecture`. For code that is not Effect, judge against the repository's `AGENTS.md` and local precedent instead, and say so in the report.
