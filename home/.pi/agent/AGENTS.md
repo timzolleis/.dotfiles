@@ -60,13 +60,13 @@ A **call tree** is the one format for a call path, in discussion and in specs:
 
 ## Reporting
 
-After any implementation, report in this shape and omit empty lines:
+After any implementation, end with a report in plain markdown, never inside a code block. Omit empty sections.
 
-```text
-Deviated       - <agreed shape> → <implementation> — <why>
-Trade-off      - <what I chose> over <alternative> — <cost>
-Needs decision - <problem> — A / B
-```
+- **Needs decision** first: number items across the whole report; give lettered options, mark one **(recommended)** with a one-line reason.
+- **Deviated**: one bullet per item: <agreed shape> → <implementation>. <why>
+- **Trade-off**: one bullet per item: <what I chose> over <alternative>. <cost>
+
+When there are decisions, end with `Reply e.g. 1A 2B`.
 
 ## Safety
 
@@ -79,6 +79,6 @@ Needs decision - <problem> — A / B
 ## References
 
 - Writing, reviewing, or designing Effect code: load `effect-architecture`.
-- Looking up an Effect API: read the project's installed `effect` source first. When it does not answer, read `~/.local/share/effect-repos/effect-v4` (tracks `main`; start at `LLMS.md` and `ai-docs/src`) or `effect-v3` (branch `v3`).
+- Looking up an Effect API: read the project's installed `effect` source first. When it does not answer, read `~/.local/share/effect-repos/effect-v4` (tracks `main`; start at `LLMS.md` and `ai-docs/src`). Read `effect-v3` (branch `v3`) only when the installed `effect` major is 3.
 - A repository's `AGENTS.md` adds facts; `effect-architecture` wins unless the repository states an explicit exception.
 - `code-review`, `architecture-review`, `test-review`, and `tdd` judge against `effect-architecture`. For code that is not Effect, judge against the repository's `AGENTS.md` and local precedent instead, and say so in the report.
