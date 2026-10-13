@@ -2,7 +2,7 @@
 
 The persistence adapter for one core type. It turns rows into domain types and transitions into guarded writes. Large is fine; logic is not.
 
-Example: `examples/v<major>/repository.ts` — a visibility predicate, the shared select and decoder, a read, a guarded transition. `prisma.use` and `handlePrismaNotFound` stand for the repository's own Prisma service and error mapper; the repo `AGENTS.md` names the real ones.
+Example: `examples/v4/repository.ts` — a visibility predicate, the shared select and decoder, a read, a guarded transition. `prisma.use` and `handlePrismaNotFound` stand for the repository's own Prisma service and error mapper; the repo `AGENTS.md` names the real ones.
 
 ## Rules
 

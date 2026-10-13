@@ -2,7 +2,7 @@
 
 States, read models, errors, and policies of one core type. No Effect services, no I/O, no transport.
 
-Example: `examples/v<major>/domain.ts` — states, a read model, an error, a policy.
+Example: `examples/v4/domain.ts` — states, a read model, an error, a policy.
 
 ## Rules
 

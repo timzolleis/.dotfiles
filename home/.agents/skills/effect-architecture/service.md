@@ -2,7 +2,7 @@
 
 The use cases whose subject is one core type. A service method reads as a short business story: read → decide → transition → side effects.
 
-Example: `examples/v<major>/service.ts` — the `Service` interface, `make`, `layerNoDeps`, `layer`.
+Example: `examples/v4/service.ts` — the `Service` interface, `make`, `layerNoDeps`, `layer`.
 
 ## Rules
 

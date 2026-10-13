@@ -2,7 +2,7 @@
 
 Handlers wire a request to one read or one command. The endpoint's codecs own every wire shape, so domain types never learn how they are serialized.
 
-Example: `examples/v<major>/http-edge.ts` — a `*Response`, a `*HttpError` codec, an endpoint, a handler.
+Example: `examples/v4/http-edge.ts` — a `*Response`, a `*HttpError` codec, an endpoint, a handler.
 
 ## Rules
 

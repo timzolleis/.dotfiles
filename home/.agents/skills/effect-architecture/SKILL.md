@@ -11,7 +11,7 @@ Terms in **bold** are defined in [vocabulary.md](vocabulary.md).
 
 ## Version
 
-The references hold version-neutral rules; their code lives in `examples/v<major>/`, where `<major>` is the installed `effect` major (`node_modules/effect/package.json`). Read only your version's examples.
+Effect 4 is the default. The references hold version-neutral rules; their code lives in `examples/v4/`. Only when the installed `effect` major (`node_modules/effect/package.json`) is 3, read `examples/v3/` instead.
 
 ## The feature call tree
 
@@ -53,7 +53,7 @@ Read the reference for every module kind the change touches. Also read [naming.m
 ## Effect code
 
 - Effect-only: no `throw`, `new Error`, Promise-returning domain APIs, or Zod.
-- Match discriminated unions with `Match.discriminatorsExhaustive('<discriminator>')`, not `switch`.
+- Branch on a discriminated union with its `.match` (`Schema.TaggedUnion`) or `Match.discriminatorsExhaustive('<discriminator>')`; narrow with `.isAnyOf`. No `switch`, `_tag ===` / `!==` comparisons, or ternary chains on the discriminator.
 - An impossible typed failure dies with its value: `Effect.catchTag('XError', (error) => Effect.die(error))`.
 - A wrapping error keeps its own message ([naming.md](naming.md)) and carries the original as `cause`; never interpolate the cause into the message.
 - Import from module subpaths (`effect/Effect`, `effect/Schema`), never the root barrel. `pipe` comes from `effect/Function`.

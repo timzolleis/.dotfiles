@@ -2,7 +2,7 @@
 
 Every edge owns a codec, `Schema<DomainType, EdgeShape>`. Write the least code the representation change allows.
 
-Example: `examples/v<major>/decoding.ts` — one block per ladder step, the instant spellings, a one-way transform.
+Example: `examples/v4/decoding.ts` — one block per ladder step, the instant spellings, a one-way transform.
 
 ## The ladder
 
