@@ -1,20 +1,22 @@
 # Access
 
-Who may act, and who sees what. The rules hold for any host; organizations, `CurrentActor`, permission keys, and `hasPermission` are the example mechanism: port them to the host's, and leave out what it doesn't have.
+Access is who may act and who sees what: flags on the actor decide acting, a visibility rule decides seeing. The rules hold for any host; organizations, `CurrentActor`, permission keys, and `hasPermission` are the example mechanism: port them to the host's, and leave out what it doesn't have.
 
 ## No access model
 
-The actor is `{ userId }`: no flags, permission translation, reader, visibility, actor policy, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
+The actor is `{ userId }`: no flags, permission adapter, reader, visibility, actor policy, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
 
 ## Organization scope
 
 Only in multi-tenant hosts; the organization is the example tenant.
 
 - The route carries the organization (`/organizations/:organizationId/…`); `OrganizationMemberMiddleware` checks membership before any handler runs ([http.md](http.md)).
-- The repository's and views' `where (id, organizationId)` enforces scope once. Don't repeat it in the domain.
-- The actor has no `organizationId`, and flag names don't say "InOrganization": the controller computes every flag for the route's organization, and every find the actor reaches is scoped to it.
+- The repository's and views' `where (id, organizationId)` enforces scope once.
+- The actor has no `organizationId`, and flag names don't say "InOrganization": the permission adapter computes every flag for the scoped organization, and every find the actor reaches is scoped to it.
 
 ## Actor
+
+The actor is the domain's question: may this actor do X? Each flag is one question in the domain's words (`mayEditOthersAbsences`); a policy combines it with state and time. The domain never knows how a flag is answered.
 
 ```ts
 // domain/absence-actor.ts
@@ -31,27 +33,37 @@ type AbsenceActor = {
 - One actor per core type: `userId`, capability flags, and facts about the actor loaded per request.
 - Flags name capabilities, not roles: capabilities are granted per person, so no role name fits.
 - A permission becomes a flag; a policy or the visibility rule decides. A gate would turn "creator OR permission" into "creator AND permission". A pure capability (export) costs one flag plus a one-line policy.
-- Never build a fake actor with every flag set for a job; give the system intent its own actor-less transition.
 
-## Permission translation
+| Who triggers the intent | Actor |
+|---|---|
+| A user, synchronously (HTTP) | built per request by the permission adapter |
+| A user, deferred (queued command, scheduled export) | rebuilt at run time from the persisted `userId`; permissions may have changed since enqueue |
+| The system: time, rule, or another module's event | open: decide with the first real case (actor-less transition with its own policy list vs. an actor variant every policy handles). The trigger event's `actorId` is not this actor. |
+
+Never build a user actor with every flag set for a job.
+
+## Permission adapter
+
+The host's permission system answers the actor's questions. One pure function per module is the only code that knows both sides: the host's permissions in, flags out.
 
 ```ts
-// http/absence-permissions.ts — the only place that reads the absence permission keys; pure
+// infrastructure/absence-permissions.ts — called by the controller and by deferred jobs
 AbsencePermission = Schema.Literals(["absences:read", "absences:update", "absences:delete"])
 
-absenceActorFromCurrentActor({ currentActor, relatedUserIds }) → AbsenceActor = {
-  userId: currentActor.userId, relatedUserIds,
+absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds }) → AbsenceActor = {
+  userId, relatedUserIds,
   mayEditOthersAbsences:   has("absences:update"),
   mayDeleteOthersAbsences: has("absences:delete"),
   mayAssignAnyone:         has("absences:update"),
   mayReadOthersAbsences:   has("absences:read") || has("absences:update"),   // edit implies read
 }
-// has(key) = currentActor.permissions.hasPermission(key, currentActor.organizationId)
+// has(key) = permissions.hasPermission(key, organizationId)
 ```
 
-- The domain never sees a permission key or `CurrentActor`.
-- Identity/access owns roles and the role → permission mapping; the module owns its keys and the translation.
-- The controller loads actor facts (`UserRelationships.listRelatedUserIds`) once per request. Use cases never call those ports.
+- The domain never sees a permission key, role, or `CurrentActor`.
+- Identity/access owns roles and role → permission; the module owns its keys and the adapter.
+- A different permission system means a different adapter; flags, policies, and visibility stay.
+- Whoever builds the actor loads its facts (`UserRelationships.listRelatedUserIds`) once; use cases never call those ports.
 
 ## Reader
 
@@ -67,7 +79,7 @@ Derived reader by default. Use separate types only when the read side needs diff
 
 ## Visibility
 
-The read rule is data, defined once; the views adapter translates it into its query ([reads.md](reads.md)).
+The read rule is data, defined once; the views adapter translates it into its query ([views.md](views.md)).
 
 ```ts
 type AbsenceVisibility = Data.TaggedEnum<{
@@ -76,7 +88,7 @@ type AbsenceVisibility = Data.TaggedEnum<{
 }>
 const AbsenceVisibility = Data.taggedEnum<AbsenceVisibility>()
 
-createAbsenceVisibilityForReader(reader: AbsenceReader) → AbsenceVisibility
+absenceVisibilityFromReader(reader: AbsenceReader) → AbsenceVisibility
   // mayReadOthersAbsences → AllAbsences
   // else InvolvedAbsences: creator, assignee, or assignee ∈ relatedUserIds
   // both: others' drafts stay hidden

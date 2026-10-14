@@ -1,6 +1,27 @@
 # Use cases
 
-One `Context.Service` per command. Every command is the same three steps: find the narrowed state, call its transition, publish the event.
+A use case is one intent: who wants to do what, in the domain's words ("a member archives an absence whose period has ended"). The module is built around them; everything else serves one.
+
+```text
+use case     A member archives an absence whose period has ended.
+command      ArchiveAbsenceCommand { organizationId, actor, absenceId }
+service      ArchiveAbsenceService.archiveAbsence
+transition   archiveAbsence({ absence: ActiveAbsence, actor, now }) + archiveAbsencePolicies
+event        AbsenceArchivedEvent
+entry points AbsenceController.archiveAbsence; a job, a listener
+```
+
+## Cutting use cases
+
+- Name the intent, not the data change: `archiveAbsence`, not `updateAbsenceStatus`. A generic update hides which rules apply.
+- Same intent, different permission: one use case; the difference is an actor flag (`mayEditOthersAbsences`).
+- Different intents: separate use cases, even when they share states and policies (reschedule and reassign).
+- A read is not a use case; it is a view ([views.md](views.md)).
+- The rules of a use case are its Cases: `situation → outcome` lines that become its policies and errors.
+
+## Service
+
+One `Context.Service` per use case. Every one is the same three steps: find the narrowed state, call its transition, publish the event.
 
 ```ts
 // application/archive-absence-service.ts
@@ -47,13 +68,3 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 │  └─ checkPolicies(reassignAbsencePolicies)                                   → NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | …
 └─ AbsenceRepository.publishAbsenceEvent(AbsenceReassignedEvent)               → AbsenceChangedConcurrentlyError
 ```
-
-## Ports
-
-- A port is a `Context.Service` with object arguments: `UserRelationships.listRelatedUserIds({ organizationId, userId })`, `OrganizationMembers.isOrganizationMember({ organizationId, userId })`, `DomainEvents.publishDomainEvent(event)`.
-
-## Wiring
-
-- No layer that bundles every use case: each entry point provides the services it uses, so its requirements show which ones.
-- A listener or job provides only its service's layer.
-- The `Effect.fn` span records the domain error with full context before the HTTP edge maps it.

@@ -1,6 +1,8 @@
 # HTTP
 
-`http/absence-api.ts` (endpoints), `absence-http-errors.ts`, `absence-permissions.ts` ([access.md](access.md)), `absence-controller.ts`.
+The HTTP edge translates between transport and the module: decode the request, build the actor with the permission adapter ([access.md](access.md)), call a use case or view, map domain errors to HTTP errors. Retries and idempotency are decided here.
+
+Files: `http/absence-api.ts` (endpoints), `absence-http-errors.ts`, `absence-controller.ts`.
 
 ## Organization middleware
 
@@ -37,7 +39,7 @@ HttpApiGroup.make("absences").add(/* endpoints */)
 ```
 
 - A middleware can't see the endpoint's decoded params, so it decodes the route params itself with the shared `OrganizationPathParams`.
-- Handlers read `currentActor.organizationId`. Clients never send `actorId` or capabilities.
+- Handlers read `currentActor.organizationId`.
 - `NotOrganizationMemberHttpError` is the only HTTP error not derived from a domain error.
 
 ## Endpoints
@@ -68,17 +70,17 @@ class AbsenceNotFoundHttpError extends Schema.TaggedError<AbsenceNotFoundHttpErr
 - One `Schema.TaggedError` per domain error, with a status and a default actionable `message`. No codes: the `_tag` identifies it.
 - Fields: `message` only. Add a field only when the client needs it to act (`editableUntil`); never internal ids or actor data.
 - Status: not found / invisible 404; not allowed 403; invalid value or referenced entity 422; wrong state, closed window, race, existing id 409.
-- `toAbsenceHttpError(error)`: an exhaustive `Match.valueTags` over `AbsenceError`, so a new domain error doesn't compile until it has a variant. Its return type is a distributive conditional type, so a handler's error type is exactly the variants of its domain errors.
+- `absenceHttpErrorFromAbsenceError(error)`: an exhaustive `Match.valueTags` over `AbsenceError`, so a new domain error doesn't compile until it has a variant. Its return type is a distributive conditional type, so a handler's error type is exactly the variants of its domain errors.
 
 ## Controller
 
 ```text
 AbsenceController.archiveAbsence(params)
 ├─ UserRelationships.listRelatedUserIds({ organizationId, userId })        → relatedUserIds (once per request)
-├─ absenceActorFromCurrentActor({ currentActor, relatedUserIds })           → AbsenceActor
+├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds })          → AbsenceActor
 ├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 ├─ AbsenceViews.getAbsenceById({ organizationId, reader: actor, absenceId }) → AbsenceView
-└─ on failure: toAbsenceHttpError(domain error)
+└─ on failure: absenceHttpErrorFromAbsenceError(domain error)
 ```
 
 Retries and idempotency are decided here; the domain stays truthful:

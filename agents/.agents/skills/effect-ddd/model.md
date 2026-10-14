@@ -1,20 +1,29 @@
 # Model
 
-States, ids, time, transitions, events, and domain errors of one core type. Pure: no services, no I/O.
+The model is the core type's lifecycle as data and pure functions: one schema per state, and one transition per use case that takes the state allowing it and returns an event. Get the states right: each holds exactly the fields it guarantees, so acting on a wrong state doesn't compile. Pure: no services, no I/O.
 
 ## Ids
 
 The domain owns its id format: a prefixed cuid2, not a UUID.
 
 ```ts
-AbsenceId = Schema.String.pipe(
-  Schema.check(Schema.isPattern(/^abs_[a-z][a-z0-9]{23}$/)),
-  Schema.brand("AbsenceId"))
-generateAbsenceId = (): AbsenceId => AbsenceId.make(`abs_${createId()}`)   // @paralleldrive/cuid2
+// lib/prefixed-id.ts — every id schema and generator goes through these
+export const prefixedId = <const Brand extends string>({ prefix, brand }: { readonly prefix: string; readonly brand: Brand }) =>
+  Schema.String.pipe(
+    Schema.check(Schema.isPattern(new RegExp(`^${prefix}_[a-z][a-z0-9]{23}$`))),
+    Schema.brand(brand))
+export const createPrefixedId = (prefix: string): string => `${prefix}_${createId()}`   // @paralleldrive/cuid2
+
+// domain/absence.ts
+export const AbsenceId = prefixedId({ prefix: "abs", brand: "AbsenceId" })
+export type AbsenceId = typeof AbsenceId.Type
+export const generateAbsenceId = (): AbsenceId => AbsenceId.make(createPrefixedId("abs"))
 ```
 
+- `make` checks the pattern, so a generator with the wrong prefix throws on its first call.
+
 - Ids of other modules (`OrganizationId`, `UserId`) are their brands; reference them, never redefine them.
-- Identity is hybrid: the client may send the id (optimistic UI, idempotent retries); otherwise the create use case calls `generateAbsenceId()`. A taken id → `AbsenceAlreadyExistsError`. No `nextIdentity()` on the repository.
+- Identity is hybrid: the client may send the id (optimistic UI, idempotent retries); otherwise the create use case calls `generateAbsenceId()`. A taken id → `AbsenceAlreadyExistsError`.
 
 ## States
 
@@ -46,7 +55,7 @@ isPeriodOngoingAt({ period, now }) → boolean                              // f
 
 - `DateTime.Utc` (`Schema.DateTimeUtc`) in states, events, errors, views, and HTTP. `Date` exists only at Prisma ([repository.md](repository.md)).
 - `Utc`, not `Zoned`, until a rule depends on local calendar days.
-- `now` comes from `DateTime.now` in the use case (it reads `Clock`, so tests use `TestClock`). Clients never send it.
+- `now` comes from `DateTime.now` in the use case (it reads `Clock`, so tests use `TestClock`).
 - Compare with `DateTime.isLessThan` and friends, never `<` or `===`. Write intervals out (`from <= now < to`); `DateTime.between` includes both ends.
 - An instant that a policy checks and an error reports is one function: `absenceEditableUntil = (absence) => DateTime.add(absence.createdAt, { hours: 1 })`.
 
@@ -74,7 +83,7 @@ archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
 - Each transition exists once; states share it through a union until their rules diverge.
 - Order: state (by the narrowing read) → policies in list order → value construction (`yield* createPeriod(...)`).
 - A fact loaded by I/O is a required input field (`assigneeIsOrganizationMember`), so a use case that forgets to load it doesn't compile.
-- A system intent (a nightly job) gets its own transition without an actor: `archiveEndedAbsence({ absence, now })`.
+- System intents (a nightly job) are open; see the trigger table in [access.md](access.md).
 
 ## Events
 
@@ -91,7 +100,6 @@ class AbsenceEditWindowClosedError extends Data.TaggedError("AbsenceEditWindowCl
 ```
 
 - `Data.TaggedError` with rich context (ids, state, dates) for traces. Not a schema, so no endpoint can return one to a client.
-- No failure events.
 - State errors name the actual state relative to the one-way lifecycle: *still* = not far enough, *already* = past it. A find raises them without knowing the command, and they read right for every command.
 - A race between find and write is typed (`AbsenceChangedConcurrentlyError`, 409): the client recovers by reloading.
-- `AbsenceError`, the union of all domain errors, exists only for the exhaustive HTTP mapper; never use it in a signature.
+- `AbsenceError`, the union of all domain errors, exists only for the exhaustive HTTP mapper.

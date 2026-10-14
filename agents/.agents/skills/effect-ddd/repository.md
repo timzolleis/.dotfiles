@@ -1,6 +1,6 @@
 # Repository
 
-The port lives in the domain; the Prisma adapter lives in `infrastructure/`.
+The repository is the write side's port: it loads the state a transition needs and persists the event the transition returns. No generic save or update. The port lives in the domain; the Prisma adapter lives in `infrastructure/`.
 
 ## Port
 
@@ -24,7 +24,7 @@ type AbsenceEventWriteErrors = ByAbsenceEventTag<{
 
 - **Finds narrow**: one per set of states a transition accepts. Each returns that state or the error named after the state it found.
 - **One write**: `publishAbsenceEvent(event)` maps each event to a write, then publishes it. A union of events gives the union of their errors.
-- Rejected: splitting into `insertAbsence` + `publishAbsenceEvent` (two methods per change); a correlated-union record (cast-free but awkward).
+- Rejected: splitting into `insertAbsence` + `publishAbsenceEvent` (two methods per change).
 
 ## Finds
 
