@@ -5,7 +5,7 @@ description: How we design and build Effect 4 features — states, transitions, 
 
 # Effect DDD
 
-The architecture for Effect 4 features, and how we design them together. Examples use one module, `absence` (draft → active → archived); swap in the core type at hand.
+The architecture for Effect 4 features, and how we design them together. Examples use one module, `absence` (draft → active → archived), in an organization-scoped system with permission keys. The core type, tenant, and access mechanism are examples: map them to the host's (the repository `AGENTS.md` names them) and leave out what the host doesn't have.
 
 In design, the user decides; you bring the options and a recommendation. Settle what other decisions depend on first: the lifecycle before the policies, where a rule lives before its name. A change too large to do inline gets a spec ([spec.md](spec.md)).
 
@@ -14,11 +14,11 @@ In design, the user decides; you bring the options and a recommendation. Settle 
 1. **The domain is pure**: states, transitions, policies, events, errors. No services, no I/O, no transport.
 2. **One schema per state.** A transition accepts only the states that allow it, so a wrong state doesn't compile.
 3. **A transition is a pure function**: input → `Result<Event, …errors>`. A use case only loads, calls the transition, and publishes the event.
-4. **Every permission is a flag on the actor.** No permission gates. Reads filter by visibility; they never reject.
+4. **With permissions, each is a flag on the actor**; a policy decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model the actor is `{ userId }` ([access.md](access.md)).
 5. **The domain stays truthful.** Retries and idempotency are softened at the HTTP edge with `catchTag`.
 6. **Decode at every edge**, with no branching or `Effect.die` before the decode.
 7. **A client-actionable failure is a typed error**; corrupt data and infrastructure failures die.
-8. **Everything is organization-scoped**: the route carries the organization, middleware checks membership, the repository's `where` enforces scope once.
+8. **With tenants, scope is checked once at the edge** and enforced by the repository's and views' `where`; the domain never sees it.
 9. **Leave out what the host repository solves**: event delivery, outbox, scaling.
 
 ## Conventions
@@ -52,7 +52,7 @@ In design, the user decides; you bring the options and a recommendation. Settle 
 | Repository find | `find<State><Type>ById` | `findActiveAbsenceById` |
 | View read | `get…` / `list…` | `getAbsenceById`, `listAbsences` |
 | Use case, command | `<Verb><Type>Service`, `<Verb><Type>Command` | `ArchiveAbsenceService`, `ArchiveAbsenceCommand` |
-| Permission key | `<types>:<verb>` | `absences:update` |
+| Permission key | the host's format | `absences:update` |
 
 ## Layout
 

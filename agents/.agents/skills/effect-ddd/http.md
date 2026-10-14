@@ -4,6 +4,8 @@
 
 ## Organization middleware
 
+Example tenant check for an organization-scoped host; port it to the host's auth and tenant mechanism.
+
 ```ts
 // lib/organization-member-middleware.ts
 class NotOrganizationMemberHttpError extends Schema.TaggedError<NotOrganizationMemberHttpError>()("NotOrganizationMemberHttpError", {

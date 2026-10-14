@@ -1,8 +1,14 @@
 # Access
 
-Who may act, and who sees what. Always the actor model; no permission gates.
+Who may act, and who sees what. The rules hold for any host; organizations, `CurrentActor`, permission keys, and `hasPermission` are the example mechanism: port them to the host's, and leave out what it doesn't have.
+
+## No access model
+
+The actor is `{ userId }`: no flags, permission translation, reader, visibility, actor policy, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
 
 ## Organization scope
+
+Only in multi-tenant hosts; the organization is the example tenant.
 
 - The route carries the organization (`/organizations/:organizationId/…`); `OrganizationMemberMiddleware` checks membership before any handler runs ([http.md](http.md)).
 - The repository's and views' `where (id, organizationId)` enforces scope once. Don't repeat it in the domain.
