@@ -41,6 +41,7 @@ PrismaAbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })
 - Check `status` first, then decode only the state the find returns. Nothing decodes the full union.
 - `status` is a Prisma enum, so the match is exhaustive and a new state doesn't compile until every find handles it.
 - A row with an allowed `status` that doesn't decode is corrupt: die.
+- **`not found` is a placeholder.** `findUniqueOrThrow`, `update`, and `delete` fail when no row matches. Catch that failure the way the repo already does (e.g. `narrowPrismaError(PrismaRecordNotFoundError)` + `Effect.catchTag`). Find an existing repository that does it before writing a new helper.
 
 ## Decoding rows
 
@@ -79,8 +80,15 @@ decodeActiveAbsence(row) = Schema.decodeEffect(ActiveAbsenceFromFields)(
 | `AbsenceArchivedEvent` | `update { status: "archived", archivedAt }` | `status: "active"` |
 | `AbsenceDeletedEvent` | `delete` | `status in ["draft", "active"]` |
 
+```text
+PrismaAbsenceRepository.publishAbsenceEvent(AbsenceArchivedEvent)
+└─ prisma.absence.update({ where: { id: absenceId, organizationId, status: "active" }, data: { status: "archived", archivedAt } })
+   └─ not found                  → AbsenceChangedConcurrentlyError
+```
+
 - `Match.valueTags(event, …)`, one write per event; exhaustive, so a new event without a write doesn't compile.
-- No row matched the guard → `AbsenceChangedConcurrentlyError`.
+- `update` / `delete` with the guard in `where`, not `updateMany` / `deleteMany` plus a `count === 0` check.
+- No row matched the guard → `AbsenceChangedConcurrentlyError`. Catch the not-found as in [Finds](#finds).
 - Convert every `DateTime.Utc` with `DateTime.toDateUtc`.
 - Then `DomainEvents.publishDomainEvent(event)`. Write + publish are not atomic; delivery belongs to the host's infrastructure.
 - One cast at the return: inside the generic method `E` is unresolved, so `AbsenceEventWriteErrors[E["_tag"]]` doesn't reduce. A real-database test per guarded write covers what the cast hides.
