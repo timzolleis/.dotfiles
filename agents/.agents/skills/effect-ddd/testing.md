@@ -1,8 +1,14 @@
 # Testing
 
-A test is permanently maintained code. Every later change to the code it covers has to keep it green, read it, and update it. Add a test only for a plausible regression the types don't catch (state unions, exhaustive `Match`, required input fields), and only when that is worth its fixtures, fakes, or database. No test is a valid outcome.
+A test is permanently maintained code. Every later change to the code it covers has to keep it green, read it, and update it. Add one only when it earns that cost; adding no test is a valid outcome.
 
-A test makes one claim, at the lowest place that owns the rule, and fails when that rule is broken.
+Before adding a test, answer:
+
+1. Which plausible regression gets through without it?
+2. Why don't the types already catch it? (state unions, exhaustive `Match`, required input fields)
+3. What does it cost to keep? (fixtures, fakes, a real database)
+
+A test makes one claim, at the lowest place that owns the rule. Before keeping it, break the rule and watch the test fail.
 
 Usual places (defaults, not a checklist):
 
