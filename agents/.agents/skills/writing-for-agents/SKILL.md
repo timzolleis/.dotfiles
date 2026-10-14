@@ -15,12 +15,12 @@ Every rule has exactly one home, in one of four layers:
 
 | Layer | Owns | Never contains |
 |---|---|---|
-| Global `~/.pi/agent/AGENTS.md` | how we work: pairing, workflow, call trees, reporting, safety | code rules |
-| `effect-architecture` skill | the portable concept: architecture, decoding, naming, testing | repository facts |
+| Global `~/.pi/agent/AGENTS.md` | style: how the agent writes and speaks | code rules, workflow |
+| `effect-ddd` skill | the portable concept and how we design: architecture, naming, testing, call trees, specs | repository facts |
 | Repository `AGENTS.md` (`CLAUDE.md` = `@AGENTS.md`) | stack, commands, layout, reuse map, legacy, explicit exceptions to the concept | concept rules |
 | Workflow skills | one activity's steps; they link the concept and `AGENTS.md` | code taste, restated pairing |
 
-When a rule appears in two layers, delete it from the one that does not own it. Skills and global files are authored in `~/.dotfiles/home/` and stowed with `dot stow`.
+When a rule appears in two layers, delete it from the one that does not own it. Global files are authored in `~/.dotfiles/home/`, skills in `~/.dotfiles/agents/.agents/skills/`; both are stowed with `dot stow`.
 
 ## Context pointers
 
