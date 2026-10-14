@@ -57,13 +57,7 @@ type AbsenceReader = Pick<AbsenceActor, "userId" | "mayReadOthersAbsences" | "re
 
 HTTP builds one actor and passes it to both sides (`reader: actor`). A read-only principal (feed token, support "view as", another module) builds only a reader, which no transition accepts.
 
-| Situation | Pick |
-|---|---|
-| Default: reads and writes use the same principal and the same loaded facts | derived reader (`Pick<Actor, …>`) |
-| One request needs both rules (`canEdit` in a response, 404 for commands on invisible rows) | derived reader |
-| Read-only principals exist (feed, guest link, impersonation, another module) | derived reader: they build only the picked fields |
-| The read side needs different facts than the write side, or loading the write facts is too expensive for reads | separate types |
-| The reader is not the same kind of principal (no `userId`, e.g. a feed token scoped to one assignee) | separate types |
+Derived reader by default. Use separate types only when the read side needs different facts than the write side (or the write facts are too expensive for reads), or the reader isn't the same kind of principal (no `userId`, e.g. a feed token scoped to one assignee).
 
 ## Visibility
 

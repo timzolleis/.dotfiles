@@ -1,33 +1,13 @@
 ---
 name: effect-ddd
-description: How we design and build Effect 4 features — states, transitions, policies, actors, reads, repositories, HTTP, tests — and how we design them together and write the spec. Use when designing, writing, or reviewing Effect TypeScript code.
+description: How we design and build Effect 4 features — states, transitions, policies, actors, reads, repositories, HTTP, tests. Use when designing, writing, or reviewing Effect TypeScript code.
 ---
 
 # Effect DDD
 
 The architecture for Effect 4 features, and how we design them together. Examples use one module, `absence` (draft → active → archived); swap in the core type at hand.
 
-## Designing together
-
-Design is pairing: the user owns every decision, you bring the options and the recommendation.
-
-- **Take next the decision other decisions depend on**: the lifecycle before the policies, where a rule lives before its name. A sketch that runs ahead of an open decision decides it silently.
-- **One decision per turn**: the recommendation, the options, the trade-off, then stop. Only the user locks.
-- **Questions get short answers.** Edit nothing unless asked.
-- **Show structure, not prose**: call trees, tables, signatures.
-- **Invent nothing the rule doesn't need**: no wrapper types, helper abstractions, or combinators. When a name or type has no truthful home, reshape the design instead.
-
-A good turn:
-
-```text
-AbsenceActor and AbsenceReader share userId and relatedUserIds.
-- Merge: one translation; views receive write flags.
-- Keep: each side gets only its fields; every command builds both.
-- Derive (recommended): AbsenceReader = Pick<AbsenceActor, …>; one translation, read-only principals still can't write.
-Merge, keep, or derive?
-```
-
-A change too large to do inline gets a spec ([spec.md](spec.md)). The user reviews it with Plannotator annotations; apply each annotation in place.
+In design, the user decides; you bring the options and a recommendation. Settle what other decisions depend on first: the lifecycle before the policies, where a rule lives before its name. A change too large to do inline gets a spec ([spec.md](spec.md)).
 
 ## Deciding rules
 
@@ -43,6 +23,7 @@ A change too large to do inline gets a spec ([spec.md](spec.md)). The user revie
 
 ## Conventions
 
+- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators. When a name or type has no truthful home, reshape the design instead.
 - A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
 - Behavior is named exports imported by name; no namespace imports.
@@ -105,7 +86,7 @@ Read the reference for each part the change touches:
 
 ## Call trees
 
-A **call tree** is the one format for a call path, in discussion and in specs:
+A **call tree** is the one format for a call path, in discussion and in specs; prefer it, tables, and signatures over prose:
 
 ```text
   ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
@@ -122,4 +103,4 @@ A **call tree** is the one format for a call path, in discussion and in specs:
 
 ## Effect APIs
 
-Effect 4 only. Verify every API before using it: the project's installed `effect` source first, then `~/.local/share/effect-repos/effect-v4` (start at `LLMS.md` and `ai-docs/src`; Schema in `packages/effect/SCHEMA.md`, HttpApi in `HTTPAPI.md`). Never guess.
+Effect 4 only; Effect 3 APIs and memory are not sources. The source of truth is the project's installed `effect`, then `~/.local/share/effect-repos/effect-v4` (start at `LLMS.md` and `ai-docs/src`; Schema in `packages/effect/SCHEMA.md`, HttpApi in `HTTPAPI.md`).

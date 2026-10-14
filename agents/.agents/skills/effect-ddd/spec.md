@@ -1,6 +1,6 @@
 # Spec
 
-A spec is pseudocode in the shape of the module it designs: the record of locked decisions, reviewed with Plannotator annotations. Write it after the first decision locks, only what is locked, and rewrite a part in place when its decision changes.
+A spec is pseudocode in the shape of the module it designs: the record of decided design, nothing undecided.
 
 Header: `Pseudocode spec. Not type-checked. Imports omitted.` List conventions only where they differ from effect-ddd.
 
@@ -23,5 +23,4 @@ Sections in this order; leave out a section the change doesn't touch:
 | Open | accepted gaps only, numbered, one or two lines each |
 
 - Tables and call trees over prose. Every name greps to its definition.
-- Leave out what the host repository's infrastructure solves.
 - Ports owned by other modules are examples: name the method, not who implements it.

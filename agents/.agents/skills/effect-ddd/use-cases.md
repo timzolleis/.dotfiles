@@ -51,7 +51,6 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 ## Ports
 
 - A port is a `Context.Service` with object arguments: `UserRelationships.listRelatedUserIds({ organizationId, userId })`, `OrganizationMembers.isOrganizationMember({ organizationId, userId })`, `DomainEvents.publishDomainEvent(event)`.
-- A port owned by another module is an example in the spec: name the method, not who implements it.
 
 ## Wiring
 
