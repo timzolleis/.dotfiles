@@ -1,6 +1,6 @@
 # Spec
 
-A spec is the module's design as pseudocode, in the order a reader builds it: use cases first, then the model, then one section per module along the call path, then slices. It holds decided design only.
+A spec is the module's design as pseudocode, in the order a reader builds it: use cases first, then the model, then one section per module along the call path. It holds decided design only.
 
 Code, call trees, and `situation → outcome` lines carry it. Prose says only what code can't: why a name, what a choice costs, what was rejected. Lists of events, errors, finds, writes, and endpoints are commented code lines, not tables.
 
@@ -103,18 +103,12 @@ Cases (memory repository, TestClock)
 
 Cost: an absence that ends tonight stays active until someone archives it.
 Rejected: archive on read when the period has ended: a read would write.
-
-## Slices
-
-- [ ] 1. Model and table: `domain/*`, migration `add_absence`. Tests: each policy's Cases. Checks: typecheck, tests.
-- [ ] 2. Repository and use cases: …
 ~~~
 
 ## Rules
 
 - The intro maps the concept to the host: tenant, access, event publishing, Effect version. Conventions appear only where they differ from effect-ddd.
-- One `###` per module along the call path: `Owns:` in one line, then signatures, call tree, Cases, Cost, Rejected. Leave out what the module doesn't have.
+- One `###` per module along the call path: `Owns:` in one line, then signatures, call tree, Cases. Leave out what the module doesn't have.
 - Cases are the module's test list ([testing.md](testing.md)); name the fixture in the heading.
-- `Cost:` and `Rejected:` sit next to the decision they belong to, one line each.
+- `Rejected:` only for an alternative that was weighed and a reader would propose again; `Cost:` only for a downside the design accepts. One line each, next to the decision.
 - Every name greps to its definition. Ports owned by other modules are examples: name the method, not who implements it.
-- Slices are ordered and each one leaves the tree green: files, tests, checks.
