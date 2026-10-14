@@ -128,4 +128,4 @@ A **call tree** is the one format for a call path, in discussion and in specs; p
 
 ## Effect APIs
 
-Effect 4 only; Effect 3 APIs and memory are not sources. The source of truth is the project's installed `effect`, then `~/.local/share/effect-repos/effect-v4` (start at `LLMS.md` and `ai-docs/src`; Schema in `packages/effect/SCHEMA.md`, HttpApi in `HTTPAPI.md`).
+Effect 4 only; Effect 3 APIs and memory are not sources. The source of truth is `~/.local/share/effect-repos/effect-v4` (start at `LLMS.md` and `ai-docs/src`; Schema in `packages/effect/SCHEMA.md`, HttpApi in `HTTPAPI.md`).
