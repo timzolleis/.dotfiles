@@ -85,8 +85,8 @@ Names are truthful and greppable: the name alone says what a thing is or does, w
 lib/                                   cross-module helpers (prefixed-id.ts, with-optional-tag.ts, date-time-utc-from-date.ts, organization-member-middleware.ts)
 shared/                                ports owned elsewhere (domain-events.ts, organization-members.ts, user-relationships.ts)
 absence/
-├─ domain/          absence.ts (id, states, inputs, transitions), period.ts, absence-actor.ts, absence-policy.ts,
-│                   absence-event.ts, absence-error.ts, absence-repository.ts (port)
+├─ domain/          absence-id.ts, absence.ts (states, inputs, transitions), period.ts, absence-actor.ts,
+│                   absence-policy.ts, absence-event.ts, absence-error.ts, absence-repository.ts (port)
 ├─ application/     one <verb>-absence-service.ts per command
 ├─ view/            absence-views.ts (port + AbsenceView)
 ├─ infrastructure/  prisma-absence-repository.ts, prisma-absence-views.ts, absence-permissions.ts

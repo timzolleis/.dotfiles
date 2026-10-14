@@ -40,7 +40,7 @@ Cases
   archive someone else's, mayEditOthersAbsences → AbsenceArchivedEvent
   archive while the period is ongoing          → AbsenceOngoingError
 
-## Model (`domain/absence.ts`)
+## Model (`domain/absence-id.ts`, `domain/absence.ts`)
 
 ```ts
 AbsenceId = prefixedId({ prefix: "abs", brand: "AbsenceId" })
@@ -83,7 +83,8 @@ Files (`+` new, `~` changed):
 ```diff
   absence/
   ├─ domain/
-+ │  ├─ absence.ts                  AbsenceId, states, transitions
++ │  ├─ absence-id.ts               AbsenceId
++ │  ├─ absence.ts                  states, transitions
 …
 ```
 

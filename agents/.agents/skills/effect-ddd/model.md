@@ -14,13 +14,14 @@ export const prefixedId = <const Brand extends string>({ prefix, brand }: { read
     Schema.brand(brand))
 export const createPrefixedId = (prefix: string): string => `${prefix}_${createId()}`   // @paralleldrive/cuid2
 
-// domain/absence.ts
+// domain/absence-id.ts
 export const AbsenceId = prefixedId({ prefix: "abs", brand: "AbsenceId" })
 export type AbsenceId = typeof AbsenceId.Type
 export const generateAbsenceId = (): AbsenceId => AbsenceId.make(createPrefixedId("abs"))
 ```
 
 - `make` checks the pattern, so a generator with the wrong prefix throws on its first call.
+- The id gets its own file, not `absence.ts`. Events need it when their file loads, and `absence.ts` imports the events for `X.make`. In one file that is an import cycle that breaks depending on which module loads first.
 
 - Ids of other modules (`OrganizationId`, `UserId`) are their brands; reference them, never redefine them.
 - Identity is hybrid: the client may send the id (optimistic UI, idempotent retries); otherwise the create use case calls `generateAbsenceId()`. A taken id → `AbsenceAlreadyExistsError`.
@@ -90,6 +91,7 @@ archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
 - One `Schema.TaggedStruct` per event, past tense + `Event`, built with `X.make({...})`. Union: `AbsenceEvent`.
 - Common fields: `absenceId`, `organizationId`, `actorId`, `occurredOn`. Add what subscribers need: `previousPeriod` on reschedule, `assigneeId` and `period` on delete (the absence is gone).
 - Serialize through the event schema, never `JSON.stringify`.
+- `absence-event.ts` never imports `absence.ts`. Every schema an event uses (ids, value objects like `Period`) lives in its own file.
 
 ## Domain errors
 
