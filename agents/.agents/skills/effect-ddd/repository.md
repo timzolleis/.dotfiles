@@ -30,8 +30,8 @@ type AbsenceEventWriteErrors = ByAbsenceEventTag<{
 
 ```text
 PrismaAbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })
-├─ prisma.absence.findUnique({ where: { id: absenceId, organizationId }, select: absenceSelect })
-│  └─ null                       → AbsenceNotFoundError
+├─ prisma.absence.findUniqueOrThrow({ where: { id: absenceId, organizationId }, select: absenceSelect })
+│  └─ not found                  → AbsenceNotFoundError
 └─ match row.status
    ├─ "draft"                    → AbsenceStillDraftError
    ├─ "active"                   → decodeActiveAbsence(row): Effect<ActiveAbsence>; decode failure → die

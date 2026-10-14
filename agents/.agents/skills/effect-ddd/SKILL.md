@@ -127,7 +127,7 @@ A **call tree** is the one format for a call path, in discussion and in specs; p
 
 - The root is the entry point; each call is `Owner.method(args)`, indented under its caller with `├─`, `└─`, `│`.
 - Each call to module code carries its return type after `:`, written as in the code: `Effect<A, E>`, `Result<A, E>`, or a bare type for a pure call that can't fail (`generateAbsenceId(): AbsenceId`). Inline when the line stays short; otherwise on the next line, under the call. Library calls (`prisma.…`) may omit it.
-- `→` marks a branch or an outcome (`null → AbsenceNotFoundError`, `→ assigneeIsOrganizationMember`); put the branch's calls under it.
+- `→` marks a branch or an outcome (`not found → AbsenceNotFoundError`, `→ assigneeIsOrganizationMember`); put the branch's calls under it.
 - Current versus proposed: a ```` ```diff ```` block, so it renders colored; prefix removed lines with `-`, added with `+`, unchanged with a space; show only the subtree that changes. A tree without changes is ```` ```text ````.
 - Name owners with the codebase's identifiers so each line greps to its definition.
 
