@@ -50,7 +50,7 @@ The host's permission system answers the actor's questions. One pure function pe
 // infrastructure/absence-permissions.ts — called by the controller and by deferred jobs
 AbsencePermission = Schema.Literals(["absences:read", "absences:update", "absences:delete"])
 
-absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds }) → AbsenceActor = {
+absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds }): AbsenceActor = {
   userId, relatedUserIds,
   mayEditOthersAbsences:   has("absences:update"),
   mayDeleteOthersAbsences: has("absences:delete"),
@@ -65,34 +65,29 @@ absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserId
 - A different permission system means a different adapter; flags, policies, and visibility stay.
 - Whoever builds the actor loads its facts (`UserRelationships.listRelatedUserIds`) once; use cases never call those ports.
 
-## Reader
-
-The views take only the actor's read fields:
-
-```ts
-type AbsenceReader = Pick<AbsenceActor, "userId" | "mayReadOthersAbsences" | "relatedUserIds">
-```
-
-HTTP builds one actor and passes it to both sides (`reader: actor`). A read-only principal (feed token, support "view as", another module) builds only a reader, which no transition accepts.
-
-Derived reader by default. Use separate types only when the read side needs different facts than the write side (or the write facts are too expensive for reads), or the reader isn't the same kind of principal (no `userId`, e.g. a feed token scoped to one assignee).
-
 ## Visibility
 
-The read rule is data, defined once; the views adapter translates it into its query ([views.md](views.md)).
+Writes take the actor; reads take a visibility, the read rule as data. Views never see an actor, so a read without a user states its visibility instead of faking one. The views adapter translates it into its query ([views.md](views.md)).
 
 ```ts
 type AbsenceVisibility = Data.TaggedEnum<{
-  AllAbsences: {}
+  AllAbsences: {}                                                     // system reads: jobs, listeners
+  OrganizationAbsences: { readonly userId: UserId }                   // all, except others' drafts
   InvolvedAbsences: { readonly userId: UserId; readonly relatedUserIds: ReadonlySet<UserId> }
+                                                                      // created, assigned, or assigned to a related user; except others' drafts
 }>
 const AbsenceVisibility = Data.taggedEnum<AbsenceVisibility>()
 
-absenceVisibilityFromReader(reader: AbsenceReader) → AbsenceVisibility
-  // mayReadOthersAbsences → AllAbsences
-  // else InvolvedAbsences: creator, assignee, or assignee ∈ relatedUserIds
-  // both: others' drafts stay hidden
+type AbsenceReader = Pick<AbsenceActor, "userId" | "mayReadOthersAbsences" | "relatedUserIds">
+
+absenceVisibilityFromReader(reader: AbsenceReader): AbsenceVisibility
+  // mayReadOthersAbsences → OrganizationAbsences({ userId })
+  // else                  → InvolvedAbsences({ userId, relatedUserIds })
 ```
 
+- HTTP builds one actor: commands take it, reads take `absenceVisibilityFromReader(actor)`.
+- A system read passes `AbsenceVisibility.AllAbsences()`: explicit and greppable.
+- A read-only principal (support "view as", another module) builds a reader. One that isn't a user (a feed token scoped to one assignee) gets its own variant (`AssigneeAbsences { assigneeId }`).
+- The reader is `Pick<AbsenceActor, …>`; a separate type only when reads need different facts than writes.
 - `Data.TaggedEnum`, not a schema: it is never decoded or encoded.
 - Filter, never reject: an invisible absence is `AbsenceNotFoundError` (404, doesn't reveal it exists); a filter on an unrelated user returns `[]`.

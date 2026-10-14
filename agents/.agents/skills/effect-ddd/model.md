@@ -47,8 +47,8 @@ type EditableAbsence = DraftAbsence | ActiveAbsence                     // the s
 A constructor returns a `Result`; a question about the value is a plain function.
 
 ```ts
-createPeriod({ from, to })         → Result<Period, InvalidPeriodError>   // DateTime.isLessThan(from, to)
-isPeriodOngoingAt({ period, now }) → boolean                              // from <= now < to
+createPeriod({ from, to }):         Result<Period, InvalidPeriodError>   // DateTime.isLessThan(from, to)
+isPeriodOngoingAt({ period, now }): boolean                              // from <= now < to
 ```
 
 ## Time
@@ -69,7 +69,7 @@ type ReassignAbsenceInput = { readonly absence: EditableAbsence; readonly actor:
                               readonly now: DateTime.Utc; readonly assigneeIsOrganizationMember: boolean }
 
 archiveAbsence(input: ArchiveAbsenceInput)
-  → Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
+  : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
 
 archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
   yield* checkPolicies(archiveAbsencePolicies, input)                 // first rejection wins

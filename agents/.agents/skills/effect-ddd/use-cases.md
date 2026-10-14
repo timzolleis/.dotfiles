@@ -62,9 +62,13 @@ class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService, {
 
 ```text
 ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assigneeId })
-├─ AbsenceRepository.findEditableAbsenceById({ organizationId, absenceId })   → AbsenceNotFoundError | AbsenceAlreadyArchivedError
-├─ OrganizationMembers.isOrganizationMember({ organizationId, userId: assigneeId })   → assigneeIsOrganizationMember
+├─ AbsenceRepository.findEditableAbsenceById({ organizationId, absenceId })
+│    : Effect<EditableAbsence, AbsenceNotFoundError | AbsenceAlreadyArchivedError>
+├─ OrganizationMembers.isOrganizationMember({ organizationId, userId: assigneeId })
+│    : Effect<boolean>   → assigneeIsOrganizationMember
 ├─ reassignAbsence({ absence, actor, assigneeId, assigneeIsOrganizationMember, now })
-│  └─ checkPolicies(reassignAbsencePolicies)                                   → NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | …
-└─ AbsenceRepository.publishAbsenceEvent(AbsenceReassignedEvent)               → AbsenceChangedConcurrentlyError
+│    : Result<AbsenceReassignedEvent, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
+│  └─ checkPolicies(reassignAbsencePolicies, input)
+└─ AbsenceRepository.publishAbsenceEvent(event)
+     : Effect<void, AbsenceChangedConcurrentlyError>
 ```

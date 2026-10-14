@@ -34,7 +34,7 @@ PrismaAbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })
 │  └─ null                       → AbsenceNotFoundError
 └─ match row.status
    ├─ "draft"                    → AbsenceStillDraftError
-   ├─ "active"                   → decodeActiveAbsence(row) → ActiveAbsence; decode failure → die
+   ├─ "active"                   → decodeActiveAbsence(row): Effect<ActiveAbsence>; decode failure → die
    └─ "archived"                 → AbsenceAlreadyArchivedError
 ```
 

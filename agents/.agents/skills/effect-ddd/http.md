@@ -54,7 +54,7 @@ HttpApiGroup.make("absences").add(/* endpoints */)
 | `GET /absences?assigneeId=&creatorId=` | `listAbsences` | 200 view[] |
 
 - Endpoint names are the use case or view names.
-- A command answers with the view, read back with the same actor as reader. Delete reads nothing.
+- A command answers with the view, read back with the actor's visibility. Delete reads nothing.
 - List filters are query params (`urlParams`), not nested routes.
 - Instants travel as ISO strings through `Schema.DateTimeUtc`'s JSON codec; no separate HTTP date schema.
 - Each endpoint declares its HTTP errors in check order: not found → wrong state → actor → policy / value → concurrency.
@@ -76,11 +76,15 @@ class AbsenceNotFoundHttpError extends Schema.TaggedError<AbsenceNotFoundHttpErr
 
 ```text
 AbsenceController.archiveAbsence(params)
-├─ UserRelationships.listRelatedUserIds({ organizationId, userId })        → relatedUserIds (once per request)
-├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds })          → AbsenceActor
+├─ UserRelationships.listRelatedUserIds({ organizationId, userId })
+│    : Effect<ReadonlySet<UserId>>   → relatedUserIds, once per request
+├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds }): AbsenceActor
 ├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
-├─ AbsenceViews.getAbsenceById({ organizationId, reader: actor, absenceId }) → AbsenceView
-└─ on failure: absenceHttpErrorFromAbsenceError(domain error)
+│    : Effect<void, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError
+│                 | NotAllowedToEditAbsenceError | AbsenceOngoingError | AbsenceChangedConcurrentlyError>
+├─ AbsenceViews.getAbsenceById({ organizationId, visibility: absenceVisibilityFromReader(actor), absenceId })
+│    : Effect<AbsenceView, AbsenceNotFoundError>
+└─ any domain error → absenceHttpErrorFromAbsenceError(error)
 ```
 
 Retries and idempotency are decided here; the domain stays truthful:

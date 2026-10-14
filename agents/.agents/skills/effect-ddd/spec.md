@@ -31,8 +31,8 @@ A member archives their active absence once its period has ended; with mayEditOt
 ```
 
 ```ts
-activateAbsence({ absence: DraftAbsence, actor, now })   → Result<AbsenceActivatedEvent, NotAbsenceCreatorError>
-archiveAbsence({ absence: ActiveAbsence, actor, now })   → Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
+activateAbsence({ absence: DraftAbsence, actor, now }): Result<AbsenceActivatedEvent, NotAbsenceCreatorError>
+archiveAbsence({ absence: ActiveAbsence, actor, now }):  Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
 ```
 
 Cases
@@ -80,9 +80,9 @@ AbsenceController                   absence endpoints
 
 Files (`+` new, `~` changed):
 
-```text
-absence/
-├─ domain/
+```diff
+  absence/
+  ├─ domain/
 + │  ├─ absence.ts                  AbsenceId, states, transitions
 …
 ```
@@ -92,9 +92,12 @@ Owns: archiving one active absence.
 
 ```text
 ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
-├─ AbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })   → AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError
-├─ archiveAbsence({ absence, actor, now })                                   → NotAllowedToEditAbsenceError | AbsenceOngoingError
-└─ AbsenceRepository.publishAbsenceEvent(AbsenceArchivedEvent)               → AbsenceChangedConcurrentlyError
+├─ AbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })
+│    : Effect<ActiveAbsence, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError>
+├─ archiveAbsence({ absence, actor, now })
+│    : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
+└─ AbsenceRepository.publishAbsenceEvent(event)
+     : Effect<void, AbsenceChangedConcurrentlyError>
 ```
 
 Cases (memory repository, TestClock)

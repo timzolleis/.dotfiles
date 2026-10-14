@@ -21,7 +21,7 @@ Rows apply when the host has the concept ([access.md](access.md)).
 ## Policy lists
 
 ```ts
-checkPolicies(policies, input) → Result<void, union of the list's errors>   // runs in order, first rejection wins
+checkPolicies(policies, input): Result<void, union of the list's errors>   // runs in order, first rejection wins
 
 type ReassignAbsencePolicy = (input: ReassignAbsenceInput)
   => Result<void, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
