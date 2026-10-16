@@ -17,15 +17,17 @@ export const AbsenceView = Schema.Struct({
 })
 export type AbsenceView = typeof AbsenceView.Type
 
+// Absent filter = no condition. Named for the reader, not for a column: the adapter maps each one.
+export type AbsenceListFilters = { readonly assigneeId?: UserId; readonly creatorId?: UserId }
+
 export class AbsenceViews extends Context.Service<AbsenceViews, {
   // not visible = not found
   getAbsenceById(input: {
     readonly organizationId: OrganizationId; readonly visibility: AbsenceVisibility; readonly absenceId: AbsenceId
   }): Effect.Effect<AbsenceView, AbsenceNotFoundError>
-  // filters combine with AND, then visibility; an absent filter is no condition
+  // filters combine with AND, then visibility
   listAbsences(input: {
-    readonly organizationId: OrganizationId; readonly visibility: AbsenceVisibility
-    readonly assigneeId?: UserId; readonly creatorId?: UserId
+    readonly organizationId: OrganizationId; readonly visibility: AbsenceVisibility; readonly filters: AbsenceListFilters
   }): Effect.Effect<ReadonlyArray<AbsenceView>>
 }>()("AbsenceViews") {}
 ```
@@ -40,6 +42,13 @@ export class AbsenceViews extends Context.Service<AbsenceViews, {
 // absence/infrastructure/prisma-absence-views.ts
 const nonDraftOrCreatedByWhere = (userId: UserId): Prisma.AbsenceWhereInput =>
   ({ OR: [{ status: { not: "draft" } }, { creatorId: userId }] })
+
+const absenceWhereFromFilters = ({ assigneeId, creatorId }: AbsenceListFilters): Prisma.AbsenceWhereInput => ({
+  AND: [
+    assigneeId === undefined ? {} : { assigneeId },
+    creatorId === undefined ? {} : { creatorId },
+  ],
+})
 
 const absenceWhereFromVisibility = (visibility: AbsenceVisibility): Prisma.AbsenceWhereInput =>
   AbsenceVisibility.$match(visibility, {
@@ -67,10 +76,10 @@ const absenceWhereFromVisibility = (visibility: AbsenceVisibility): Prisma.Absen
       )
       return yield* decodeAbsenceView(row)
     }),
-    listAbsences: Effect.fn("PrismaAbsenceViews.listAbsences")(function* ({ organizationId, visibility, ...filters }) {
+    listAbsences: Effect.fn("PrismaAbsenceViews.listAbsences")(function* ({ organizationId, visibility, filters }) {
       const rows = yield* prisma.absence.findMany({
-        where: { organizationId, ...filters, AND: [absenceWhereFromVisibility(visibility)] },
+        where: { organizationId, AND: [absenceWhereFromFilters(filters), absenceWhereFromVisibility(visibility)] },
 ```
 
-- The adapter only translates the visibility; `absenceVisibilityFromReader` and the system callers choose it.
+- The adapter maps each filter and the visibility to a `where` (`absenceWhereFromFilters`, `absenceWhereFromVisibility`): port names never reach Prisma unmapped. It only translates; `absenceVisibilityFromReader` and the system callers choose the visibility.
 - Reshape rows (`id → absenceId`, `Date → dateTimeUtcFromDate`) and `Schema.decodeEffect(AbsenceView)`; a decode failure dies.

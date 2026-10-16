@@ -29,7 +29,7 @@ export class OrganizationMemberMiddleware extends HttpApiMiddleware.Service<Orga
       if (!(yield* organizationMembers.isOrganizationMember({ organizationId, userId: currentUser.userId }))) {
         return yield* new NotOrganizationMemberHttpError()
       }
-      return yield* handler.pipe(Effect.provideService(CurrentActor, { ...currentUser, organizationId }))
+      return yield* handler.pipe(Effect.provideService(CurrentActor, { userId: currentUser.userId, permissions: currentUser.permissions, organizationId }))
     }))
   }))
 }
@@ -130,7 +130,7 @@ export const absenceHttpErrorFromAbsenceError = matchTag<AbsenceError>()({
 AbsenceController.archiveAbsence(params)
 ├─ UserRelationships.listRelatedUserIds({ organizationId, userId })
 │    : Effect<ReadonlySet<UserId>>   → relatedUserIds, once per request
-├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds }): AbsenceActor
+├─ absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds }): AbsenceActor
 ├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 │    : Effect<void, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError
 │                 | NotAllowedToEditAbsenceError | AbsenceOngoingError | AbsenceChangedConcurrentlyError>
@@ -153,7 +153,9 @@ export const AbsenceController = HttpApiBuilder.group(Api, "absences", Effect.fn
     const relatedUserIds = yield* userRelationships.listRelatedUserIds({
       organizationId: currentActor.organizationId, userId: currentActor.userId,
     })
-    const actor = absenceActorFromPermissions({ ...currentActor, relatedUserIds })
+    const actor = absenceActorFromPermissions({
+      userId: currentActor.userId, organizationId: currentActor.organizationId, permissions: currentActor.permissions, relatedUserIds,
+    })
     return { organizationId: currentActor.organizationId, actor, visibility: absenceVisibilityFromReader(actor) }
   })
 

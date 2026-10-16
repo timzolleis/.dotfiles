@@ -56,6 +56,7 @@ The answers are the use case's Cases, `situation → outcome` lines in domain wo
 - When the result type must follow the input's tag, use `matchTag` ([repository.md](repository.md)). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
 - A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`.
+- Across a boundary (HTTP → command, port → Prisma, host type → adapter), name every field: `{ from: payload.from, to: payload.to }`, never `...payload`. A spread lets a field added on one side flow into the other unchecked. Spreads stay inside one layer (`...absenceFields`).
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
 
 ## Layout
@@ -72,7 +73,7 @@ Archiving an absence passes every layer once:
 
 ```text
 AbsenceController.archiveAbsence({ params })
-├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds })
+├─ absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds })
 ├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 │  ├─ AbsenceRepository.findActiveAbsenceById(…)
 │  ├─ archiveAbsence({ absence, actor, now })
