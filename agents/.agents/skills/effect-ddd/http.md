@@ -2,7 +2,7 @@
 
 The HTTP edge translates between transport and the module: decode the request, build the actor with the permission adapter ([access.md](access.md)), call a use case or view, map domain errors to HTTP errors. Retries and idempotency are decided here.
 
-Files: `http/absence-api.ts` (endpoints), `absence-http-errors.ts`, `absence-controller.ts`.
+Files: `http/absence-api.ts` (`AbsenceApi`, the endpoints), `absence-http-errors.ts`, `absence-controller.ts` (`AbsenceController`, the handlers). Exports are named after their file, never `*ApiGroup`.
 
 ## Organization middleware
 
@@ -60,7 +60,7 @@ export class OrganizationMemberMiddleware extends HttpApiMiddleware.Service<Orga
 // absence/http/absence-api.ts
 const AbsencePathParams = Schema.Struct({ ...OrganizationPathParams.fields, absenceId: AbsenceId })
 …
-export class AbsenceApiGroup extends HttpApiGroup.make("absences")
+export class AbsenceApi extends HttpApiGroup.make("absences")
   .add(
     HttpApiEndpoint.post("createAbsence", "/absences", {
       params: OrganizationPathParams,
