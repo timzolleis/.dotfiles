@@ -9,8 +9,8 @@ The repository is the write side's port: it loads the state a transition needs a
 export type FindAbsenceByIdInput = { readonly organizationId: OrganizationId; readonly absenceId: AbsenceId }
 
 // The constraint makes it exhaustive: a new event doesn't compile until it names its write error.
-type ByAbsenceEventTag<T extends Record<AbsenceEvent["_tag"], unknown>> = T
-export type AbsenceEventWriteErrors = ByAbsenceEventTag<{
+type OneEntryPerAbsenceEventTag<T extends Record<AbsenceEvent["_tag"], unknown>> = T
+export type AbsenceEventWriteErrors = OneEntryPerAbsenceEventTag<{
   AbsenceDraftedEvent: AbsenceAlreadyExistsError
   AbsenceRescheduledEvent: AbsenceChangedConcurrentlyError
   // …one per event
@@ -23,7 +23,7 @@ export class AbsenceRepository extends Context.Service<AbsenceRepository, {
     Effect.Effect<ActiveAbsence, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError>
   findEditableAbsenceById(input: FindAbsenceByIdInput):
     Effect.Effect<EditableAbsence, AbsenceNotFoundError | AbsenceAlreadyArchivedError>
-  publishAbsenceEvent<Tag extends AbsenceEvent["_tag"]>(event: OfTag<AbsenceEvent, Tag>): Effect.Effect<void, AbsenceEventWriteErrors[Tag]>
+  publishAbsenceEvent<Tag extends AbsenceEvent["_tag"]>(event: MemberWithTag<AbsenceEvent, Tag>): Effect.Effect<void, AbsenceEventWriteErrors[Tag]>
 }>()("AbsenceRepository") {}
 ```
 
@@ -146,7 +146,7 @@ const writeAbsenceEvent = matchTag<AbsenceEvent>()<{
 })
 
 const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEvent")(
-  function* <Tag extends AbsenceEvent["_tag"]>(event: OfTag<AbsenceEvent, Tag>) {
+  function* <Tag extends AbsenceEvent["_tag"]>(event: MemberWithTag<AbsenceEvent, Tag>) {
     yield* writeAbsenceEvent(event)
     yield* domainEvents.publishDomainEvent(event)   // not atomic with the write
   },
@@ -166,9 +166,9 @@ const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEve
 // lib/match-tag.ts
 type Tagged = { readonly _tag: string }
 
-export type OfTag<U extends Tagged, Tag extends U["_tag"]> = Extract<U, { readonly _tag: Tag }>
+export type MemberWithTag<U extends Tagged, Tag extends U["_tag"]> = Extract<U, { readonly _tag: Tag }>
 
-type HandlersByTag<U extends Tagged, Out> = { readonly [Tag in keyof Out]: (value: OfTag<U, Tag & U["_tag"]>) => Out[Tag] }
+type HandlersByTag<U extends Tagged, Out> = { readonly [Tag in keyof Out]: (value: MemberWithTag<U, Tag & U["_tag"]>) => Out[Tag] }
 
 export const matchTag = <U extends Tagged>() =>
   <Out extends { readonly [Tag in U["_tag"]]: unknown }>(
@@ -176,10 +176,10 @@ export const matchTag = <U extends Tagged>() =>
   ) => {
     // Indexing the mapped type with a generic Tag keeps value and result correlated (TypeScript #47109).
     const handlerByTag: HandlersByTag<U, Out> = handlers
-    return <Tag extends U["_tag"]>(value: OfTag<U, Tag>): Out[Tag] => handlerByTag[value._tag](value)
+    return <Tag extends U["_tag"]>(value: MemberWithTag<U, Tag>): Out[Tag] => handlerByTag[value._tag](value)
   }
 ```
 
-- `matchTag<U>()(handlers)`: one handler per tag of `U`; the result is `<Tag>(value: OfTag<U, Tag>) => Out[Tag]`.
+- `matchTag<U>()(handlers)`: one handler per tag of `U`; the result is `<Tag>(value: MemberWithTag<U, Tag>) => Out[Tag]`.
 - Give `Out` when a declared type already fixes the result (the port here). Otherwise let it infer from the handlers ([http.md](http.md), HTTP errors).
 - Not `Match.valueTags`: it returns the union of every branch's result, which a generic signature only accepts with a cast. `Match.valueTags` stays the default when the union is fine.
