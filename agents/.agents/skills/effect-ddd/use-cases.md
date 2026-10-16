@@ -24,14 +24,14 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 One `Context.Service` per use case. Every one is the same three steps: find the narrowed state, call its transition, publish the event.
 
 ```ts
-// application/archive-absence-service.ts
-type ArchiveAbsenceCommand = { readonly organizationId: OrganizationId; readonly actor: AbsenceActor; readonly absenceId: AbsenceId }
+// absence/application/archive-absence-service.ts
+export type ArchiveAbsenceCommand = { readonly organizationId: OrganizationId; readonly actor: AbsenceActor; readonly absenceId: AbsenceId }
 
-class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService, {
-  archiveAbsence(command: ArchiveAbsenceCommand): Effect<void,
-    | AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError   // find
-    | NotAllowedToEditAbsenceError | AbsenceOngoingError                             // transition
-    | AbsenceChangedConcurrentlyError>                                               // publish
+export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService, {
+  archiveAbsence(command: ArchiveAbsenceCommand): Effect.Effect<void,
+    | AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError
+    | NotAllowedToEditAbsenceError | AbsenceOngoingError
+    | AbsenceChangedConcurrentlyError>
 }>()("ArchiveAbsenceService") {
   static layer = Layer.effect(ArchiveAbsenceService, Effect.gen(function* () {
     const absenceRepository = yield* AbsenceRepository
@@ -39,7 +39,7 @@ class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService, {
       archiveAbsence: Effect.fn("ArchiveAbsenceService.archiveAbsence")(function* ({ organizationId, actor, absenceId }) {
         const now = yield* DateTime.now
         const absence = yield* absenceRepository.findActiveAbsenceById({ organizationId, absenceId })
-        const event = yield* archiveAbsence({ absence, actor, now })            // domain function
+        const event = yield* Effect.fromResult(archiveAbsence({ absence, actor, now }))
         yield* absenceRepository.publishAbsenceEvent(event)
       }),
     })

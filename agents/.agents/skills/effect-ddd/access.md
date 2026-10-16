@@ -11,7 +11,6 @@ The actor is `{ userId }`: no flags, permission adapter, reader, visibility, act
 Only in multi-tenant hosts; the organization is the example tenant.
 
 - The route carries the organization (`/organizations/:organizationId/…`); `OrganizationMemberMiddleware` checks membership before any handler runs ([http.md](http.md)).
-- The repository's and views' `where (id, organizationId)` enforces scope once.
 - The actor has no `organizationId`, and flag names don't say "InOrganization": the permission adapter computes every flag for the scoped organization, and every find the actor reaches is scoped to it.
 
 ## Actor
@@ -19,12 +18,13 @@ Only in multi-tenant hosts; the organization is the example tenant.
 The actor is the domain's question: may this actor do X? Each flag is one question in the domain's words (`mayEditOthersAbsences`); a policy combines it with state and time. The domain never knows how a flag is answered.
 
 ```ts
-// domain/absence-actor.ts
-type AbsenceActor = {
+// absence/domain/absence-actor.ts
+// Capabilities, not a role. Every flag holds for the organization of the request.
+export type AbsenceActor = {
   readonly userId: UserId
   readonly mayEditOthersAbsences: boolean        // reschedule, reassign, archive someone else's active absence
-  readonly mayDeleteOthersAbsences: boolean
-  readonly mayAssignAnyone: boolean              // not only self or related users
+  readonly mayDeleteOthersAbsences: boolean      // delete someone else's active absence
+  readonly mayAssignAnyone: boolean              // assign to any member, not only self or related users
   readonly mayReadOthersAbsences: boolean        // see absences the actor isn't involved in
   readonly relatedUserIds: ReadonlySet<UserId>   // loaded once per request
 }
@@ -47,17 +47,27 @@ Never build a user actor with every flag set for a job.
 The host's permission system answers the actor's questions. One pure function per module is the only code that knows both sides: the host's permissions in, flags out.
 
 ```ts
-// infrastructure/absence-permissions.ts — called by the controller and by deferred jobs
-AbsencePermission = Schema.Literals(["absences:read", "absences:update", "absences:delete"])
+// absence/infrastructure/absence-permissions.ts
+export const AbsencePermission = Schema.Literals(["absences:read", "absences:update", "absences:delete"])
+export type AbsencePermission = typeof AbsencePermission.Type
 
-absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserIds }): AbsenceActor = {
-  userId, relatedUserIds,
-  mayEditOthersAbsences:   has("absences:update"),
-  mayDeleteOthersAbsences: has("absences:delete"),
-  mayAssignAnyone:         has("absences:update"),
-  mayReadOthersAbsences:   has("absences:read") || has("absences:update"),   // edit implies read
+// The caller loads relatedUserIds once per request.
+export const absenceActorFromPermissions = ({ userId, organizationId, permissions, relatedUserIds }: {
+  readonly userId: UserId
+  readonly organizationId: OrganizationId
+  readonly permissions: Permissions
+  readonly relatedUserIds: ReadonlySet<UserId>
+}): AbsenceActor => {
+  const hasAbsencePermission = (permission: AbsencePermission) => permissions.hasPermission(permission, organizationId)
+  return {
+    userId,
+    relatedUserIds,
+    mayEditOthersAbsences: hasAbsencePermission("absences:update"),
+    mayDeleteOthersAbsences: hasAbsencePermission("absences:delete"),
+    mayAssignAnyone: hasAbsencePermission("absences:update"),
+    mayReadOthersAbsences: hasAbsencePermission("absences:read") || hasAbsencePermission("absences:update"),   // edit implies read
+  }
 }
-// has(key) = permissions.hasPermission(key, organizationId)
 ```
 
 - The domain never sees a permission key, role, or `CurrentActor`.
@@ -70,19 +80,21 @@ absenceActorFromPermissions({ userId, organizationId, permissions, relatedUserId
 Writes take the actor; reads take a visibility, the read rule as data. Views never see an actor, so a read without a user states its visibility instead of faking one. The views adapter translates it into its query ([views.md](views.md)).
 
 ```ts
-type AbsenceVisibility = Data.TaggedEnum<{
-  AllAbsences: {}                                                     // system reads: jobs, listeners
-  OrganizationAbsences: { readonly userId: UserId }                   // all, except others' drafts
+// absence/domain/absence-actor.ts
+export type AbsenceReader = Pick<AbsenceActor, "userId" | "mayReadOthersAbsences" | "relatedUserIds">
+
+export type AbsenceVisibility = Data.TaggedEnum<{
+  AllAbsences: {}                                                   // system reads: jobs, listeners
+  OrganizationAbsences: { readonly userId: UserId }                 // all, except others' drafts
   InvolvedAbsences: { readonly userId: UserId; readonly relatedUserIds: ReadonlySet<UserId> }
-                                                                      // created, assigned, or assigned to a related user; except others' drafts
+                                                                    // created, assigned, or assigned to a related user; except others' drafts
 }>
-const AbsenceVisibility = Data.taggedEnum<AbsenceVisibility>()
+export const AbsenceVisibility = Data.taggedEnum<AbsenceVisibility>()
 
-type AbsenceReader = Pick<AbsenceActor, "userId" | "mayReadOthersAbsences" | "relatedUserIds">
-
-absenceVisibilityFromReader(reader: AbsenceReader): AbsenceVisibility
-  // mayReadOthersAbsences → OrganizationAbsences({ userId })
-  // else                  → InvolvedAbsences({ userId, relatedUserIds })
+export const absenceVisibilityFromReader = (reader: AbsenceReader): AbsenceVisibility =>
+  reader.mayReadOthersAbsences
+    ? AbsenceVisibility.OrganizationAbsences({ userId: reader.userId })
+    : AbsenceVisibility.InvolvedAbsences({ userId: reader.userId, relatedUserIds: reader.relatedUserIds })
 ```
 
 - HTTP builds one actor: commands take it, reads take `absenceVisibilityFromReader(actor)`.

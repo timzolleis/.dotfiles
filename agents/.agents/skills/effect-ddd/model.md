@@ -7,15 +7,16 @@ The model is the core type's lifecycle as data and pure functions: one schema pe
 The domain owns its id format: a prefixed cuid2, not a UUID.
 
 ```ts
-// lib/prefixed-id.ts — every id schema and generator goes through these
-export const prefixedId = <const Brand extends string>({ prefix, brand }: { readonly prefix: string; readonly brand: Brand }) =>
-  Schema.String.pipe(
-    Schema.check(Schema.isPattern(new RegExp(`^${prefix}_[a-z][a-z0-9]{23}$`))),
-    Schema.brand(brand))
-export const createPrefixedId = (prefix: string): string => `${prefix}_${createId()}`   // @paralleldrive/cuid2
+// lib/prefixed-id.ts
+export const prefixedId = (prefix: string) =>
+  Schema.String.pipe(Schema.check(Schema.isPattern(new RegExp(`^${prefix}_[a-z][a-z0-9]{23}$`))))
 
-// domain/absence-id.ts
-export const AbsenceId = prefixedId({ prefix: "abs", brand: "AbsenceId" })
+export const createPrefixedId = (prefix: string): string => `${prefix}_${createId()}`
+```
+
+```ts
+// absence/domain/absence-id.ts
+export const AbsenceId = prefixedId("abs").pipe(Schema.brand("AbsenceId"))
 export type AbsenceId = typeof AbsenceId.Type
 export const generateAbsenceId = (): AbsenceId => AbsenceId.make(createPrefixedId("abs"))
 ```
@@ -29,15 +30,20 @@ export const generateAbsenceId = (): AbsenceId => AbsenceId.make(createPrefixedI
 ## States
 
 ```ts
-const absenceFields = { absenceId: AbsenceId, organizationId: OrganizationId, creatorId: UserId, assigneeId: UserId,
-                        period: Period, createdAt: Schema.DateTimeUtc }
+// absence/domain/absence.ts
+const absenceFields = {
+  absenceId: AbsenceId, organizationId: OrganizationId, creatorId: UserId, assigneeId: UserId,
+  period: Period, createdAt: Schema.DateTimeUtc,
+}
 
-DraftAbsence    = Schema.TaggedStruct("DraftAbsence", { ...absenceFields })
-ActiveAbsence   = Schema.TaggedStruct("ActiveAbsence", { ...absenceFields, activatedAt: Schema.DateTimeUtc })
-ArchivedAbsence = Schema.TaggedStruct("ArchivedAbsence", { ...absenceFields, activatedAt: Schema.DateTimeUtc, archivedAt: Schema.DateTimeUtc })
+export const DraftAbsence = Schema.TaggedStruct("DraftAbsence", { ...absenceFields })
+export type DraftAbsence = typeof DraftAbsence.Type
 
-type Absence         = DraftAbsence | ActiveAbsence | ArchivedAbsence   // any state; nothing decodes to it
-type EditableAbsence = DraftAbsence | ActiveAbsence                     // the states reschedule, reassign, delete accept
+export const ActiveAbsence = Schema.TaggedStruct("ActiveAbsence", { ...absenceFields, activatedAt: Schema.DateTimeUtc })
+export type ActiveAbsence = typeof ActiveAbsence.Type
+// …one per state
+export type Absence = DraftAbsence | ActiveAbsence | ArchivedAbsence   // nothing decodes to it
+export type EditableAbsence = DraftAbsence | ActiveAbsence
 ```
 
 - One `Schema.TaggedStruct` per state, with exactly the fields that state guarantees.
@@ -48,8 +54,13 @@ type EditableAbsence = DraftAbsence | ActiveAbsence                     // the s
 A constructor returns a `Result`; a question about the value is a plain function.
 
 ```ts
-createPeriod({ from, to }):         Result<Period, InvalidPeriodError>   // DateTime.isLessThan(from, to)
-isPeriodOngoingAt({ period, now }): boolean                              // from <= now < to
+// absence/domain/period.ts
+export const createPeriod = ({ from, to }: { readonly from: DateTime.Utc; readonly to: DateTime.Utc }): Result.Result<Period, InvalidPeriodError> =>
+  DateTime.isLessThan(from, to) ? Result.succeed({ from, to }) : Result.fail(new InvalidPeriodError({ from, to }))
+
+// from <= now < to. Not DateTime.between: it includes both ends.
+export const isPeriodOngoingAt = ({ period, now }: { readonly period: Period; readonly now: DateTime.Utc }): boolean =>
+  DateTime.isGreaterThanOrEqualTo(now, period.from) && DateTime.isLessThan(now, period.to)
 ```
 
 ## Time
@@ -65,18 +76,21 @@ isPeriodOngoingAt({ period, now }): boolean                              // from
 One named input type per transition; the transition and its policies take the same type.
 
 ```ts
-type ArchiveAbsenceInput  = { readonly absence: ActiveAbsence; readonly actor: AbsenceActor; readonly now: DateTime.Utc }
-type ReassignAbsenceInput = { readonly absence: EditableAbsence; readonly actor: AbsenceActor; readonly assigneeId: UserId
-                              readonly now: DateTime.Utc; readonly assigneeIsOrganizationMember: boolean }
-
-archiveAbsence(input: ArchiveAbsenceInput)
-  : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
-
-archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
-  yield* checkPolicies(archiveAbsencePolicies, input)                 // first rejection wins
+// absence/domain/absence.ts
+export type ReassignAbsenceInput = {
+  readonly absence: EditableAbsence; readonly actor: AbsenceActor
+  readonly assigneeId: UserId; readonly assigneeIsOrganizationMember: boolean; readonly now: DateTime.Utc
+}
+export type ArchiveAbsenceInput = { readonly absence: ActiveAbsence; readonly actor: AbsenceActor; readonly now: DateTime.Utc }
+// …one input per transition
+export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
+  AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError
+> => Result.gen(function* () {
+  yield* checkPolicies(archiveAbsencePolicies, input)
   return AbsenceArchivedEvent.make({
-    absenceId: input.absence.absenceId, organizationId: input.absence.organizationId,
-    actorId: input.actor.userId, occurredOn: input.now })
+    absenceId: input.absence.absenceId, organizationId: input.absence.organizationId, actorId: input.actor.userId,
+    occurredOn: input.now,
+  })
 })
 ```
 
@@ -88,6 +102,21 @@ archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
 
 ## Events
 
+```ts
+// absence/domain/absence-event.ts
+const absenceEventFields = { absenceId: AbsenceId, organizationId: OrganizationId, actorId: UserId, occurredOn: Schema.DateTimeUtc }
+
+export const AbsenceDraftedEvent = Schema.TaggedStruct("AbsenceDraftedEvent", {
+  ...absenceEventFields, creatorId: UserId, assigneeId: UserId, period: Period, // occurredOn becomes createdAt
+})
+export type AbsenceDraftedEvent = typeof AbsenceDraftedEvent.Type
+// …one per event
+export const AbsenceEvent = Schema.Union([
+  AbsenceDraftedEvent, AbsenceRescheduledEvent, AbsenceReassignedEvent,
+  AbsenceActivatedEvent, AbsenceArchivedEvent, AbsenceDeletedEvent,
+])
+```
+
 - One `Schema.TaggedStruct` per event, past tense + `Event`, built with `X.make({...})`. Union: `AbsenceEvent`.
 - Common fields: `absenceId`, `organizationId`, `actorId`, `occurredOn`. Add what subscribers need: `previousPeriod` on reschedule, `assigneeId` and `period` on delete (the absence is gone).
 - Serialize through the event schema, never `JSON.stringify`.
@@ -96,7 +125,8 @@ archiveAbsence = (input: ArchiveAbsenceInput) => Result.gen(function* () {
 ## Domain errors
 
 ```ts
-class AbsenceEditWindowClosedError extends Data.TaggedError("AbsenceEditWindowClosedError")<{
+// absence/domain/absence-error.ts
+export class AbsenceEditWindowClosedError extends Data.TaggedError("AbsenceEditWindowClosedError")<{
   readonly absenceId: AbsenceId; readonly createdAt: DateTime.Utc; readonly editableUntil: DateTime.Utc
 }> {}
 ```

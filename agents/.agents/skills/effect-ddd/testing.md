@@ -20,3 +20,46 @@ Usual places (defaults, not a checklist):
 | a boundary instant | `DateTime.makeUnsafe`; test at the boundary and 1 ms after |
 
 Usually no test: transitions whose policies are already tested, use cases that only load → call → publish, controllers, schemas. The types prove them.
+
+## Setup
+
+A policy table: plain values, one row per case.
+
+```ts
+// test/absence-policy.test.ts
+const failureTag = (result: Result.Result<unknown, { readonly _tag: string }>) =>
+  Result.isFailure(result) ? result.failure._tag : "ok"
+
+describe("actor policies: own / others' draft / others' active × flag", () => {
+  const draftOfAlice = makeDraftAbsence({ creatorId: alice })
+  const activeOfAlice = makeActiveAbsence({ creatorId: alice })
+  const cases = [
+    { absence: draftOfAlice, actor: makeActor({ userId: alice }), edit: "ok", delete: "ok" },
+    { absence: activeOfAlice, actor: makeActor({ userId: bob, mayEditOthersAbsences: true }), edit: "ok", delete: "NotAllowedToDeleteAbsenceError" },
+    // …one row per actor × state × flag
+  ]
+  it.each(cases)("$absence._tag by $actor.userId → edit $edit, delete $delete", ({ absence, actor, ...expected }) => {
+    expect(failureTag(onlyCreatorOrPermittedCanEditPolicy({ absence, actor }))).toBe(expected.edit)
+    expect(failureTag(onlyCreatorOrPermittedCanDeletePolicy({ absence, actor }))).toBe(expected.delete)
+  })
+})
+```
+
+An adapter against a real database: the adapter's layer on a real Prisma client, the host's ports faked in memory and reset per test.
+
+```ts
+// test/prisma-absence-repository.test.ts
+const TestLayer = PrismaAbsenceRepository.pipe(Layer.provide([PrismaLayer, HostLayer]))
+
+layer(TestLayer)("PrismaAbsenceRepository", (it) => {
+  it.effect("archive a row that is no longer active → AbsenceChangedConcurrentlyError, nothing published", () => Effect.gen(function* () {
+    yield* reset
+    const absenceId = yield* insertAbsenceRow("draft")
+    const absenceRepository = yield* AbsenceRepository
+    expect(yield* outcome(absenceRepository.publishAbsenceEvent(archivedEvent(absenceId)))).toBe("AbsenceChangedConcurrentlyError")
+    expect(host.publishedEvents).toHaveLength(0)
+  }))
+})
+```
+
+`reset` clears the table and the fakes; `insertAbsenceRow` writes a row directly with Prisma; `outcome` turns the exit into `"ok"`, `"die"`, or the error's tag.

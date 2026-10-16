@@ -3,16 +3,30 @@
 A view is what a client reads. Views bypass the model and the repository: a views port returns view schemas straight from storage, filtered by a visibility. Nothing on the write side reads a view.
 
 ```ts
-// view/absence-views.ts
-AbsenceView = Schema.Struct({
-  absenceId, creatorId, assigneeId, from, to, createdAt,
+// absence/view/absence-views.ts
+export const AbsenceView = Schema.Struct({
+  absenceId: AbsenceId,
+  creatorId: UserId,
+  assigneeId: UserId,
+  from: Schema.DateTimeUtc,
+  to: Schema.DateTimeUtc,
   status: Schema.Literals(["draft", "active", "archived"]),
-  activatedAt: Schema.NullOr(Schema.DateTimeUtc), archivedAt: Schema.NullOr(Schema.DateTimeUtc),
+  createdAt: Schema.DateTimeUtc,
+  activatedAt: Schema.NullOr(Schema.DateTimeUtc),
+  archivedAt: Schema.NullOr(Schema.DateTimeUtc),
 })
+export type AbsenceView = typeof AbsenceView.Type
 
-class AbsenceViews extends Context.Service<AbsenceViews, {
-  getAbsenceById({ organizationId, visibility, absenceId }):             Effect<AbsenceView, AbsenceNotFoundError>   // not visible = not found
-  listAbsences({ organizationId, visibility, assigneeId?, creatorId? }): Effect<ReadonlyArray<AbsenceView>>         // filters AND, then visibility
+export class AbsenceViews extends Context.Service<AbsenceViews, {
+  // not visible = not found
+  getAbsenceById(input: {
+    readonly organizationId: OrganizationId; readonly visibility: AbsenceVisibility; readonly absenceId: AbsenceId
+  }): Effect.Effect<AbsenceView, AbsenceNotFoundError>
+  // filters combine with AND, then visibility; an absent filter is no condition
+  listAbsences(input: {
+    readonly organizationId: OrganizationId; readonly visibility: AbsenceVisibility
+    readonly assigneeId?: UserId; readonly creatorId?: UserId
+  }): Effect.Effect<ReadonlyArray<AbsenceView>>
 }>()("AbsenceViews") {}
 ```
 
@@ -23,15 +37,39 @@ class AbsenceViews extends Context.Service<AbsenceViews, {
 ## Adapter
 
 ```ts
-// private to PrismaAbsenceViews, used by every query
-absenceWhereFromVisibility(visibility) = AbsenceVisibility.$match(visibility, {
-  AllAbsences:          () => ({}),
-  OrganizationAbsences: ({ userId }) => hideOthersDraftsWhere(userId),
-  InvolvedAbsences:     ({ userId, relatedUserIds }) => ({ AND: [
-    hideOthersDraftsWhere(userId),
-    { OR: [{ creatorId: userId }, { assigneeId: userId }, { assigneeId: { in: [...relatedUserIds] } }] }] }),
-})
-hideOthersDraftsWhere = (userId) => ({ OR: [{ status: { not: "draft" } }, { creatorId: userId }] })
+// absence/infrastructure/prisma-absence-views.ts
+const nonDraftOrCreatedByWhere = (userId: UserId): Prisma.AbsenceWhereInput =>
+  ({ OR: [{ status: { not: "draft" } }, { creatorId: userId }] })
+
+const absenceWhereFromVisibility = (visibility: AbsenceVisibility): Prisma.AbsenceWhereInput =>
+  AbsenceVisibility.$match(visibility, {
+    AllAbsences: () => ({}),
+    OrganizationAbsences: ({ userId }) => nonDraftOrCreatedByWhere(userId),
+    InvolvedAbsences: ({ userId, relatedUserIds }) => ({
+      AND: [
+        nonDraftOrCreatedByWhere(userId),
+        { OR: [{ creatorId: userId }, { assigneeId: userId }, { assigneeId: { in: [...relatedUserIds] } }] },
+      ],
+    }),
+  })
+…
+    getAbsenceById: Effect.fn("PrismaAbsenceViews.getAbsenceById")(function* ({ organizationId, visibility, absenceId }) {
+      // Not visible = no row = AbsenceNotFoundError; any other Prisma error dies.
+      const row = yield* prisma.absence.findUniqueOrThrow({
+        where: { id: absenceId, organizationId, AND: [absenceWhereFromVisibility(visibility)] },
+        select: absenceViewSelect,
+      }).pipe(
+        Effect.catchTag(
+          "PrismaRecordNotFoundError",
+          () => new AbsenceNotFoundError({ absenceId }),
+          (error) => Effect.die(error),
+        ),
+      )
+      return yield* decodeAbsenceView(row)
+    }),
+    listAbsences: Effect.fn("PrismaAbsenceViews.listAbsences")(function* ({ organizationId, visibility, ...filters }) {
+      const rows = yield* prisma.absence.findMany({
+        where: { organizationId, ...filters, AND: [absenceWhereFromVisibility(visibility)] },
 ```
 
 - The adapter only translates the visibility; `absenceVisibilityFromReader` and the system callers choose it.

@@ -43,7 +43,7 @@ Cases
 ## Model (`domain/absence-id.ts`, `domain/absence.ts`)
 
 ```ts
-AbsenceId = prefixedId({ prefix: "abs", brand: "AbsenceId" })
+AbsenceId = prefixedId("abs").pipe(Schema.brand("AbsenceId"))
 
 const absenceFields = { absenceId: AbsenceId, organizationId: OrganizationId, creatorId: UserId, assigneeId: UserId, period: Period, createdAt: Schema.DateTimeUtc }
 DraftAbsence  = Schema.TaggedStruct("DraftAbsence",  { ...absenceFields })

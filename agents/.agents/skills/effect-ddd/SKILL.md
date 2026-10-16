@@ -7,11 +7,15 @@ description: How we design and build Effect 4 features — use cases, states, tr
 
 The architecture for Effect 4 features, and how we design them together. Examples use one module, `absence` (draft → active → archived), in an organization-scoped system with permission keys. The core type, tenant, and access mechanism are examples: map them to the host's (the repository `AGENTS.md` names them) and leave out what the host doesn't have.
 
-In design, the user decides; you bring the options and a recommendation. Settle what other decisions depend on first: use cases, then the lifecycle, then the policies, then names. A change too large to do inline gets a spec ([spec.md](spec.md)).
+## Designing with the user
+
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the policies, then names. A change too large to do inline gets a spec ([spec.md](spec.md)).
+
+A good turn: "Archive needs the period to have ended. Option A: a policy on archive (`cannotArchiveWhileOngoingPolicy`), 409 while ongoing. Option B: a nightly job archives ended absences. I recommend A: B needs a system actor, which is still open. Which do you want?"
 
 ## Use cases first
 
-Modeling the use cases is the core that makes everything else work. Analyze each one in domain language, who wants to do what, and shape every other component after the answers. With clean use cases the code is mechanical; a vague or merged one spreads into every layer as flags, branches, and generic updates.
+Modeling the use cases is the core that makes everything else work. Analyze each one in domain language, who wants to do what, together with the user: they know the domain and have the say. Shape every other component after the answers. With clean use cases the code is mechanical: easy to read, and every line traces back to a use case. A vague or merged one spreads into every layer as flags, branches, and generic updates.
 
 Each question about a use case has one component that answers it:
 
@@ -42,72 +46,56 @@ The answers are the use case's Cases, `situation → outcome` lines in domain wo
 
 ## Conventions
 
-- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators. When a name or type has no truthful home, reshape the design instead.
+- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`). When a name or type has no truthful home, reshape the design instead.
 - A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
 - Behavior is named exports imported by name; no namespace imports.
 - Every signature writes out its errors; never hide them behind a union alias.
+- An error is an `Effect`: return or `yield*` `new X(…)`, never `Effect.fail(new X(…))`. Domain code returns a `Result`, so it uses `Result.fail(new X(…))`.
 - Branch on a tag with `Match.valueTags` (exhaustive); never `_tag ===` or ternary chains.
+- When the result type must follow the input's tag, use `matchTag` ([repository.md](repository.md)). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
 - A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`.
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
 
-## Naming
-
-Names are truthful and greppable: the name alone says what a thing is or does, without its arguments, its return type, or the surrounding code filling the gap, and a search for it finds only it.
-
-- Name the subject: `findActiveAbsenceById`, `publishAbsenceEvent`. `findById`, `publish`, `execute` match thousands of lines.
-- An action starts with its verb: `archiveAbsence`, `generateAbsenceId`.
-- A translation names its output and its input: `absenceVisibilityFromReader(reader)`, `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`. `visibilityFor(reader)`, `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
-- Variables too: `absenceBeforeUpdate`, `previousPeriod`; not `before`, `prev`, `data`, `result`.
-- Files are kebab-case (`absence-policy.ts`); identifiers are camelCase / PascalCase.
-
-| Thing | Pattern | Example |
-|---|---|---|
-| State | `<Phase><Type>` | `DraftAbsence` |
-| States a transition accepts | what they allow | `EditableAbsence` |
-| Transition, its input | `<verb><Type>`, `<Verb><Type>Input` | `archiveAbsence`, `ArchiveAbsenceInput` |
-| Policy type, list | `<Verb><Type>Policy`, `<verb><Type>Policies` | `ArchiveAbsencePolicy`, `archiveAbsencePolicies` |
-| Single policy | the rule as a sentence + `Policy`, without the subject | `cannotArchiveWhileOngoingPolicy` |
-| Event | `<Type><PastTense>Event` | `AbsenceArchivedEvent` |
-| Domain error | `<Fact>Error`; *still* = not yet, *already* = past it | `AbsenceStillDraftError` |
-| HTTP error | domain error name + `Http` | `AbsenceStillDraftHttpError` |
-| Actor, flag | `<Type>Actor`, `may<Verb>…` | `AbsenceActor`, `mayEditOthersAbsences` |
-| Repository find | `find<State><Type>ById` | `findActiveAbsenceById` |
-| View read | `get…` / `list…` | `getAbsenceById`, `listAbsences` |
-| Use case, command | `<Verb><Type>Service`, `<Verb><Type>Command` | `ArchiveAbsenceService`, `ArchiveAbsenceCommand` |
-| Translation | `<output>From<input>` | `absenceActorFromPermissions`, `absenceHttpErrorFromAbsenceError` |
-| Permission key | the host's format | `absences:update` |
-
 ## Layout
 
 ```text
-lib/                                   cross-module helpers (prefixed-id.ts, with-optional-tag.ts, date-time-utc-from-date.ts, organization-member-middleware.ts)
-shared/                                ports owned elsewhere (domain-events.ts, organization-members.ts, user-relationships.ts)
-absence/
-├─ domain/          absence-id.ts, absence.ts (states, inputs, transitions), period.ts, absence-actor.ts,
-│                   absence-policy.ts, absence-event.ts, absence-error.ts, absence-repository.ts (port)
-├─ application/     one <verb>-absence-service.ts per command
-├─ view/            absence-views.ts (port + AbsenceView)
-├─ infrastructure/  prisma-absence-repository.ts, prisma-absence-views.ts, absence-permissions.ts
-└─ http/            absence-api.ts, absence-http-errors.ts, absence-controller.ts
+lib/          cross-module helpers
+shared/       ports and ids owned by other modules
+absence/      one folder per layer: domain/, application/, view/, infrastructure/, http/
 ```
 
-## References
+## One request, end to end
 
-Read the reference for each part the change touches:
+Archiving an absence passes every layer once:
 
-| Part | Reference |
+```text
+AbsenceController.archiveAbsence({ params })
+├─ absenceActorFromPermissions({ ...currentActor, relatedUserIds })
+├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
+│  ├─ AbsenceRepository.findActiveAbsenceById(…)
+│  ├─ archiveAbsence({ absence, actor, now })
+│  │  └─ checkPolicies(archiveAbsencePolicies, input)
+│  └─ AbsenceRepository.publishAbsenceEvent(event)
+├─ AbsenceViews.getAbsenceById({ organizationId, visibility, absenceId })
+└─ any domain error → absenceHttpErrorFromAbsenceError(error)
+```
+
+## Read next
+
+| Situation | Read |
 |---|---|
-| cutting use cases, commands, services, wiring | [use-cases.md](use-cases.md) |
-| ids, states, time, transitions, events, domain errors | [model.md](model.md) |
-| policies, where a rule lives | [policies.md](policies.md) |
-| actor, reader, permissions, visibility, tenant scope | [access.md](access.md) |
-| repository port and Prisma adapter | [repository.md](repository.md) |
-| views and lists | [views.md](views.md) |
-| routes, middleware, HTTP errors, idempotency | [http.md](http.md) |
-| adding or judging a test | [testing.md](testing.md) |
-| writing a spec | [spec.md](spec.md) |
+| Cutting use cases; writing a command or a service | [use-cases.md](use-cases.md) |
+| Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
+| Adding a rule, or deciding where it lives | [policies.md](policies.md) |
+| Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |
+| Loading state for a transition or storing its event; `matchTag` | [repository.md](repository.md) |
+| A read for a client: a get, a list, a filter | [views.md](views.md) |
+| An endpoint, middleware, HTTP error, controller, or retry | [http.md](http.md) |
+| Naming anything | [naming.md](naming.md) |
+| Writing, keeping, or judging a test | [testing.md](testing.md) |
+| A change too large to do inline: writing a spec | [spec.md](spec.md) |
 
 ## Call trees
 

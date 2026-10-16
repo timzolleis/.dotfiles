@@ -21,16 +21,29 @@ Rows apply when the host has the concept ([access.md](access.md)).
 ## Policy lists
 
 ```ts
-checkPolicies(policies, input): Result<void, union of the list's errors>   // runs in order, first rejection wins
-
-type ReassignAbsencePolicy = (input: ReassignAbsenceInput)
-  => Result<void, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
-reassignAbsencePolicies: ReadonlyArray<ReassignAbsencePolicy> = [
-  onlyCreatorOrPermittedCanEditPolicy,      // may I touch this absence?
-  assigneeMustBeInOrganizationPolicy,       // is the new assignee in the organization?
-  assigneeMustBeSelfOrRelatedPolicy,        // may I give it to them?
+// absence/domain/absence-policy.ts
+// The first rejection wins.
+export const checkPolicies = <Input, E>(
+  policies: ReadonlyArray<(input: Input) => Result.Result<void, E>>,
+  input: Input,
+): Result.Result<void, E> => {
+  for (const policy of policies) {
+    const policyResult = policy(input)
+    if (Result.isFailure(policyResult)) return policyResult
+  }
+  return Result.succeed(undefined)
+}
+…
+export type ReassignAbsencePolicy = (input: ReassignAbsenceInput) => Result.Result<
+  void, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError
+>
+export const reassignAbsencePolicies: ReadonlyArray<ReassignAbsencePolicy> = [
+  onlyCreatorOrPermittedCanEditPolicy, // may I touch this absence?
+  assigneeMustBeInOrganizationPolicy,  // is the new assignee in the organization?
+  assigneeMustBeSelfOrRelatedPolicy,   // may I give it to them?
   editOnlyInFirstHourPolicy,
 ]
+// …one policy type and list per transition
 ```
 
 - Per transition: a policy type over its input and an ordered list. The order decides which rejection is reported; the who-acts policy, if any, comes first.
@@ -41,17 +54,22 @@ reassignAbsencePolicies: ReadonlyArray<ReassignAbsencePolicy> = [
 ## Writing a policy
 
 ```ts
-isActingUser     = (input: { actor: AbsenceActor; userId: UserId }) => input.userId === input.actor.userId
-isAbsenceCreator = (input: { absence: Absence; actor: AbsenceActor }) =>
+// absence/domain/absence-policy.ts
+const isActingUser = (input: { readonly actor: AbsenceActor; readonly userId: UserId }) => input.userId === input.actor.userId
+const isAbsenceCreator = (input: { readonly absence: Absence; readonly actor: AbsenceActor }) =>
   isActingUser({ actor: input.actor, userId: input.absence.creatorId })
-
-onlyCreatorOrPermittedCanEditPolicy = (input: { absence: EditableAbsence; actor: AbsenceActor }) =>
-  Match.valueTags(input.absence, {
-    DraftAbsence:  () => isAbsenceCreator(input)                                     ? succeed() : fail(NotAllowedToEditAbsenceError),
-    ActiveAbsence: () => isAbsenceCreator(input) || input.actor.mayEditOthersAbsences ? succeed() : fail(NotAllowedToEditAbsenceError),
+…
+export const onlyCreatorOrPermittedCanEditPolicy = (input: { readonly absence: EditableAbsence; readonly actor: AbsenceActor }) => {
+  const notAllowedToEditAbsence = () => Result.fail(new NotAllowedToEditAbsenceError({
+    absenceId: input.absence.absenceId, actorId: input.actor.userId, absenceState: input.absence._tag,
+  }))
+  return Match.valueTags(input.absence, {
+    DraftAbsence: () => isAbsenceCreator(input) ? Result.succeed(undefined) : notAllowedToEditAbsence(),
+    ActiveAbsence: () => isAbsenceCreator(input) || input.actor.mayEditOthersAbsences ? Result.succeed(undefined) : notAllowedToEditAbsence(),
   })
+}
 ```
 
-- Name: the rule as a short sentence + `Policy`, without the subject (the file names it): `onlyCreatorCanActivatePolicy`, `cannotArchiveWhileOngoingPolicy`, `editOnlyInFirstHourPolicy`. "Permitted" means the actor holds the flag.
+- Named as in [naming.md](naming.md): `onlyCreatorCanActivatePolicy`, `cannotArchiveWhileOngoingPolicy`, `editOnlyInFirstHourPolicy`.
 - When the rule differs per state, branch with `Match.valueTags`: it is exhaustive, so a new state doesn't compile until it has a rule.
 - Combine with `||` / `&&` over named boolean predicates (`isAbsenceCreator`, `isRelatedToActor`).
