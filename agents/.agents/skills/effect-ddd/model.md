@@ -69,11 +69,11 @@ export const isPeriodOngoingAt = ({ period, now }: { readonly period: Period; re
 - `Utc`, not `Zoned`, until a rule depends on local calendar days.
 - `now` comes from `DateTime.now` in the use case (it reads `Clock`, so tests use `TestClock`).
 - Compare with `DateTime.isLessThan` and friends, never `<` or `===`. Write intervals out (`from <= now < to`); `DateTime.between` includes both ends.
-- An instant that a policy checks and an error reports is one function: `absenceEditableUntil = (absence) => DateTime.add(absence.createdAt, { hours: 1 })`.
+- An instant that a rule checks and an error reports is one function: `absenceEditableUntil = (absence) => DateTime.add(absence.createdAt, { hours: 1 })`.
 
 ## Transitions
 
-One named input type per transition; the transition and its policies take the same type.
+One named input type per transition; the transition and its rules take the same type.
 
 ```ts
 // absence/domain/absence.ts
@@ -86,7 +86,7 @@ export type ArchiveAbsenceInput = { readonly absence: ActiveAbsence; readonly ac
 export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
   AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError
 > => Result.gen(function* () {
-  yield* checkPolicies(archiveAbsencePolicies, input)
+  yield* checkRules(archiveAbsenceRules, input)
   return AbsenceArchivedEvent.make({
     absenceId: input.absence.absenceId, organizationId: input.absence.organizationId, actorId: input.actor.userId,
     occurredOn: input.now,
@@ -96,7 +96,7 @@ export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
 
 - The `absence` field's type is the state that allows the transition: passing a `DraftAbsence` to `archiveAbsence` doesn't compile.
 - Each transition exists once; states share it through a union until their rules diverge.
-- Order: state (by the narrowing read) → policies in list order → value construction (`yield* createPeriod(...)`).
+- Order: state (by the narrowing read) → rules in list order → value construction (`yield* createPeriod(...)`).
 - A fact loaded by I/O is a required input field (`assigneeIsOrganizationMember`), so a use case that forgets to load it doesn't compile.
 - System intents (a nightly job) are open; see the trigger table in [access.md](access.md).
 

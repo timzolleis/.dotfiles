@@ -6,7 +6,7 @@ A use case is one intent: who wants to do what, in the domain's words ("a member
 use case     A member archives an absence whose period has ended.
 command      ArchiveAbsenceCommand { organizationId, actor, absenceId }
 service      ArchiveAbsenceService.archiveAbsence
-transition   archiveAbsence({ absence: ActiveAbsence, actor, now }) + archiveAbsencePolicies
+transition   archiveAbsence({ absence: ActiveAbsence, actor, now }) + archiveAbsenceRules
 event        AbsenceArchivedEvent
 entry points AbsenceController.archiveAbsence; a job, a listener
 ```
@@ -15,9 +15,9 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 
 - Name the intent, not the data change: `archiveAbsence`, not `updateAbsenceStatus`. A generic update hides which rules apply.
 - Same intent, different permission: one use case; the difference is an actor flag (`mayEditOthersAbsences`).
-- Different intents: separate use cases, even when they share states and policies (reschedule and reassign).
+- Different intents: separate use cases, even when they share states and rules (reschedule and reassign).
 - A read is not a use case; it is a view ([views.md](views.md)).
-- The rules of a use case are its Cases: `situation → outcome` lines that become its policies and errors.
+- The constraints of a use case are its Cases: `situation → outcome` lines that become its rules and errors.
 
 ## Service
 
@@ -68,7 +68,7 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 │    : Effect<boolean>   → assigneeIsOrganizationMember
 ├─ reassignAbsence({ absence, actor, assigneeId, assigneeIsOrganizationMember, now })
 │    : Result<AbsenceReassignedEvent, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
-│  └─ checkPolicies(reassignAbsencePolicies, input)
+│  └─ checkRules(reassignAbsenceRules, input)
 └─ AbsenceRepository.publishAbsenceEvent(event)
      : Effect<void, AbsenceChangedConcurrentlyError>
 ```

@@ -54,7 +54,7 @@ export class OrganizationMemberMiddleware extends HttpApiMiddleware.Service<Orga
 - A command answers with the view, read back with the actor's visibility. Delete reads nothing.
 - List filters are `query` params, not nested routes.
 - Instants travel as ISO strings through `Schema.DateTimeUtc`'s JSON codec; no separate HTTP date schema.
-- Each endpoint declares its HTTP errors in check order: not found → wrong state → actor → policy / value → concurrency.
+- Each endpoint declares its HTTP errors in check order: not found → wrong state → actor → rule / value → concurrency.
 
 ```ts
 // absence/http/absence-api.ts

@@ -4,7 +4,7 @@ Access is who may act and who sees what: flags on the actor decide acting, a vis
 
 ## No access model
 
-The actor is `{ userId }`: no flags, permission adapter, reader, visibility, actor policy, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
+The actor is `{ userId }`: no flags, permission adapter, reader, visibility, actor rule, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
 
 ## Organization scope
 
@@ -15,7 +15,7 @@ Only in multi-tenant hosts; the organization is the example tenant.
 
 ## Actor
 
-The actor is the domain's question: may this actor do X? Each flag is one question in the domain's words (`mayEditOthersAbsences`); a policy combines it with state and time. The domain never knows how a flag is answered.
+The actor is the domain's question: may this actor do X? Each flag is one question in the domain's words (`mayEditOthersAbsences`); a rule combines it with state and time. The domain never knows how a flag is answered.
 
 ```ts
 // absence/domain/absence-actor.ts
@@ -32,13 +32,13 @@ export type AbsenceActor = {
 
 - One actor per core type: `userId`, capability flags, and facts about the actor loaded per request.
 - Flags name capabilities, not roles: capabilities are granted per person, so no role name fits.
-- A permission becomes a flag; a policy or the visibility rule decides. A gate would turn "creator OR permission" into "creator AND permission". A pure capability (export) costs one flag plus a one-line policy.
+- A permission becomes a flag; a rule or the visibility rule decides. A gate would turn "creator OR permission" into "creator AND permission". A pure capability (export) costs one flag plus a one-line rule.
 
 | Who triggers the intent | Actor |
 |---|---|
 | A user, synchronously (HTTP) | built per request by the permission adapter |
 | A user, deferred (queued command, scheduled export) | rebuilt at run time from the persisted `userId`; permissions may have changed since enqueue |
-| The system: time, rule, or another module's event | open: decide with the first real case (actor-less transition with its own policy list vs. an actor variant every policy handles). The trigger event's `actorId` is not this actor. |
+| The system: time, rule, or another module's event | open: decide with the first real case (actor-less transition with its own rule list vs. an actor variant every rule handles). The trigger event's `actorId` is not this actor. |
 
 Never build a user actor with every flag set for a job.
 
@@ -72,7 +72,7 @@ export const absenceActorFromPermissions = ({ userId, organizationId, permission
 
 - The domain never sees a permission key, role, or `CurrentActor`.
 - Identity/access owns roles and role → permission; the module owns its keys and the adapter.
-- A different permission system means a different adapter; flags, policies, and visibility stay.
+- A different permission system means a different adapter; flags, rules, and visibility stay.
 - Whoever builds the actor loads its facts (`UserRelationships.listRelatedUserIds`) once; use cases never call those ports.
 
 ## Visibility

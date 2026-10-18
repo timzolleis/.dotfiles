@@ -14,23 +14,23 @@ Usual places (defaults, not a checklist):
 
 | Rule lives in | Test with |
 |---|---|
-| a policy that branches | table test, plain values |
+| a rule that branches | table test, plain values |
 | a translation (permissions → actor, domain error → HTTP error, visibility → `where`) | table test |
 | a guarded write or a visibility `where` | the adapter against a real database |
 | a boundary instant | `DateTime.makeUnsafe`; test at the boundary and 1 ms after |
 
-Usually no test: transitions whose policies are already tested, use cases that only load → call → publish, controllers, schemas. The types prove them.
+Usually no test: transitions whose rules are already tested, use cases that only load → call → publish, controllers, schemas. The types prove them.
 
 ## Setup
 
-A policy table: plain values, one row per case.
+A rule table: plain values, one row per case.
 
 ```ts
-// test/absence-policy.test.ts
+// test/absence-rule.test.ts
 const failureTag = (result: Result.Result<unknown, { readonly _tag: string }>) =>
   Result.isFailure(result) ? result.failure._tag : "ok"
 
-describe("actor policies: own / others' draft / others' active × flag", () => {
+describe("actor rules: own / others' draft / others' active × flag", () => {
   const draftOfAlice = makeDraftAbsence({ creatorId: alice })
   const activeOfAlice = makeActiveAbsence({ creatorId: alice })
   const cases = [
@@ -39,8 +39,8 @@ describe("actor policies: own / others' draft / others' active × flag", () => {
     // …one row per actor × state × flag
   ]
   it.each(cases)("$absence._tag by $actor.userId → edit $edit, delete $delete", ({ absence, actor, ...expected }) => {
-    expect(failureTag(onlyCreatorOrPermittedCanEditPolicy({ absence, actor }))).toBe(expected.edit)
-    expect(failureTag(onlyCreatorOrPermittedCanDeletePolicy({ absence, actor }))).toBe(expected.delete)
+    expect(failureTag(onlyCreatorOrPermittedCanEditRule({ absence, actor }))).toBe(expected.edit)
+    expect(failureTag(onlyCreatorOrPermittedCanDeleteRule({ absence, actor }))).toBe(expected.delete)
   })
 })
 ```

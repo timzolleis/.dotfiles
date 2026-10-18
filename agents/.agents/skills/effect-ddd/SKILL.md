@@ -1,6 +1,6 @@
 ---
 name: effect-ddd
-description: How we design and build Effect 4 features — use cases, states, transitions, policies, actors, views, repositories, HTTP, tests. Use when designing, writing, or reviewing Effect TypeScript code.
+description: How we design and build Effect 4 features — use cases, states, transitions, rules, actors, views, repositories, HTTP, tests. Use when designing, writing, or reviewing Effect TypeScript code.
 ---
 
 # Effect DDD
@@ -9,9 +9,9 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 ## Designing with the user
 
-Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the policies, then names. A change too large to do inline gets a spec ([spec.md](spec.md)).
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a spec ([spec.md](spec.md)).
 
-A good turn: "Archive needs the period to have ended. Option A: a policy on archive (`cannotArchiveWhileOngoingPolicy`), 409 while ongoing. Option B: a nightly job archives ended absences. I recommend A: B needs a system actor, which is still open. Which do you want?"
+A good turn: "Archive needs the period to have ended. Option A: a rule on archive (`cannotArchiveWhileOngoingRule`), 409 while ongoing. Option B: a nightly job archives ended absences. I recommend A: B needs a system actor, which is still open. Which do you want?"
 
 ## Use cases first
 
@@ -22,22 +22,22 @@ Each question about a use case has one component that answers it:
 ```text
 Who wants to do what?                    → use case, command, service       ArchiveAbsenceService
 In which states may it happen?           → narrowing find, input state      findActiveAbsenceById, ActiveAbsence
-Who may do it?                           → actor flag, who-acts policy      mayEditOthersAbsences
-What else must hold? (time, values)      → policy, value constructor        cannotArchiveWhileOngoingPolicy, createPeriod
+Who may do it?                           → actor flag, who-acts rule        mayEditOthersAbsences
+What else must hold? (time, values)      → rule, value constructor          cannotArchiveWhileOngoingRule, createPeriod
 What must we load to check it?           → required input field             assigneeIsOrganizationMember
 What can go wrong?                       → typed domain error, HTTP status  AbsenceOngoingError, 409
 What is true afterwards?                 → event and its fields             AbsenceArchivedEvent
 Who sees the result?                     → view, visibility rule            AbsenceView, absenceVisibilityFromReader
 ```
 
-The answers are the use case's Cases, `situation → outcome` lines in domain words; each becomes a policy, an error, or a test. What a use case is and how to cut it: [use-cases.md](use-cases.md).
+The answers are the use case's Cases, `situation → outcome` lines in domain words; each becomes a rule, an error, or a test. What a use case is and how to cut it: [use-cases.md](use-cases.md).
 
 ## Deciding rules
 
-1. **The domain is pure**: states, transitions, policies, events, errors. No services, no I/O, no transport.
+1. **The domain is pure**: states, transitions, rules, events, errors. No services, no I/O, no transport.
 2. **One schema per state.** A transition accepts only the states that allow it, so a wrong state doesn't compile.
 3. **A transition is a pure function**: input → `Result<Event, …errors>`. A use case only loads, calls the transition, and publishes the event.
-4. **With permissions, each is a flag on the actor**; a policy decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model the actor is `{ userId }` ([access.md](access.md)).
+4. **With permissions, each is a flag on the actor**; a rule decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model the actor is `{ userId }` ([access.md](access.md)).
 5. **The domain stays truthful.** Retries and idempotency are softened at the HTTP edge with `catchTag`.
 6. **Decode at every edge**, with no branching or `Effect.die` before the decode.
 7. **A client-actionable failure is a typed error**; corrupt data and infrastructure failures die.
@@ -77,7 +77,7 @@ AbsenceController.archiveAbsence({ params })
 ├─ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 │  ├─ AbsenceRepository.findActiveAbsenceById(…)
 │  ├─ archiveAbsence({ absence, actor, now })
-│  │  └─ checkPolicies(archiveAbsencePolicies, input)
+│  │  └─ checkRules(archiveAbsenceRules, input)
 │  └─ AbsenceRepository.publishAbsenceEvent(event)
 ├─ AbsenceViews.getAbsenceById({ organizationId, visibility, absenceId })
 └─ any domain error → absenceHttpErrorFromAbsenceError(error)
@@ -89,7 +89,7 @@ AbsenceController.archiveAbsence({ params })
 |---|---|
 | Cutting use cases; writing a command or a service | [use-cases.md](use-cases.md) |
 | Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
-| Adding a rule, or deciding where it lives | [policies.md](policies.md) |
+| Adding a rule, or deciding where a constraint lives | [rules.md](rules.md) |
 | Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |
 | Loading state for a transition or storing its event; `matchTag` | [repository.md](repository.md) |
 | A read for a client: a get, a list, a filter | [views.md](views.md) |

@@ -6,15 +6,15 @@ Names are truthful and greppable: the name alone says what a thing is or does, w
 - An action starts with its verb: `archiveAbsence`, `generateAbsenceId`.
 - A translation names its output and its input: `absenceVisibilityFromReader(reader)`, `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`. `visibilityFor(reader)`, `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
 - Variables too: `absenceBeforeUpdate`, `previousPeriod`; not `before`, `prev`, `data`, `result`.
-- Files are kebab-case (`absence-policy.ts`); identifiers are camelCase / PascalCase.
+- Files are kebab-case (`absence-rule.ts`); identifiers are camelCase / PascalCase.
 
 | Thing | Pattern | Example |
 |---|---|---|
 | State | `<Phase><Type>` | `DraftAbsence` |
 | States a transition accepts | what they allow | `EditableAbsence` |
 | Transition, its input | `<verb><Type>`, `<Verb><Type>Input` | `archiveAbsence`, `ArchiveAbsenceInput` |
-| Policy type, list | `<Verb><Type>Policy`, `<verb><Type>Policies` | `ArchiveAbsencePolicy`, `archiveAbsencePolicies` |
-| Single policy | the rule as a sentence + `Policy`, without the subject (the file names it); "Permitted" = the actor holds the flag | `cannotArchiveWhileOngoingPolicy` |
+| Rule type, list | `<Verb><Type>Rule`, `<verb><Type>Rules` | `ArchiveAbsenceRule`, `archiveAbsenceRules` |
+| Single rule | the rule as a sentence + `Rule`, without the subject (the file names it); "Permitted" = the actor holds the flag | `cannotArchiveWhileOngoingRule` |
 | Event | `<Type><PastTense>Event` | `AbsenceArchivedEvent` |
 | Domain error | `<Fact>Error`; *still* = not yet, *already* = past it | `AbsenceStillDraftError` |
 | HTTP error | domain error name + `Http` | `AbsenceStillDraftHttpError` |
