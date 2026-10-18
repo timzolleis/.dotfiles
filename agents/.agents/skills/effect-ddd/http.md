@@ -11,7 +11,7 @@ Example tenant check for an organization-scoped host; port it to the host's auth
 ```ts
 // lib/organization-member-middleware.ts
 export class NotOrganizationMemberHttpError extends Schema.TaggedError<NotOrganizationMemberHttpError>()("NotOrganizationMemberHttpError", {
-  message: Schema.String.pipe(Schema.withConstructorDefault(Effect.succeed("You're not a member of this organization."))),
+  message: messageWithDefault("You're not a member of this organization."),
 }, { httpApiStatus: 403 }) {}
 
 // Shared by the middleware and every endpoint's params, so both decode the same key with the same schema.
@@ -101,9 +101,16 @@ export class AbsenceApi extends HttpApiGroup.make("absences")
 ## HTTP errors
 
 ```ts
+// lib/message-with-default.ts
+// The constructor fills in the default: `new AbsenceNotFoundHttpError()`.
+export const messageWithDefault = (message: string) =>
+  Schema.String.pipe(Schema.withConstructorDefault(Effect.succeed(message)))
+```
+
+```ts
 // absence/http/absence-http-errors.ts
 export class AbsenceNotFoundHttpError extends Schema.TaggedError<AbsenceNotFoundHttpError>()("AbsenceNotFoundHttpError", {
-  message: Schema.String.pipe(Schema.withConstructorDefault(Effect.succeed("This absence doesn't exist or isn't visible to you."))),
+  message: messageWithDefault("This absence doesn't exist or isn't visible to you."),
 }, { httpApiStatus: 404 }) {}
 ```
 
