@@ -23,7 +23,7 @@ Usually no test: transitions whose rules are already tested, use cases that only
 
 ## Setup
 
-A rule table: plain values, one row per case.
+A rule table: plain values, one row per case. Take the rows from the use case's examples, with the same values, so the user can check them ([use-cases.md](use-cases.md)).
 
 ```ts
 // test/absence-rule.test.ts

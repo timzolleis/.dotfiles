@@ -16,10 +16,28 @@ Out of scope: UI, notifications.
 
 ## Use cases
 
+### A member archives an absence whose period has ended
+
+1. Only an active absence can be archived; a draft is activated first.
+2. The creator archives their own; a member allowed to edit others' absences archives anyone's.
+3. The period must have ended: an ongoing absence still counts in today's staffing.
+4. An archived absence leaves the member's absence list and stays in the history.
+
 ```text
-A member drafts an absence for themselves or a related user.
-The creator activates their draft.
-A member archives their active absence once its period has ended; with mayEditOthersAbsences, anyone's.
+Examples (Alice's absence Mon 12.10.–Fri 16.10.2026)
+  Alice archives it on Sat 17.10.                         → archived
+  Alice archives it on Fri 16.10.                         → refused, still ongoing (3)
+  Bob archives it on Sat 17.10., without permission       → refused (2)
+  Bob archives it on Sat 17.10., allowed to edit others'  → archived
+```
+
+### A member drafts an absence for themselves or a related user
+…
+
+## Affected use cases                               ← only when existing ones change
+
+```text
+A member sees their absences: archived ones no longer appear (4).
 ```
 
 ## Lifecycle                                        ← only when the core type has states
@@ -36,9 +54,9 @@ archiveAbsence({ absence: ActiveAbsence, actor, now }):  Result<AbsenceArchivedE
 ```
 
 Cases
-  archive a draft                              → AbsenceStillDraftError (findActiveAbsenceById)
-  archive someone else's, mayEditOthersAbsences → AbsenceArchivedEvent
-  archive while the period is ongoing          → AbsenceOngoingError
+  archive a draft (1)                               → AbsenceStillDraftError (findActiveAbsenceById)
+  archive someone else's, mayEditOthersAbsences (2) → AbsenceArchivedEvent
+  archive while the period is ongoing (3)           → AbsenceOngoingError
 
 ## Model (`domain/absence-id.ts`, `domain/absence.ts`)
 
@@ -102,8 +120,8 @@ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 ```
 
 Cases (memory repository, TestClock)
-  active absence, period ended   → AbsenceArchivedEvent written
-  already archived               → AbsenceAlreadyArchivedError
+  active absence, period ended (3)  → AbsenceArchivedEvent written
+  already archived (1)              → AbsenceAlreadyArchivedError
 
 Cost: an absence that ends tonight stays active until someone archives it.
 Rejected: archive on read when the period has ended: a read would write.
@@ -111,6 +129,8 @@ Rejected: archive on read when the period has ended: a read would write.
 
 ## Rules
 
+- Use cases are in domain words only: intent, numbered constraints, examples ([use-cases.md](use-cases.md)). Number constraints once across the spec, so `(n)` is unique; a constraint two use cases share is listed once.
+- Affected use cases: each existing use case or view whose behavior changes, with the constraint that changes it.
 - The intro maps the concept to the host: tenant, access, event publishing, Effect version. Conventions appear only where they differ from effect-ddd.
 - One `###` per module along the call path: `Owns:` in one line, then signatures, call tree, Cases. Leave out what the module doesn't have.
 - Cases are the module's test list ([testing.md](testing.md)); name the fixture in the heading.

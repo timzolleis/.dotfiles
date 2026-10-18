@@ -17,7 +17,36 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 - Same intent, different permission: one use case; the difference is an actor flag (`mayEditOthersAbsences`).
 - Different intents: separate use cases, even when they share states and rules (reschedule and reassign).
 - A read is not a use case; it is a view ([views.md](views.md)).
-- The constraints of a use case are its Cases: `situation → outcome` lines that become its rules and errors.
+
+## Describing a use case
+
+Write it for the person who knows the domain, in their words, before any type name: they review it, and the code must keep it true.
+
+```text
+A member archives an absence whose period has ended.
+
+1. Only an active absence can be archived; a draft is activated first.
+2. The creator archives their own; a member allowed to edit others' absences archives anyone's.
+3. The period must have ended: an ongoing absence still counts in today's staffing.
+
+Examples (Alice's absence Mon 12.10.–Fri 16.10.2026)
+  Alice archives it on Sat 17.10.                      → archived
+  Alice archives it on Fri 16.10.                      → refused, still ongoing (3)
+  Bob archives it on Sat 17.10., without permission    → refused (2)
+```
+
+- **Intent**: one sentence, who wants to do what.
+- **Constraints**: numbered, so Cases, tests, and other use cases cite them as `(n)`. Give the reason when it isn't obvious; the reason decides the edge cases nobody listed. When constraints compete, state the precedence and why. Place each one with [rules.md](rules.md).
+- **Examples**: concrete values (dates, users, amounts), never placeholders. Cover the edges the constraints imply: the boundary instant, a year change, a DST day. A test of that constraint uses the example's values ([testing.md](testing.md)).
+
+The Cases map the constraints to code, one `situation (n) → outcome` line each, naming the error or event:
+
+```text
+archive a draft (1)                      → AbsenceStillDraftError (findActiveAbsenceById)
+archive while the period is ongoing (3)  → AbsenceOngoingError
+```
+
+Every constraint has a Case. A Case that cites no constraint is a decision the user never reviewed: add the constraint or drop the Case.
 
 ## Service
 

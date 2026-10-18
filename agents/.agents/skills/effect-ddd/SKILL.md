@@ -17,20 +17,20 @@ A good turn: "Archive needs the period to have ended. Option A: a rule on archiv
 
 Modeling the use cases is the core that makes everything else work. Analyze each one in domain language, who wants to do what, together with the user: they know the domain and have the say. Shape every other component after the answers. With clean use cases the code is mechanical: easy to read, and every line traces back to a use case. A vague or merged one spreads into every layer as flags, branches, and generic updates.
 
-Each question about a use case has one component that answers it:
+Each question about a use case has a domain answer, and one component it lands in:
 
-```text
-Who wants to do what?                    → use case, command, service       ArchiveAbsenceService
-In which states may it happen?           → narrowing find, input state      findActiveAbsenceById, ActiveAbsence
-Who may do it?                           → actor flag, who-acts rule        mayEditOthersAbsences
-What else must hold? (time, values)      → rule, value constructor          cannotArchiveWhileOngoingRule, createPeriod
-What must we load to check it?           → required input field             assigneeIsOrganizationMember
-What can go wrong?                       → typed domain error, HTTP status  AbsenceOngoingError, 409
-What is true afterwards?                 → event and its fields             AbsenceArchivedEvent
-Who sees the result?                     → view, visibility rule            AbsenceView, absenceVisibilityFromReader
-```
+| Question | Domain answer | Lands in |
+|---|---|---|
+| Who wants to do what? | intent: "a member archives an absence whose period has ended" | use case, command, service: `ArchiveAbsenceService` |
+| In which states may it happen? | constraint: "only an active absence" | narrowing find, input state: `findActiveAbsenceById`, `ActiveAbsence` |
+| Who may do it? | constraint: "the creator; with permission, anyone" | actor flag, who-acts rule: `mayEditOthersAbsences` |
+| What else must hold? (time, values) | constraint: "the period has ended" | rule, value constructor: `cannotArchiveWhileOngoingRule`, `createPeriod` |
+| What must we load to check it? | a fact a constraint names: "the assignee is a member" | required input field: `assigneeIsOrganizationMember` |
+| What can go wrong? | each refusal: "still ongoing" | typed domain error, HTTP status: `AbsenceOngoingError`, 409 |
+| What is true afterwards? | outcome: "the absence is archived" | event and its fields: `AbsenceArchivedEvent` |
+| Who sees the result? | "involved members; with permission, everyone" | view, visibility rule: `AbsenceView`, `absenceVisibilityFromReader` |
 
-The answers are the use case's Cases, `situation → outcome` lines in domain words; each becomes a rule, an error, or a test. What a use case is and how to cut it: [use-cases.md](use-cases.md).
+Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the use case's description (intent, numbered constraints, examples); its Cases then map each constraint to code: [use-cases.md](use-cases.md).
 
 ## Deciding rules
 
@@ -87,7 +87,7 @@ AbsenceController.archiveAbsence({ params })
 
 | Situation | Read |
 |---|---|
-| Cutting use cases; writing a command or a service | [use-cases.md](use-cases.md) |
+| Cutting or describing use cases; writing a command or a service | [use-cases.md](use-cases.md) |
 | Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
 | Adding a rule, or deciding where a constraint lives | [rules.md](rules.md) |
 | Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |
