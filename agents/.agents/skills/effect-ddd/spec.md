@@ -24,11 +24,11 @@ Out of scope: UI, notifications.
 4. An archived absence leaves the member's absence list and stays in the history.
 
 ```text
-Examples (Alice's absence Mon 12.10.–Fri 16.10.2026)
-  Alice archives it on Sat 17.10.                         → archived
-  Alice archives it on Fri 16.10.                         → refused, still ongoing (3)
-  Bob archives it on Sat 17.10., without permission       → refused (2)
-  Bob archives it on Sat 17.10., allowed to edit others'  → archived
+Examples (Alice's absence Mon 12 Oct – Fri 16 Oct 2026)
+  Alice archives it on Sat 17 Oct                         → archived
+  Alice archives it on Fri 16 Oct                         → refused, still ongoing (3)
+  Bob archives it on Sat 17 Oct, without permission       → refused (2)
+  Bob archives it on Sat 17 Oct, allowed to edit others'  → archived
 ```
 
 ### A member drafts an absence for themselves or a related user

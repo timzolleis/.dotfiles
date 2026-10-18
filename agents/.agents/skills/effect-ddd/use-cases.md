@@ -29,10 +29,10 @@ A member archives an absence whose period has ended.
 2. The creator archives their own; a member allowed to edit others' absences archives anyone's.
 3. The period must have ended: an ongoing absence still counts in today's staffing.
 
-Examples (Alice's absence Mon 12.10.–Fri 16.10.2026)
-  Alice archives it on Sat 17.10.                      → archived
-  Alice archives it on Fri 16.10.                      → refused, still ongoing (3)
-  Bob archives it on Sat 17.10., without permission    → refused (2)
+Examples (Alice's absence Mon 12 Oct – Fri 16 Oct 2026)
+  Alice archives it on Sat 17 Oct                      → archived
+  Alice archives it on Fri 16 Oct                      → refused, still ongoing (3)
+  Bob archives it on Sat 17 Oct, without permission    → refused (2)
 ```
 
 - **Intent**: one sentence, who wants to do what.
