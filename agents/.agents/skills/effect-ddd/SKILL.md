@@ -22,6 +22,7 @@ Each question about a use case has a domain answer, and one component it lands i
 | Question | Domain answer | Lands in |
 |---|---|---|
 | Who wants to do what? | intent: "a member archives an absence whose period has ended" | use case, command, service: `ArchiveAbsenceService` |
+| What does the domain decide on? | the unit a decision falls on: "each absence is reported, corrected, withdrawn on its own" | the core type and its states: `ReportedAbsence` ([model.md](model.md)) |
 | In which states may it happen? | constraint: "only an active absence" | narrowing find, input state: `findActiveAbsenceById`, `ActiveAbsence` |
 | Who may do it? | constraint: "the creator; with permission, anyone" | actor flag, who-acts rule: `mayEditOthersAbsences` |
 | What else must hold? (time, values) | constraint: "the period has ended" | rule, value constructor: `cannotArchiveWhileOngoingRule`, `createPeriod` |

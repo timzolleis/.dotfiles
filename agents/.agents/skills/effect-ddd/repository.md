@@ -154,6 +154,7 @@ const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEve
 ```
 
 - The guard sits in `where` of `update` / `delete`, not `updateMany` / `deleteMany` plus a `count === 0` check. No row matched → the expected failure ([Expected failures](#expected-failures)).
+- The guard also holds each field the transition read and the write replaces (`assigneeId: event.previousAssigneeId`): a change between find and write fails the guard instead of being overwritten.
 - No cast. A missing write, an unknown tag, or a write whose error differs from `AbsenceEventWriteErrors` doesn't compile.
 - Convert every `DateTime.Utc` with `DateTime.toDateUtc`. Writes `select: { id: true }`: nothing is read back.
 - Write + publish are not atomic; delivery (outbox) belongs to the host.

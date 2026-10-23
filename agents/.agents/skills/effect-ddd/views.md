@@ -35,6 +35,8 @@ export class AbsenceViews extends Context.Service<AbsenceViews, {
 - Every method requires a visibility ([access.md](access.md)), so no read skips the read rule, including a command's read-back. A system read passes `AllAbsences()`.
 - `get…` / `list…` are views; `find…` is the repository. Grepping `AbsenceById` finds both.
 - The view is the API response schema. It holds only what the API shows (no `organizationId`: every request is scoped). Split off a response type + one mapping function only when a second consumer reads the view or the API needs a versioned contract.
+- A status the view reports is a tagged union; each variant carries only its true fields (`OwnOverlappingAbsence { absenceId }`, `OthersOverlappingAbsence {}`), never ids of data the reader may not see. No string literals for a status.
+- The client's mode ("editing absence X") is not a view argument: return the ids the client matches against.
 
 ## Adapter
 

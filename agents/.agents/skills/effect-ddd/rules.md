@@ -48,10 +48,19 @@ export const reassignAbsenceRules: ReadonlyArray<ReassignAbsenceRule> = [
 // …one rule type and list per transition
 ```
 
-- Per transition: a rule type over its input and an ordered list. The order decides which rejection is reported; the who-acts rule, if any, comes first.
+- Per transition: a rule type over its input and an ordered list. The order decides which rejection is reported; the who-acts rule, if any, comes first. It also keeps the later rules from reporting on what the actor may not know about: another family's child is "not related", never "already signed up".
 - One list per transition, even when two lists are identical today, so they can diverge without a rename.
 - A shared rule takes a subset of the input (`{ actor; assigneeId }`), so it fits every list that names it.
 - A new rule is one function added to one list, plus its error in the rule type and the transition's signature.
+
+## One per … across records
+
+A constraint across records ("one reported absence per person and day") is a rule over the loaded holder, not a boolean.
+
+- The use case loads `Option<Holder>` (`findOverlappingAbsence`); the rule fails with an error that names the holder (`AbsenceOverlapsError { absenceId }`).
+- The rule never compares the holder to the actor: the actor's own record refuses like anyone's.
+- An edit that can change the key runs `mustChange…Rule` first, so the record never meets itself. Never pass the edited id so the find can skip it.
+- The rule reports; it doesn't guarantee. Two writes at the same moment both pass: a `Cost:` line in the spec, or a guard in the database.
 
 ## Writing a rule
 

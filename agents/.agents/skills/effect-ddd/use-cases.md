@@ -50,7 +50,7 @@ Every constraint has a Case. A Case that cites no constraint is a decision the u
 
 ## Service
 
-One `Context.Service` per use case. Every one is the same three steps: find the narrowed state, call its transition, publish the event.
+One `Context.Service` per use case. Every one is the same three steps: find the narrowed state, call its transition, publish the event. Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
 
 ```ts
 // absence/application/archive-absence-service.ts
@@ -86,6 +86,8 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
 ## Facts about the target
 
 - The use case loads them and puts them on the input (`OrganizationMembers.isOrganizationMember` → `assigneeIsOrganizationMember`).
+- The fact's shape is what it can be. A boolean when it has two outcomes that both mean something (`assigneeIsOrganizationMember`). A tagged union when one case makes the question moot (`AssigneeEligibility = OpenToEveryone | InAllowedTeam | OutsideAllowedTeams`: an absence open to everyone asks no team). An `Option` of the holder when the refusal names it (`overlappingAbsence: Option<ReportedAbsence>` → `AbsenceOverlapsError { absenceId }`).
+- A fact loaded with branching I/O is a port in the domain, named after the fact (`AssigneeEligibilities.findAssigneeEligibility`), with an adapter in `infrastructure/`; never a `load…` helper in `application/`.
 - Load every time, even when the actor wouldn't need it (`mayAssignAnyone`): skipping the call moves the rule into the use case.
 - Load after the find, so a missing state is 404 before anything about the target.
 

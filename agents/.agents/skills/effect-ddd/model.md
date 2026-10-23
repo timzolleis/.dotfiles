@@ -47,7 +47,8 @@ export type EditableAbsence = DraftAbsence | ActiveAbsence
 ```
 
 - One `Schema.TaggedStruct` per state, with exactly the fields that state guarantees.
-- Name a union of states after what it allows (`EditableAbsence`).
+- Name states and unions of states as in [naming.md](naming.md): the fact the find checked.
+- The core type is what the domain decides on, so it carries the status. A status one level above the rules is the wrong core type: rules about each child but the status on the parent, one child can't be accepted or withdrawn alone, a bridge loops over the children. Split the parent into one core type per child.
 
 ## Value objects
 
