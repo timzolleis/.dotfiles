@@ -40,6 +40,7 @@ Every phase gets a **fresh** agent. The committed docs are the handoff, so no ag
    - **Approve:** go to step 4.
    Complete when the reply's answer is "Approve, build it".
 4. **Build.** Launch a builder with the build brief.
+   If the builder changed the spec, send the spec diff to the same Inbox thread with an accept question before step 5.
    Complete when it reports a PR URL with `pnpm check` green and evidence attached.
 5. **Review.** Launch a reviewer on the PR. Close the reviewer and the builder. Launch a fixer (Sonnet medium, [briefs/fix.md](briefs/fix.md), `FINDINGS` = the Blocking and Should fix lines, plus one-line Nits). Repeat until the reviewer reports neither.
    Complete when the last review has no Blocking or Should fix.

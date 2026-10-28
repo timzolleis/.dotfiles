@@ -8,11 +8,13 @@ Read: the repo `AGENTS.md`; the `effect-ddd` skill and its reference for each pa
 1. Follow the spec's module order: domain, use cases, views, infrastructure, HTTP, then the UI moved onto the new endpoints.
 2. Write a test for every Case.
 3. Delete everything the spec lists as replaced legacy code, in the same branch.
-4. If the code forces a design change, stop and report it in your final reply. Do not change the spec yourself.
+4. If the code forces a design change, write it into the spec and commit it, then say so in your final reply. Never open a Plannotator review yourself; the orchestrator takes the change to the person.
+
+Commits are signed through 1Password. If `git commit` fails or hangs on signing, never bypass it: leave the changes staged, stop, and say so in your final reply.
 
 ## Done when
 - `pnpm check` is green, and the tests for every Case pass.
-- Every screen the spec lists has a before/after shot (`verify-ui` skill; run `ship up` in a sibling herdr pane first).
+- Every screen the spec lists has a before/after shot (`verify-ui` skill; run `ship up` in a sibling herdr pane first). Time-box each shot to 10 min; a shot that keeps failing goes into the PR as "not captured" with the reason.
 - The story is set to `state: resolved` with the code paths filled in.
 - The PR is open (`pr` skill) and links {ISSUE}.
 

@@ -8,4 +8,6 @@ Findings (Blocking and Should fix; Nits only where they are one-line):
 3. For evidence findings, take the missing shots (`verify-ui` skill; run `ship up` in a sibling herdr pane) and publish them into the PR.
 4. Run `pnpm check` and the tests for the touched Cases. Commit and push.
 
+Commits are signed through 1Password. If `git commit` fails or hangs on signing, never bypass it: leave the changes staged, stop, and say so in your final reply.
+
 Final reply, at most 8 lines: each finding with fixed, or not and why, and the checks. Then stop.
