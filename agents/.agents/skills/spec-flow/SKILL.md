@@ -1,6 +1,6 @@
 ---
 name: spec-flow
-description: Orchestrate domain work through herdr sub-agents: spec, approval in the Plannotator Inbox, build, review.
+description: "Orchestrate domain work through herdr sub-agents: spec, approval in the Plannotator Inbox, build, review."
 disable-model-invocation: true
 ---
 
