@@ -24,6 +24,7 @@ Read the `herdr` and `ship` skills before the first launch.
 | revise | `anthropic/claude-opus-5-5` low | [briefs/revise.md](briefs/revise.md) | spec + the person's annotations | revised docs committed |
 | build | `anthropic/claude-sonnet-5-5` medium; Opus medium for a complex module | [briefs/build.md](briefs/build.md) | the approved spec | PR open with evidence |
 | review | `anthropic/claude-sonnet-5-5` medium | [briefs/review.md](briefs/review.md) | spec + PR diff | findings report |
+| fix | `anthropic/claude-sonnet-5-5` medium | [briefs/fix.md](briefs/fix.md) | spec + findings | fixes pushed |
 
 Every phase gets a **fresh** agent. The committed docs are the handoff, so no agent carries another phase's exploration context. An agent that ends gets closed (`herdr pane close`). A waiting agent pays a cache rewrite of its whole context when it wakes.
 
@@ -40,7 +41,7 @@ Every phase gets a **fresh** agent. The committed docs are the handoff, so no ag
    Complete when the reply's answer is "Approve, build it".
 4. **Build.** Launch a builder with the build brief.
    Complete when it reports a PR URL with `pnpm check` green and evidence attached.
-5. **Review.** Launch a reviewer on the PR. Prompt the builder (or a fresh builder, if it is closed) with the Blocking and Should fix findings. Repeat until the reviewer reports neither.
+5. **Review.** Launch a reviewer on the PR. Close the reviewer and the builder. Launch a fixer (Sonnet medium, [briefs/fix.md](briefs/fix.md), `FINDINGS` = the Blocking and Should fix lines, plus one-line Nits). Repeat until the reviewer reports neither.
    Complete when the last review has no Blocking or Should fix.
 6. **Hand over.** Send the [PR message](#inbox-messages). Close the build and review panes. After the merge, run `ship down` on the workspace.
 

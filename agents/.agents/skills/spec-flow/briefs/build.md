@@ -16,4 +16,4 @@ Read: the repo `AGENTS.md`; the `effect-ddd` skill and its reference for each pa
 - The story is set to `state: resolved` with the code paths filled in.
 - The PR is open (`pr` skill) and links {ISSUE}.
 
-Final reply, at most 10 lines: the PR URL, use cases shipped, legacy deleted (files, lines), checks, deviations from the spec, and the shot paths. Then stop, but stay open: review findings may come back to you.
+Final reply, at most 10 lines: the PR URL, use cases shipped, legacy deleted (files, lines), checks, deviations from the spec, and the shot paths. Then stop.
