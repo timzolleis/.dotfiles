@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+# Start a pi sub-agent in a new herdr pane and send it a brief.
+# usage: launch <name> <dir> <model> <thinking> <brief-file> [tab-label]
+set -euo pipefail
+name=$1 dir=$2 model=$3 thinking=$4 brief=$5 tab=${6:-spec-flow}
+ws=${HERDR_WORKSPACE_ID:?run inside herdr}
+env=(--env PLANNOTATOR_INBOX_TOOL=0 --env PLANNOTATOR_AGENT_TOOL=0)
+
+tab_id=$(herdr tab list | jq -r --arg ws "$ws" --arg l "$tab" '.result.tabs[] | select(.workspace_id == $ws and .label == $l) | .tab_id' | head -1)
+if [ -z "$tab_id" ]; then
+  pane=$(herdr tab create --workspace "$ws" --label "$tab" --cwd "$dir" "${env[@]}" --no-focus | jq -r .result.root_pane.pane_id)
+else
+  last=$(herdr pane list --workspace "$ws" | jq -r --arg t "$tab_id" '[.result.panes[] | select(.tab_id == $t)] | last | .pane_id')
+  pane=$(herdr pane split "$last" --direction down --cwd "$dir" "${env[@]}" --no-focus | jq -r .result.pane.pane_id)
+fi
+
+herdr agent start "$name" --kind pi --pane "$pane" -- --model "$model" --thinking "$thinking" --name "$name" >/dev/null
+herdr agent prompt "$name" "$(cat "$brief")" >/dev/null
+echo "$name $pane"

@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# Fill a brief's {PLACEHOLDERS} and print the path of the result.
+# usage: fill <brief> <out> KEY=VALUE...   (e.g. UNIT="absence reasons" ISSUE=EP-686)
+set -euo pipefail
+brief=$1 out=$2; shift 2
+mkdir -p "$(dirname "$out")"
+text=$(cat "$brief")
+for kv in "$@"; do text=${text//\{${kv%%=*}\}/${kv#*=}}; done
+printf '%s\n' "$text" > "$out"
+if left=$(grep -o '{[A-Z_]*}' "$out" | sort -u | tr '\n' ' ') && [ -n "$left" ]; then
+  echo "unfilled: $left" >&2; exit 1
+fi
+echo "$out"
