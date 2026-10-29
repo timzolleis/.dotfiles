@@ -8,13 +8,14 @@ Read: the repo `AGENTS.md`; the `effect-ddd` skill and its reference for each pa
 1. Follow the spec's module order: domain, use cases, views, infrastructure, HTTP, then the UI moved onto the new endpoints.
 2. Write a test for every Case.
 3. Delete everything the spec lists as replaced legacy code, in the same branch.
-4. If the code forces a design change, write it into the spec and commit it, then say so in your final reply. Never open a Plannotator review yourself; the orchestrator takes the change to the person.
+4. Don't review your own work beyond `pnpm check` and the tests: no `review` skill, no second pass over the diff. A review agent follows.
+5. If the code forces a design change, write it into the spec and commit it, then say so in your final reply. Never open a Plannotator review yourself; the orchestrator takes the change to the person.
 
 Commits are signed through 1Password. If `git commit` fails or hangs on signing, never bypass it: leave the changes staged, stop, and say so in your final reply.
 
 ## Done when
 - `pnpm check` is green, and the tests for every Case pass.
-- Every screen the spec lists has a before/after shot (`verify-ui` skill; run `ship up` in a sibling herdr pane first). Time-box each shot to 10 min; a shot that keeps failing goes into the PR as "not captured" with the reason.
+- Shots cover the screens in the spec's `## UI`, nothing more (`verify-ui` commands; `ship up` in the background first; one `SHOT_SESSION={BRANCH}`). A `same` screen gets one `--label after --check` shot; open its PNG only when the check fails. A `changes` screen gets a before/after pair; read both. No state, size or mode variants unless `## UI` names them. 20 min for all shots together; a shot you can't take goes into the PR as "not captured" with the reason. `pnpm -s shot publish` once, after the PR is open.
 - The story is set to `state: resolved` with the code paths filled in.
 - The PR is open (`pr` skill) and links {ISSUE}.
 
