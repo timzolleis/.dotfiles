@@ -125,13 +125,13 @@ Replace `right` with `down` when appropriate. Read the new pane ID from `.result
 An available shell pane must be at its interactive prompt, with the shell itself in the foreground and no foreground command, editor, or agent running. Start a supported agent in that pane with a useful unique name:
 
 ```bash
-herdr agent start reviewer --kind codex --pane <returned-pane-id>
+herdr agent start reviewer --kind pi --pane <returned-pane-id>
 ```
 
-Use the kind requested by the user. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`:
+Use the kind requested by the user; without one, use `pi` and follow "Pi agents" below. Run `herdr agent` to inspect the installed kind list and options. Pass native agent arguments only after `--`:
 
 ```bash
-herdr agent start reviewer --kind codex --pane <returned-pane-id> -- <agent-args...>
+herdr agent start reviewer --kind pi --pane <returned-pane-id> -- <agent-args...>
 ```
 
 A successful `agent start` returns only after Herdr detects the expected agent in the same pane and considers it ready for interactive input. If the agent is blocked during startup, the command returns `agent_not_ready` immediately but keeps the name available for `agent read` and `agent send-keys`. Wait until the agent becomes idle before prompting it. Startup defaults to a 30-second timeout.
@@ -170,6 +170,28 @@ herdr agent read reviewer --source recent-unwrapped --lines 120
 
 If a wait fails or returns `blocked`, inspect `agent get` and `agent read` before deciding what input to send. A timeout or stalled response does not prove the prompt was never delivered; do not blindly submit it again. Use the pane surface only when raw terminal control is intentional.
 
+## Pi agents
+
+Set the model and thinking level when starting pi; they are pi's own flags, so they go after `--`:
+
+```bash
+herdr agent start reviewer --kind pi --pane <returned-pane-id> -- --model claude-sonnet-5-5 --thinking high --name reviewer
+```
+
+- `--model` takes an ID or a pattern, optionally `provider/id`. `pi --list-models [search]` lists what is available. `--model sonnet:high` sets model and thinking in one flag.
+- `--thinking` is one of `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
+- `--name` names pi's session; it shows in the pane's terminal title. Reuse the Herdr agent name.
+- Use the model and level the user asks for. Otherwise pass neither, so pi starts with the user's defaults.
+
+Pi has no approval dialogs, so it does not report `blocked`. A question from pi ends its turn: `agent prompt --wait` returns with `agent_status` `done`, and the question is in the reply. Read the reply before prompting again.
+
+Read pi's reply from its session file instead of the screen. `agent get` returns the path at `.result.agent.agent_session.value`; the file is JSONL, and the last assistant message holds the full final answer:
+
+```bash
+session=$(herdr agent get reviewer | jq -r .result.agent.agent_session.value)
+jq -rs '[.[] | select(.message.role == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "$session"
+```
+
 ## Run an ordinary command in another pane
 
 Create a sibling pane with the same geometry rule, preserve the caller's working directory, and keep user focus unchanged:
@@ -199,7 +221,7 @@ Use `--format ansi` when colors and terminal styling are evidence. Otherwise use
 
 `--lines` asks Herdr for more rows from the pane's available screen and host scrollback. Alternate-screen rows do not enter ordinary host scrollback. For supported idle agents, Herdr can collect application-owned history and restore the viewport afterward, but not every application or response can be recovered this way.
 
-If a larger recent read still does not reveal the completed response, ask the agent to write it as Markdown in a temporary directory and reply only with the file path, then read that file on the same machine. Use this only as a fallback; do not request file output in the initial prompt.
+For pi, read the session file (see "Pi agents"). For other agents, if a larger recent read still does not reveal the completed response, ask the agent to write it as Markdown in a temporary directory and reply only with the file path, then read that file on the same machine. Use this only as a fallback; do not request file output in the initial prompt.
 
 ## Safety and coordination rules
 
