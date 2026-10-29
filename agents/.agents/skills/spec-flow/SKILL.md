@@ -1,6 +1,6 @@
 ---
 name: spec-flow
-description: "Orchestrate domain work through herdr sub-agents: spec, approval in the Plannotator Inbox, build, review."
+description: "Orchestrate domain work through herdr sub-agents: spec, approval in the Plannotator Inbox, build, review, guided review."
 disable-model-invocation: true
 ---
 
@@ -29,13 +29,14 @@ Launch from codemode with `tools.subagent_launch({ name, cwd, model, thinking, b
 | build | `anthropic/claude-sonnet-5-5` medium; Opus medium for a complex module | [briefs/build.md](briefs/build.md) | the approved spec | PR open with evidence |
 | review | `anthropic/claude-sonnet-5-5` medium | [briefs/review.md](briefs/review.md) | spec + PR diff | findings report |
 | fix | `anthropic/claude-sonnet-5-5` medium | [briefs/fix.md](briefs/fix.md) | spec + findings | fixes pushed |
+| guide | `anthropic/claude-sonnet-5-5` low | [briefs/guide.md](briefs/guide.md) | final PR diff | guide JSON + patch files |
 
 Every phase gets a **fresh** agent. The committed docs are the handoff, so no agent carries another phase's exploration context. A waiting agent pays a cache rewrite of its whole context when it wakes.
 
 ## Steps
 
 1. **Units.** Split the work into units (one module or area each). Create one workspace per unit: `ship create <project> <branch> --base origin/main --no-editor`.
-   Fill each brief with `scripts/fill <brief> /tmp/spec-flow/<unit>-<role>.md UNIT=… ISSUE=… DIR=… BRANCH=… SPEC_DIR=… NOTES=… LEGACY=…` (it fails on any placeholder left; `revise` needs `FEEDBACK`, `review` needs `PR`).
+   Fill each brief with `scripts/fill <brief> /tmp/spec-flow/<unit>-<role>.md UNIT=… ISSUE=… DIR=… BRANCH=… SPEC_DIR=… NOTES=… LEGACY=…` (it fails on any placeholder left; `revise` needs `FEEDBACK`, `review` needs `PR`, `guide` needs `PR`, `GUIDE_OUT=/tmp/spec-flow/<unit>-guide.json`, `PATCH_OUT=/tmp/spec-flow/<unit>.patch`).
    Complete when every unit has a workspace, an issue and a filled spec brief.
 2. **Spec.** Launch `spec-<unit>` with the spec brief. End your turn.
    Complete when its finished message names the committed docs.
@@ -48,7 +49,33 @@ Every phase gets a **fresh** agent. The committed docs are the handoff, so no ag
    Complete when it reports a PR URL with `pnpm check` green and evidence attached.
 5. **Review.** Launch a reviewer on the PR, then a fixer (`FINDINGS` = the Blocking and Should fix lines, plus one-line Nits). At most two review rounds: Should fix left after the second goes into the PR message as an open point; Blocking left goes to the person as a question.
    Complete when the last review has no Blocking or Should fix, or two rounds ran.
-6. **Hand over.** Send the [PR message](#inbox-messages). After the merge, run `ship down` on the workspace.
+6. **Guide.** Launch `guide-<unit>` with the guide brief. It needs `/tmp/spec-flow/guide-brief.json`; write it once per session, in codemode, so it never enters your context:
+   ```js
+   const t = await tools.plannotator_inbox({ action: "get_guide_brief" });
+   await tools.write({ path: "/tmp/spec-flow/guide-brief.json", content: t.slice(t.indexOf("{")) });
+   ```
+   Complete when its finished message names both files.
+7. **Hand over.** Send the [PR message](#inbox-messages), then the guided review as a reply in the same thread. Submit it from codemode, which reads the files so the patch never enters your context:
+   ```js
+   async function readAll(path) { // tools.read caps output; page through and drop its continuation notes
+     let out = "", offset = 1;
+     for (;;) {
+       const t = await tools.read({ path, offset, limit: 500 });
+       const m = t.match(/\n\n\[[^\]]*Use offset=(\d+) to continue\.\]$/);
+       if (!m) return out + t;
+       out += t.slice(0, m.index) + "\n";
+       offset = Number(m[1]);
+     }
+   }
+   return tools.plannotator_inbox({
+     action: "submit_guide", reply_to: "<PR message id>", project_path: "<workspace>",
+     body: "Guided review of <PR URL>",
+     guide: JSON.parse(await readAll("/tmp/spec-flow/<unit>-guide.json")),
+     patch: await readAll("/tmp/spec-flow/<unit>.patch"),
+   });
+   ```
+   On `invalid_guide: …`, launch a fresh guide agent with the error appended to its brief.
+   After the merge, run `ship down` on the workspace.
 
 Run several units side by side, with spec agents running ahead, so approved specs are always waiting for a builder and new specs for the person.
 
@@ -73,7 +100,7 @@ Stakes: <what the build commits to, one sentence>
 :::
 ```
 
-PR (same thread, `reply_to` the approval): the PR URL, use cases shipped, legacy deleted, review rounds, open points, and shots in `attachments`. Ask a question only when a decision is left.
+PR (same thread, `reply_to` the approval): the PR URL, use cases shipped, legacy deleted, review rounds, open points, and shots in `attachments`. Ask a question only when a decision is left. The guided review follows as its own reply (step 7); `submit_guide` takes no attachments.
 
 ## Token rules
 
