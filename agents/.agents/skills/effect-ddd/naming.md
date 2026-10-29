@@ -5,6 +5,7 @@ Names are truthful and greppable: the name alone says what a thing is or does, w
 - Name the subject: `findActiveAbsenceById`, `publishAbsenceEvent`. `findById`, `publish`, `execute` match thousands of lines.
 - An action starts with its verb: `archiveAbsence`, `generateAbsenceId`.
 - A translation names its output and its input: `absenceVisibilityFromReader(reader)`, `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`. `visibilityFor(reader)`, `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
+- A name never ends in a preposition its argument completes: `certificateRenewableFrom(certificate)`, `isDomainWithin(…)`, `visibilityFor(reader)`. Name the thing itself: `certificateRenewalStart(certificate)`, `isDomainWithinParentDomain(…)`. A translation (`dateTimeUtcFromDate`) names both sides, so it ends in a noun.
 - Variables too: `absenceBeforeUpdate`, `previousPeriod`; not `before`, `prev`, `data`, `result`.
 - Plain words in the domain's language that say what the thing is; no borrowed jargon (`Roster` for "the persons already signed up").
 - A state says the fact its find checked (`ActiveAbsence`), not what you may do with it (`ArchivableAbsence`).

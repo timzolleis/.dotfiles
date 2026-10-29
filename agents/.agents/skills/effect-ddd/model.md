@@ -119,7 +119,7 @@ export const AbsenceEvent = Schema.Union([
 ```
 
 - One `Schema.TaggedStruct` per event, past tense + `Event`, built with `X.make({...})`. Union: `AbsenceEvent`.
-- Common fields: `absenceId`, `organizationId`, `actorId`, `occurredOn`. Add what subscribers need: `previousPeriod` on reschedule, `assigneeId` and `period` on delete (the absence is gone).
+- Common fields: `absenceId`, `organizationId`, `actorId` (with an actor, [access.md](access.md)), `occurredOn`. Add what subscribers need: `previousPeriod` on reschedule, `assigneeId` and `period` on delete (the absence is gone).
 - Serialize through the event schema, never `JSON.stringify`.
 - `absence-event.ts` never imports `absence.ts`. Every schema an event uses (ids, value objects like `Period`) lives in its own file.
 

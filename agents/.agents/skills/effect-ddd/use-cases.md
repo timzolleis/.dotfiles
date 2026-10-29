@@ -18,35 +18,76 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 - Different intents: separate use cases, even when they share states and rules (reschedule and reassign).
 - A read is not a use case; it is a view ([views.md](views.md)).
 
-## Describing a use case
+## Stories
 
-Write it for the person who knows the domain, in their words, before any type name: they review it, and the code must keep it true.
+A **story** describes one area of the domain (a core type or a concept) and all its use cases, for the person who knows the domain, in their words, before any type name. They review it; the code must keep it true. When story and code disagree, fix the story first.
+
+~~~md
+---
+name: absence
+description: Members report absences for themselves or related users and archive them once the period has ended.
+type: story
+state: draft
+---
+
+# Absences
+
+"A member reports an absence, and it counts in staffing until it has ended."
+
+An absence is drafted, activated, and archived. Members report their own; with permission, anyone's.
+
+## Use cases
+
+| Use case | Rules |
+|---|---|
+| A member drafts an absence for themselves or a related user. | 1, 2 |
+| A member archives an absence whose period has ended. | 2–5 |
+
+## Data
+
+| Field | Type | Content |
+|---|---|---|
+| assignee | member | who is absent |
+| period | days, from–to | Mon 12 Oct – Fri 16 Oct 2026 |
+
+## Rules
+
+1. **Related users only.** A member drafts for themselves or a user related to them.
+2. **Creator, or with permission.** The creator edits their own; a member allowed to edit others' absences edits anyone's.
+3. **Only active absences are archived.** A draft is activated first.
+4. **Only once ended.** The period must have ended: an ongoing absence still counts in today's staffing.
+5. **Archived stays in the history.** An archived absence leaves the member's absence list and stays in the history.
+
+## Examples
+
+| Alice's absence Mon 12 Oct – Fri 16 Oct 2026 | Result |
+|---|---|
+| Alice archives it on Sat 17 Oct | archived |
+| Alice archives it on Fri 16 Oct | refused, still ongoing (rule 4) |
+| Bob archives it on Sat 17 Oct, without permission | refused (rule 2) |
+
+## Open
+
+- **Archive on a schedule?** A nightly job archives ended absences, or members archive them? Recommend members: a job needs a system actor.
+~~~
+
+- **Frontmatter**: `description` is one sentence of who does what; it is the pointer an agent picks the story by. `state` is `draft` until built, then `resolved`.
+- **Intent**: one quoted sentence, the user's goal in their words. Then a short intro: the kinds of things, who acts.
+- **Use cases**: one row per intent ([Cutting use cases](#cutting-use-cases)), with the rules it checks.
+- **Data**: the fields in domain terms, each with an example value. Not the table.
+- **Rules**: the constraints, numbered per story. A bold name, then one sentence, then the reason when it isn't obvious; the reason decides the edge cases nobody listed. When rules compete, state the precedence and why. Cite `rule 3` within the story, `absence rule 3` across stories. Only some become a code rule; place each with [rules.md](rules.md).
+- **Examples**: a table of concrete values (dates, users, amounts), never placeholders; each refusal cites its rule. Cover the edges the rules imply: the boundary instant, a year change, a DST day. A test of that rule uses the example's values ([testing.md](testing.md)).
+- **Open**: each undecided point with the options and a recommendation. Empty before the spec.
+- **Once built**, add: the code (paths to services, views, rules), a column on Use cases naming each entry point, **Interface** (endpoints or tools, with their errors), and **Tests** (which test covers which rules, and which rules have none).
+
+The Cases map the rules to code, one `situation (rule n) → outcome` line each, naming the error or event:
 
 ```text
-A member archives an absence whose period has ended.
-
-1. Only an active absence can be archived; a draft is activated first.
-2. The creator archives their own; a member allowed to edit others' absences archives anyone's.
-3. The period must have ended: an ongoing absence still counts in today's staffing.
-
-Examples (Alice's absence Mon 12 Oct – Fri 16 Oct 2026)
-  Alice archives it on Sat 17 Oct                      → archived
-  Alice archives it on Fri 16 Oct                      → refused, still ongoing (3)
-  Bob archives it on Sat 17 Oct, without permission    → refused (2)
+archive a draft (rule 3)                      → AbsenceStillDraftError (findActiveAbsenceById)
+archive while the period is ongoing (rule 4)  → AbsenceOngoingError
 ```
 
-- **Intent**: one sentence, who wants to do what.
-- **Constraints**: numbered, so Cases, tests, and other use cases cite them as `(n)`. Give the reason when it isn't obvious; the reason decides the edge cases nobody listed. When constraints compete, state the precedence and why. Place each one with [rules.md](rules.md).
-- **Examples**: concrete values (dates, users, amounts), never placeholders. Cover the edges the constraints imply: the boundary instant, a year change, a DST day. A test of that constraint uses the example's values ([testing.md](testing.md)).
-
-The Cases map the constraints to code, one `situation (n) → outcome` line each, naming the error or event:
-
-```text
-archive a draft (1)                      → AbsenceStillDraftError (findActiveAbsenceById)
-archive while the period is ongoing (3)  → AbsenceOngoingError
-```
-
-Every constraint has a Case. A Case that cites no constraint is a decision the user never reviewed: add the constraint or drop the Case.
+Every rule has a Case. A Case that cites no rule is a decision the user never reviewed: add the rule to the story or drop the Case.
 
 ## Service
 

@@ -60,7 +60,7 @@ A constraint across records ("one reported absence per person and day") is a rul
 - The use case loads `Option<Holder>` (`findOverlappingAbsence`); the rule fails with an error that names the holder (`AbsenceOverlapsError { absenceId }`).
 - The rule never compares the holder to the actor: the actor's own record refuses like anyone's.
 - An edit that can change the key runs `mustChange…Rule` first, so the record never meets itself. Never pass the edited id so the find can skip it.
-- The rule reports; it doesn't guarantee. Two writes at the same moment both pass: a `Cost:` line in the spec, or a guard in the database.
+- The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the spec. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
 
 ## Writing a rule
 

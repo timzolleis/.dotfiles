@@ -1,6 +1,6 @@
 # Spec
 
-A spec is the module's design as pseudocode, in the order a reader builds it: use cases first, then the model, then one section per module along the call path. It holds decided design only.
+A spec is the module's design as pseudocode, in the order a reader builds it: the use cases it ships from the stories first, then the model, then one section per module along the call path. It holds decided design only.
 
 Code, call trees, and `situation → outcome` lines carry it. Prose says only what code can't: why a name, what a choice costs, what was rejected. Lists of events, errors, finds, writes, and endpoints are commented code lines, not tables.
 
@@ -16,28 +16,17 @@ Out of scope: UI, notifications.
 
 ## Use cases
 
-### A member archives an absence whose period has ended
+Story: [absence.md](../stories/absence.md). This spec ships:
 
-1. Only an active absence can be archived; a draft is activated first.
-2. The creator archives their own; a member allowed to edit others' absences archives anyone's.
-3. The period must have ended: an ongoing absence still counts in today's staffing.
-4. An archived absence leaves the member's absence list and stays in the history.
-
-```text
-Examples (Alice's absence Mon 12 Oct – Fri 16 Oct 2026)
-  Alice archives it on Sat 17 Oct                         → archived
-  Alice archives it on Fri 16 Oct                         → refused, still ongoing (3)
-  Bob archives it on Sat 17 Oct, without permission       → refused (2)
-  Bob archives it on Sat 17 Oct, allowed to edit others'  → archived
-```
-
-### A member drafts an absence for themselves or a related user
-…
+| Use case | Rules |
+|---|---|
+| A member drafts an absence for themselves or a related user. | 1, 2 |
+| A member archives an absence whose period has ended. | 2–5 |
 
 ## Affected use cases                               ← only when existing ones change
 
 ```text
-A member sees their absences: archived ones no longer appear (4).
+A member sees their absences: archived ones no longer appear (absence rule 5).
 ```
 
 ## Lifecycle                                        ← only when the core type has states
@@ -54,9 +43,9 @@ archiveAbsence({ absence: ActiveAbsence, actor, now }):  Result<AbsenceArchivedE
 ```
 
 Cases
-  archive a draft (1)                               → AbsenceStillDraftError (findActiveAbsenceById)
-  archive someone else's, mayEditOthersAbsences (2) → AbsenceArchivedEvent
-  archive while the period is ongoing (3)           → AbsenceOngoingError
+  archive a draft (rule 3)                               → AbsenceStillDraftError (findActiveAbsenceById)
+  archive someone else's, mayEditOthersAbsences (rule 2) → AbsenceArchivedEvent
+  archive while the period is ongoing (rule 4)           → AbsenceOngoingError
 
 ## Model (`domain/absence-id.ts`, `domain/absence.ts`)
 
@@ -120,8 +109,8 @@ ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
 ```
 
 Cases (memory repository, TestClock)
-  active absence, period ended (3)  → AbsenceArchivedEvent written
-  already archived (1)              → AbsenceAlreadyArchivedError
+  active absence, period ended (rule 4)  → AbsenceArchivedEvent written
+  already archived (rule 3)              → AbsenceAlreadyArchivedError
 
 Cost: an absence that ends tonight stays active until someone archives it.
 Rejected: archive on read when the period has ended: a read would write.
@@ -129,8 +118,8 @@ Rejected: archive on read when the period has ended: a read would write.
 
 ## Rules
 
-- Use cases are in domain words only: intent, numbered constraints, examples ([use-cases.md](use-cases.md)). Number constraints once across the spec, so `(n)` is unique; a constraint two use cases share is listed once.
-- Affected use cases: each existing use case or view whose behavior changes, with the constraint that changes it.
+- Use cases live in stories ([use-cases.md](use-cases.md)); the spec links them, lists the ones it ships with their rules, and cites rules as `(rule n)`, or `(absence rule n)` when it spans stories. A new or changed rule goes into the story first; the spec never restates it.
+- Affected use cases: each existing use case or view whose behavior changes, with the rule that changes it.
 - The intro maps the concept to the host: tenant, access, event publishing, Effect version. Conventions appear only where they differ from effect-ddd.
 - One `###` per module along the call path: `Owns:` in one line, then signatures, call tree, Cases. Leave out what the module doesn't have.
 - Cases are the module's test list ([testing.md](testing.md)); name the fixture in the heading.

@@ -8,9 +8,8 @@ The repository is the write side's port: it loads the state a transition needs a
 // absence/domain/absence-repository.ts
 export type FindAbsenceByIdInput = { readonly organizationId: OrganizationId; readonly absenceId: AbsenceId }
 
-// The constraint makes it exhaustive: a new event doesn't compile until it names its write error.
-type OneEntryPerAbsenceEventTag<T extends Record<AbsenceEvent["_tag"], unknown>> = T
-export type AbsenceEventWriteErrors = OneEntryPerAbsenceEventTag<{
+// A new event doesn't compile until it names its write error.
+export type AbsenceEventWriteErrors = ExhaustiveRecord<AbsenceEvent["_tag"], {
   AbsenceDraftedEvent: AbsenceAlreadyExistsError
   AbsenceRescheduledEvent: AbsenceChangedConcurrentlyError
   // …one per event
@@ -27,6 +26,12 @@ export class AbsenceRepository extends Context.Service<AbsenceRepository, {
 }>()("AbsenceRepository") {}
 ```
 
+```ts
+// lib/exhaustive-record.ts
+// Fails to compile until T has an entry for every key.
+export type ExhaustiveRecord<Key extends PropertyKey, T extends Record<Key, unknown>> = T
+```
+
 - **Finds narrow**: one per set of states a transition accepts. Each returns that state or the error named after the state it found.
 - **One write**: `publishAbsenceEvent(event)` maps each event to a write, then publishes it. A union of events gives the union of their errors.
 - Rejected: splitting into `insertAbsence` + `publishAbsenceEvent` (two methods per change).
@@ -41,7 +46,7 @@ The port declares no infrastructure errors. Each operation has one expected fail
 | insert | id taken | `AbsenceAlreadyExistsError` |
 | guarded update / delete | no row matched the guard | `AbsenceChangedConcurrentlyError` |
 
-With Prisma, a find (`findUniqueOrThrow`) and a guarded `update` / `delete` fail with `PrismaRecordNotFoundError`; a taken id is `PrismaUniqueConstraintError`. Each operation catches its expected one and dies on the rest ([Finds](#finds), [Writes](#writes)).
+With Prisma, a find (`findUniqueOrThrow`) and a guarded `update` / `delete` fail with `PrismaRecordNotFoundError`; a taken id is `PrismaUniqueConstraintError`. Each operation catches its expected one and dies on the rest ([Finds](#finds), [Writes](#writes)). Each write spells out its own `catchTag`, even where two writes map the same failure: a shared combinator (`orChangedConcurrently`) hides which failure the write expects.
 
 ## Finds
 
@@ -158,6 +163,7 @@ const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEve
 - No cast. A missing write, an unknown tag, or a write whose error differs from `AbsenceEventWriteErrors` doesn't compile.
 - Convert every `DateTime.Utc` with `DateTime.toDateUtc`. Writes `select: { id: true }`: nothing is read back.
 - Write + publish are not atomic; delivery (outbox) belongs to the host.
+- Prisma's query API, not raw SQL. Raw SQL only for a behavior the spec names and the API can't express; the spec says which.
 
 ### `matchTag`
 

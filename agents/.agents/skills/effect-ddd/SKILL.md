@@ -31,14 +31,14 @@ Each question about a use case has a domain answer, and one component it lands i
 | What is true afterwards? | outcome: "the absence is archived" | event and its fields: `AbsenceArchivedEvent` |
 | Who sees the result? | "involved members; with permission, everyone" | view, visibility rule: `AbsenceView`, `absenceVisibilityFromReader` |
 
-Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the use case's description (intent, numbered constraints, examples); its Cases then map each constraint to code: [use-cases.md](use-cases.md).
+Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, examples. Its Cases then map each rule to code: [use-cases.md](use-cases.md).
 
 ## Deciding rules
 
 1. **The domain is pure**: states, transitions, rules, events, errors. No services, no I/O, no transport.
 2. **One schema per state.** A transition accepts only the states that allow it, so a wrong state doesn't compile.
 3. **A transition is a pure function**: input → `Result<Event, …errors>`. A use case only loads, calls the transition, and publishes the event.
-4. **With permissions, each is a flag on the actor**; a rule decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model the actor is `{ userId }` ([access.md](access.md)).
+4. **With permissions, each is a flag on the actor**; a rule decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model there is no actor until a rule or a reader of the event needs the user ([access.md](access.md)).
 5. **The domain stays truthful.** Retries and idempotency are softened at the HTTP edge with `catchTag`.
 6. **Decode at every edge**, with no branching or `Effect.die` before the decode.
 7. **A client-actionable failure is a typed error**; corrupt data and infrastructure failures die.
@@ -47,7 +47,7 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 ## Conventions
 
-- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`). When a name or type has no truthful home, reshape the design instead.
+- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`, `ExhaustiveRecord`). When a name or type has no truthful home, reshape the design instead.
 - A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
 - Behavior is named exports imported by name; no namespace imports.
@@ -88,7 +88,7 @@ AbsenceController.archiveAbsence({ params })
 
 | Situation | Read |
 |---|---|
-| Cutting or describing use cases; writing a command or a service | [use-cases.md](use-cases.md) |
+| Cutting use cases; writing a story, a command, or a service | [use-cases.md](use-cases.md) |
 | Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
 | Adding a rule, or deciding where a constraint lives | [rules.md](rules.md) |
 | Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |

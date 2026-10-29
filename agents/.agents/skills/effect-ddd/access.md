@@ -4,7 +4,7 @@ Access is who may act and who sees what: flags on the actor decide acting, a vis
 
 ## No access model
 
-The actor is `{ userId }`: no flags, permission adapter, reader, visibility, actor rule, or `NotAllowedTo…Error`. Transitions still take `actor`, and events still carry `actorId`, so adding access later only adds fields.
+No actor: no flags, permission adapter, reader, visibility, actor rule, or `NotAllowedTo…Error`, and transitions and events carry no user. Add `actor: { userId }` and `actorId` when a rule or a reader of the event needs the user ("created by", an audit trail); until then the field is carried and never read.
 
 ## Organization scope
 
