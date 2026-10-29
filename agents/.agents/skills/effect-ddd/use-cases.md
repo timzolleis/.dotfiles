@@ -14,6 +14,7 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 ## Cutting use cases
 
 - Name the intent, not the data change: `archiveAbsence`, not `updateAbsenceStatus`. A generic update hides which rules apply.
+- A form that edits the entity's own content under one set of rules is one use case, `update<Type>` (`updateAbsenceReason`). Split it only when a field gets its own rule, permission, or consumer.
 - Same intent, different permission: one use case; the difference is an actor flag (`mayEditOthersAbsences`).
 - Different intents: separate use cases, even when they share states and rules (reschedule and reassign).
 - A read is not a use case; it is a view ([views.md](views.md)).
@@ -76,7 +77,7 @@ An absence is drafted, activated, and archived. Members report their own; with p
 - **Use cases**: one row per intent ([Cutting use cases](#cutting-use-cases)), with the rules it checks.
 - **Data**: the fields in domain terms, each with an example value. Not the table.
 - **Rules**: the constraints, numbered per story. A bold name, then one sentence, then the reason when it isn't obvious; the reason decides the edge cases nobody listed. When rules compete, state the precedence and why. Cite `rule 3` within the story, `absence rule 3` across stories. Only some become a code rule; place each with [rules.md](rules.md).
-- **Examples**: a table of concrete values (dates, users, amounts), never placeholders; each refusal cites its rule. Cover the edges the rules imply: the boundary instant, a year change, a DST day. A test of that rule uses the example's values ([testing.md](testing.md)).
+- **Examples**: a table of concrete values (dates, users, amounts), never placeholders; each refusal cites its rule. Cover the edges the rules imply: the boundary instant, a year change, a DST day. A test of that rule uses the example's values, with actors named by role ([testing.md](testing.md)).
 - **Open**: each undecided point with the options and a recommendation. Empty before the spec.
 - **Once built**, add: the code (paths to services, views, rules), a column on Use cases naming each entry point, **Interface** (endpoints or tools, with their errors), and **Tests** (which test covers which rules, and which rules have none).
 
@@ -127,7 +128,7 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
 ## Facts about the target
 
 - The use case loads them and puts them on the input (`OrganizationMembers.isOrganizationMember` → `assigneeIsOrganizationMember`).
-- The fact's shape is what it can be. A boolean when it has two outcomes that both mean something (`assigneeIsOrganizationMember`). A tagged union when one case makes the question moot (`AssigneeEligibility = OpenToEveryone | InAllowedTeam | OutsideAllowedTeams`: an absence open to everyone asks no team). An `Option` of the holder when the refusal names it (`overlappingAbsence: Option<ReportedAbsence>` → `AbsenceOverlapsError { absenceId }`).
+- The fact's shape is what it can be. A boolean when it has two outcomes that both mean something (`assigneeIsOrganizationMember`). A tagged union when one case makes the question moot (`AssigneeEligibility = OpenToEveryone | InAllowedTeam | OutsideAllowedTeams`: an absence open to everyone asks no team). An `Option` of the other record when a rule needs it (`overlappingAbsence: Option<ReportedAbsence>` → `AbsenceOverlapsError { absenceId }`; [rules.md](rules.md)).
 - A fact loaded with branching I/O is a port in the domain, named after the fact (`AssigneeEligibilities.findAssigneeEligibility`), with an adapter in `infrastructure/`; never a `load…` helper in `application/`.
 - Load every time, even when the actor wouldn't need it (`mayAssignAnyone`): skipping the call moves the rule into the use case.
 - Load after the find, so a missing state is 404 before anything about the target.

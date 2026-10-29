@@ -48,14 +48,13 @@ The host's permission system answers the actor's questions. One pure function pe
 
 ```ts
 // absence/infrastructure/absence-permissions.ts
-export const AbsencePermission = Schema.Literals(["absences:read", "absences:update", "absences:delete"])
-export type AbsencePermission = typeof AbsencePermission.Type
+type AbsencePermission = "absences:read" | "absences:update" | "absences:delete"
 
 // The caller loads relatedUserIds once per request.
 export const absenceActorFromPermissions = ({ userId, organizationId, permissions, relatedUserIds }: {
   readonly userId: UserId
   readonly organizationId: OrganizationId
-  readonly permissions: Permissions
+  readonly permissions: Pick<Permissions, "hasPermission">
   readonly relatedUserIds: ReadonlySet<UserId>
 }): AbsenceActor => {
   const hasAbsencePermission = (permission: AbsencePermission) => permissions.hasPermission(permission, organizationId)
@@ -71,13 +70,14 @@ export const absenceActorFromPermissions = ({ userId, organizationId, permission
 ```
 
 - The domain never sees a permission key, role, or `CurrentActor`.
+- The key list is a type, not a schema: it is never decoded. `Pick<…, "hasPermission">` lets a test pass a fake.
 - Identity/access owns roles and role → permission; the module owns its keys and the adapter.
 - A different permission system means a different adapter; flags, rules, and visibility stay.
 - Whoever builds the actor loads its facts (`UserRelationships.listRelatedUserIds`) once; use cases never call those ports.
 
 ## Visibility
 
-Writes take the actor; reads take a visibility, the read rule as data. Views never see an actor, so a read without a user states its visibility instead of faking one. The views adapter translates it into its query ([views.md](views.md)).
+Writes take the actor; once readers see different rows, reads take a visibility, the read rule as data. While every reader sees the same rows, a read takes only the scope (`organizationId`); the visibility arrives with the first restriction. Views never see an actor, so a read without a user states its visibility instead of faking one. The views adapter translates it into its query ([views.md](views.md)).
 
 ```ts
 // absence/domain/absence-actor.ts

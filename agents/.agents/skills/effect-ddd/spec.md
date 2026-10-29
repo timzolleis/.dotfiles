@@ -16,7 +16,7 @@ Out of scope: UI, notifications.
 
 ## Use cases
 
-Story: [absence.md](../stories/absence.md). This spec ships:
+Story: the absence story (where stories live is the host's fact). This spec ships:
 
 | Use case | Rules |
 |---|---|

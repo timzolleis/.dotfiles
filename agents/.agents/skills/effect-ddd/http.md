@@ -128,6 +128,14 @@ export const absenceHttpErrorFromAbsenceError = matchTag<AbsenceError>()({
 })
 ```
 
+- The mapper's input is the errors that reach HTTP. An error the edge catches on every path gets no HTTP class; exclude it, with its reason:
+
+  ```ts
+  // Restore is retry-safe: the controller catches StillActive, so it never reaches HTTP.
+  type AbsenceErrorReachingHttp = Exclude<AbsenceError, AbsenceStillActiveError>
+  export const absenceHttpErrorFromAbsenceError = matchTag<AbsenceErrorReachingHttp>()({ … })
+  ```
+
 - Each handler ends with `.pipe(Effect.mapError(absenceHttpErrorFromAbsenceError))`. Its errors infer `Tag` as the union of their tags, so its error type is exactly their HTTP variants, and the endpoint's `error: [...]` list is checked against it.
 - Not `Match.valueTags`: it returns the union of all variants, so no endpoint that declares only its own compiles.
 

@@ -7,6 +7,8 @@ Names are truthful and greppable: the name alone says what a thing is or does, w
 - A translation names its output and its input: `absenceVisibilityFromReader(reader)`, `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`. `visibilityFor(reader)`, `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
 - A name never ends in a preposition its argument completes: `certificateRenewableFrom(certificate)`, `isDomainWithin(…)`, `visibilityFor(reader)`. Name the thing itself: `certificateRenewalStart(certificate)`, `isDomainWithinParentDomain(…)`. A translation (`dateTimeUtcFromDate`) names both sides, so it ends in a noun.
 - Variables too: `absenceBeforeUpdate`, `previousPeriod`; not `before`, `prev`, `data`, `result`.
+- One thing keeps one name through every layer: the find's `reasonWithSameName` stays `reasonWithSameName` in the input, the rule, and its callback; no stand-in like `holder`.
+- Editing an entity's own content is `update<Type>` (`updateAbsenceReason`); no synonym (`revise`, `relabel`). Intent names are for changes with their own rules ([use-cases.md](use-cases.md)).
 - Plain words in the domain's language that say what the thing is; no borrowed jargon (`Roster` for "the persons already signed up").
 - A state says the fact its find checked (`ActiveAbsence`), not what you may do with it (`ArchivableAbsence`).
 - Prefix a concept by its variant only where the variants' fields differ (`SchoolSubmission` / `GroupSubmission`); shared ids stay unprefixed (`SubmissionId`).
@@ -19,12 +21,13 @@ Names are truthful and greppable: the name alone says what a thing is or does, w
 | States a transition accepts | the fact they share; what they allow only when no fact names them | `EditableAbsence` (draft or active) |
 | Transition, its input | `<verb><Type>`, `<Verb><Type>Input` | `archiveAbsence`, `ArchiveAbsenceInput` |
 | Rule type, list | `<Verb><Type>Rule`, `<verb><Type>Rules` | `ArchiveAbsenceRule`, `archiveAbsenceRules` |
-| Single rule | the rule as a sentence + `Rule`, without the subject (the file names it); "Permitted" = the actor holds the flag | `cannotArchiveWhileOngoingRule` |
+| Single rule | the rule as a sentence + `Rule`, without the subject (the file names it); "Permitted" = the actor holds the flag | `cannotArchiveWhileOngoingRule`, `onlyPermittedCanCreateRule`; not `mayCreateRule`, `uniqueNameRule` |
 | Event | `<Type><PastTense>Event` | `AbsenceArchivedEvent` |
 | Domain error | `<Fact>Error`; *still* = not yet, *already* = past it | `AbsenceStillDraftError` |
 | HTTP error | domain error name + `Http` | `AbsenceStillDraftHttpError` |
 | Actor, flag | `<Type>Actor`, `may<Verb>…` | `AbsenceActor`, `mayEditOthersAbsences` |
-| Repository find | `find<State><Type>ById` | `findActiveAbsenceById` |
+| Repository find | `find<State><Type>ById`; across records `find<Type>By<Key>` | `findActiveAbsenceById`, `findAbsenceReasonByName` |
+| Equality of a value | `<Type><Field>Equivalence` | `AbsenceReasonNameEquivalence` |
 | View read | `get…` / `list…` | `getAbsenceById`, `listAbsences` |
 | Use case, command | `<Verb><Type>Service`, `<Verb><Type>Command` | `ArchiveAbsenceService`, `ArchiveAbsenceCommand` |
 | Translation | `<output>From<input>` | `absenceActorFromPermissions`, `absenceHttpErrorFromAbsenceError` |

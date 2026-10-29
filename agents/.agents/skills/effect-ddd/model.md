@@ -54,6 +54,9 @@ export type EditableAbsence = DraftAbsence | ActiveAbsence
 
 A constructor returns a `Result`; a question about the value is a plain function.
 
+- A value's constraint lives on its schema once, and payloads, states, and views decode with it: `AbsenceReasonName = Schema.Trimmed.check(Schema.isNonEmpty(), Schema.makeFilter(hasOnlyNameCharacters)).pipe(Schema.brand("AbsenceReasonName"))`. No twin (`NewAbsenceReasonName`, `AbsenceReasonNameInput`) with more or fewer checks.
+- Equality other than `===` is an `Equivalence` beside the schema, not a normalize or key function: `AbsenceReasonNameEquivalence = Equivalence.mapInput(Equivalence.String, (name: string) => name.toLowerCase())`. It folds only what the schema leaves open: a trimmed name needs no `trim`.
+
 ```ts
 // absence/domain/period.ts
 export const createPeriod = ({ from, to }: { readonly from: DateTime.Utc; readonly to: DateTime.Utc }): Result.Result<Period, InvalidPeriodError> =>

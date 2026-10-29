@@ -11,6 +11,8 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a spec ([spec.md](spec.md)).
 
+When two modules solve the same thing differently, this skill decides which one drifted: align that one to it, never the newer module to the older.
+
 A good turn: "Archive needs the period to have ended. Option A: a rule on archive (`cannotArchiveWhileOngoingRule`), 409 while ongoing. Option B: a nightly job archives ended absences. I recommend A: B needs a system actor, which is still open. Which do you want?"
 
 ## Use cases first
@@ -47,6 +49,7 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 ## Conventions
 
+- Build only what a current rule, reader, or client uses. A field, index, guard, visibility variant, HTTP error, request wrapper, or second schema for a consumer that doesn't exist yet (a future sync feed, an error field nobody reads) lands with that consumer.
 - Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`, `ExhaustiveRecord`). When a name or type has no truthful home, reshape the design instead.
 - A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.

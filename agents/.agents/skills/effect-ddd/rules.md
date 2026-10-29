@@ -55,11 +55,14 @@ export const reassignAbsenceRules: ReadonlyArray<ReassignAbsenceRule> = [
 
 ## One per … across records
 
-A constraint across records ("one reported absence per person and day") is a rule over the loaded holder, not a boolean.
+A constraint across records ("one reported absence per person and day", "one reason per name") is a rule over the other record, loaded, not a boolean.
 
-- The use case loads `Option<Holder>` (`findOverlappingAbsence`); the rule fails with an error that names the holder (`AbsenceOverlapsError { absenceId }`).
-- The rule never compares the holder to the actor: the actor's own record refuses like anyone's.
-- An edit that can change the key runs `mustChange…Rule` first, so the record never meets itself. Never pass the edited id so the find can skip it.
+- The repository finds it in the query: `find<Type>By<Key>` returns `Option<…>` (`findOverlappingAbsence`, `findAbsenceReasonByName`), and the value keeps its name into the rule (`reasonWithSameName`). Load the whole list only when the transition needs it anyway (positions); the rule still takes the one record.
+- One rule serves create and edit. It passes when the found record has the id of the record that gets the key: a create retried with the same id reaches the write (`AlreadyExists`), and an edit that keeps its key, or changes only its case, meets itself.
+- The rule never compares the found record to the actor: the actor's own record refuses like anyone's.
+- The error names the other record (`AbsenceOverlapsError { absenceId }`) only when a client acts on it; otherwise it carries the value (`AbsenceReasonNameTakenError { name }`).
+- "Same value" is the value's `Equivalence` ([model.md](model.md)), which the form uses too; the find's query must agree with it.
+- With a unique index, the write maps the violation straight to the error; no lookup to fill its fields.
 - The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the spec. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
 
 ## Writing a rule
