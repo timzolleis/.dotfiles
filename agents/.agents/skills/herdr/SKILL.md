@@ -21,6 +21,22 @@ The installed binary owns the syntax. Run `herdr --help`, then a group without a
 
 Commands return JSON. Take IDs and state from responses, never predict them. Chain steps in one bash call and pipe through `jq` to keep only the fields you need. Server errors are JSON on stderr with exit 1; syntax errors exit 2.
 
+## Codemode tools
+
+In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. Sub-agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
+
+- Delegate: `tools.subagent_launch({ name, cwd, prompt })`; add `model` and `thinking` only when the user names them.
+- A branch with its own orchestrator, when the user asks for one:
+
+```js
+const wt = await tools.worktree_create({ cwd, branch, startPi: false });
+await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrator: true, prompt });
+```
+
+- In a ship project the ship plugin provisions a new worktree in the background and adds tabs `dev` (setup, then `ship up`) and `terminal`. Find them with `tools.pane_list({ workspace: wt.workspace })`; drive them with `pane_run`, `pane_wait`, `pane_read`.
+- An orchestrator keeps its pane and its own sub-agent tools; you hear from it once, when it first settles.
+- `worktree_remove` deletes the checkout, and in a ship project the plugin tears the workspace down. Only when the user asks.
+
 ## Panes, agents, IDs
 
 - Pane commands control raw terminals: shells, tests, servers. Agent commands control the recognized agent in a pane and report `idle`, `working`, `blocked`, `done`, or `unknown`.
