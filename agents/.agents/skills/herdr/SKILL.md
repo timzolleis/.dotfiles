@@ -35,6 +35,8 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 
 - In a ship project the ship plugin provisions a new worktree in the background and adds tabs `dev` (setup, then `ship up`) and `terminal`. Find them with `tools.pane_list({ workspace: wt.workspace })`; drive them with `pane_run`, `pane_wait`, `pane_read`.
 - An orchestrator keeps its pane and its own sub-agent tools; you hear from it once, when it first settles.
+- An agent in a worktree belongs in that worktree's `agent` tab, where the user looks for it: launch it in `wt.rootPane` (`orchestrator: true`), not as a new pane beside it.
+- A finished agent's pane stays open: the user may want to read it or ask it something. Never `subagent_stop` or `pane_close` a finished agent unless the user asks.
 - `worktree_remove` deletes the checkout, and in a ship project the plugin tears the workspace down. Only when the user asks.
 
 ## Panes, agents, IDs
