@@ -48,8 +48,6 @@ The host's permission system answers the actor's questions. One pure function pe
 
 ```ts
 // absence/infrastructure/absence-permissions.ts
-type AbsencePermission = "absences:read" | "absences:update" | "absences:delete"
-
 // The caller loads relatedUserIds once per request.
 export const absenceActorFromPermissions = ({ userId, organizationId, permissions, relatedUserIds }: {
   readonly userId: UserId
@@ -57,21 +55,22 @@ export const absenceActorFromPermissions = ({ userId, organizationId, permission
   readonly permissions: Pick<Permissions, "hasPermission">
   readonly relatedUserIds: ReadonlySet<UserId>
 }): AbsenceActor => {
-  const hasAbsencePermission = (permission: AbsencePermission) => permissions.hasPermission(permission, organizationId)
+  const hasPermission = (permission: PermissionKey) => permissions.hasPermission(permission, organizationId)
   return {
     userId,
     relatedUserIds,
-    mayEditOthersAbsences: hasAbsencePermission("absences:update"),
-    mayDeleteOthersAbsences: hasAbsencePermission("absences:delete"),
-    mayAssignAnyone: hasAbsencePermission("absences:update"),
-    mayReadOthersAbsences: hasAbsencePermission("absences:read") || hasAbsencePermission("absences:update"),   // edit implies read
+    mayEditOthersAbsences: hasPermission("absences:update"),
+    mayDeleteOthersAbsences: hasPermission("absences:delete"),
+    mayAssignAnyone: hasPermission("absences:update"),
+    mayReadOthersAbsences: hasPermission("absences:read") || hasPermission("absences:update"),   // edit implies read
   }
 }
 ```
 
 - The domain never sees a permission key, role, or `CurrentActor`.
-- The key list is a type, not a schema: it is never decoded. `Pick<…, "hasPermission">` lets a test pass a fake.
-- Identity/access owns roles and role → permission; the module owns its keys and the adapter.
+- One shape for every module: `<type>ActorFromPermissions({ userId, organizationId, permissions, …facts })`, `permissions: Pick<Permissions, "hasPermission">` (a test passes a fake), local helper `hasPermission`.
+- Keys are the host's typed key union (`PermissionKey`); a module declares no key type of its own, so a removed or misspelled key fails the type check.
+- Identity/access owns the keys, roles, and role → permission; the module owns the adapter.
 - A different permission system means a different adapter; flags, rules, and visibility stay.
 - Whoever builds the actor loads its facts (`UserRelationships.listRelatedUserIds`) once; use cases never call those ports.
 
