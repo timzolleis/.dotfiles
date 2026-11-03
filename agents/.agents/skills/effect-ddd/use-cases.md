@@ -23,12 +23,14 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 
 A **story** describes one area of the domain (a core type or a concept) and all its use cases, for the person who knows the domain, in their words, before any type name. They review it; the code must keep it true. When story and code disagree, fix the story first.
 
+The story is the one tracked document and always says what holds now. Each PR that changes the behavior edits it, and describes its own delta in a change ([change.md](change.md)). The story never grows a history: no "since", no "previously", no plan.
+
 ~~~md
 ---
 name: absence
 description: Members report absences for themselves or related users and archive them once the period has ended.
 type: story
-state: draft
+state: resolved
 ---
 
 # Absences
@@ -36,6 +38,7 @@ state: draft
 "A member reports an absence, and it counts in staffing until it has ended."
 
 An absence is drafted, activated, and archived. Members report their own; with permission, anyone's.
+Code: `absence/`
 
 ## Use cases
 
@@ -43,6 +46,10 @@ An absence is drafted, activated, and archived. Members report their own; with p
 |---|---|
 | A member drafts an absence for themselves or a related user. | 1, 2 |
 | A member archives an absence whose period has ended. | 2–5 |
+
+## Lifecycle
+
+Drafted → activated → archived. Only the creator activates; archived is final.
 
 ## Data
 
@@ -72,23 +79,16 @@ An absence is drafted, activated, and archived. Members report their own; with p
 - **Archive on a schedule?** A nightly job archives ended absences, or members archive them? Recommend members: a job needs a system actor.
 ~~~
 
-- **Frontmatter**: `description` is one sentence of who does what; it is the pointer an agent picks the story by. `state` is `draft` until built, then `resolved`.
-- **Intent**: one quoted sentence, the user's goal in their words. Then a short intro: the kinds of things, who acts.
+- **Frontmatter**: `description` is one sentence of who does what; it is the pointer an agent picks the story by. `state` is `open` until the first change ships, then `resolved`.
+- **Intent**: one quoted sentence, the user's goal in their words. Then a short intro: the kinds of things, who acts. `Code:` names the module folder, nothing deeper; every other name greps.
 - **Use cases**: one row per intent ([Cutting use cases](#cutting-use-cases)), with the rules it checks.
-- **Data**: the fields in domain terms, each with an example value. Not the table.
-- **Rules**: the constraints, numbered per story. A bold name, then one sentence, then the reason when it isn't obvious; the reason decides the edge cases nobody listed. When rules compete, state the precedence and why. Cite `rule 3` within the story, `absence rule 3` across stories. Only some become a code rule; place each with [rules.md](rules.md).
+- **Lifecycle**: the states and the moves between them, in domain words. Only when the core type has states.
+- **Data**: the fields in domain terms, each with an example value. Not the table, not the UI.
+- **Rules**: the constraints, numbered per story. A bold name, then one sentence, then the reason when it isn't obvious; the reason decides the edge cases nobody listed. When rules compete, state the precedence and why. Cite `rule 3` within the story, `absence rule 3` across stories. Only some become a code rule; place each with [rules.md](rules.md). A rule is the domain's: no buttons, screens, columns, constants, files, or "the server checks again". A removed rule leaves its number unused, so citations in older changes stay right.
 - **Examples**: a table of concrete values (dates, users, amounts), never placeholders; each refusal cites its rule. Cover the edges the rules imply: the boundary instant, a year change, a DST day. A test of that rule uses the example's values, with actors named by role ([testing.md](testing.md)).
-- **Open**: each undecided point with the options and a recommendation. Empty before the spec.
-- **Once built**, add: the code (paths to services, views, rules), a column on Use cases naming each entry point, **Interface** (endpoints or tools, with their errors), and **Tests** (which test covers which rules, and which rules have none).
+- **Open**: each undecided point with the options and a recommendation. Empty once a change that depends on it is approved.
 
-The Cases map the rules to code, one `situation (rule n) → outcome` line each, naming the error or event:
-
-```text
-archive a draft (rule 3)                      → AbsenceStillDraftError (findActiveAbsenceById)
-archive while the period is ongoing (rule 4)  → AbsenceOngoingError
-```
-
-Every rule has a Case. A Case that cites no rule is a decision the user never reviewed: add the rule to the story or drop the Case.
+When a change ships, its story edit says what holds now. A reason that still matters (why archived stays in the history) moves in as one sentence at its rule; the change's plan, Cases and `Rejected:` lines stay in the change.
 
 ## Service
 
