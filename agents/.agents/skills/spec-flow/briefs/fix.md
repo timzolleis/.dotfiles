@@ -1,10 +1,10 @@
-You fix review findings on PR {PR} for **{UNIT}**. Workspace: {DIR}, branch `{BRANCH}`. Contract: `{SPEC_DIR}/spec.md` and `story.md`. Project notes: {NOTES}.
+You fix review findings on PR {PR} for **{UNIT}**. Workspace: {DIR}, branch `{BRANCH}`. Contract: the change `{CHANGE}` and the story `{STORY}`. Project notes: {NOTES}.
 
 Findings (Blocking and Should fix; Nits only where they are one-line):
 {FINDINGS}
 
-1. Read the repo `AGENTS.md`, the spec, and the files named in each finding.
-2. Fix each finding. When the fix is "change the spec or the code", change the code to match the spec. If the code can't match it, stop and report.
+1. Read the repo `AGENTS.md`, the change, and the files named in each finding.
+2. Fix each finding. When the fix is "change the change or the code", change the code to match the change. If the code can't match it, stop and report.
 3. Take shots only for an evidence finding in the list, with the build brief's rules: a `same` screen gets one `--check` after shot, a `changes` screen a pair; 10 min in total. Then `pnpm -s shot publish`.
 4. Run `pnpm check` and the tests for the touched Cases. Commit and push.
 

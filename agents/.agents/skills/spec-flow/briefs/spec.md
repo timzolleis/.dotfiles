@@ -1,6 +1,6 @@
-You write the spec for **{UNIT}** ({ISSUE}). Workspace: {DIR}, branch `{BRANCH}`. Another agent builds it once the person approves it, so the spec must stand on its own.
+You write the change for **{UNIT}** ({ISSUE}) and the story edits it implies. Workspace: {DIR}, branch `{BRANCH}`. Another agent builds it once the person approves it, so the change must stand on its own.
 
-Read: the repo `AGENTS.md`; the `effect-ddd` skill (`SKILL.md`, `use-cases.md`, `spec.md`, plus `views.md` and `access.md` when the unit has reads); the project notes {NOTES}; the issue.
+Read: the repo `AGENTS.md`; the `effect-ddd` skill (`SKILL.md`, `use-cases.md`, `change.md`, plus `views.md` and `access.md` when the unit has reads); the project notes {NOTES}; the issue.
 Legacy starting points: {LEGACY}
 
 ## Derive, don't port
@@ -10,10 +10,10 @@ Legacy starting points: {LEGACY}
 4. Bugs, dead endpoints and rules nobody enforces go under **Open**, each with options and a recommendation.
 
 ## Write
-- `{SPEC_DIR}/story.md`: the story format from `use-cases.md`, `state: draft`.
-- `{SPEC_DIR}/spec.md`: the `spec.md` format, plus the extra sections in the project notes.
-- Keep it short: tables, code, call trees, `situation (rule n) → outcome` lines. Prose only for why, cost and rejected.
+- `{STORY}`: the story format from `use-cases.md`. Edit it when it exists; create it with `state: open` when not. It says what holds after this PR, with no history.
+- `{CHANGE}`: the `change.md` format, plus the extra sections in the project notes. It is outside the repo; don't commit it.
+- Keep the change short: code, Case lines, one-line `Rejected:` and `Cost:`. Leave out what `effect-ddd` already decides.
 
-Commit both files on the branch. Ask nothing in chat; anything undecided goes under **Open**.
+Commit the story on the branch. Ask nothing in chat; anything undecided goes under **Open**.
 
-Final reply, at most 10 lines: the use cases, key decisions, the open points that matter, and the doc paths. Then stop. You do not build.
+Final reply, at most 10 lines: the use cases, key decisions, the open points that matter, and both paths. Then stop. You do not build.
