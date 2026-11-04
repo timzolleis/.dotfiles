@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.4.0",
+  "lastChangelogVersion": "1.5.0",
   "theme": "light/dark",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-5-5",
@@ -22,5 +22,9 @@
   "modelThinkingLevels": {
     "anthropic/claude-fable-5-1": "high",
     "anthropic/claude-opus-5-5": "high"
+  },
+  "extensionChangelogVersions": {
+    "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.46.0",
+    "{\"source\":\"npm:@gotgenes/pi-anthropic-auth\",\"scope\":\"user\"}": "3.4.4"
   }
 }
