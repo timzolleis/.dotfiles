@@ -19,6 +19,13 @@ import { Type } from "typebox";
 const LAUNCH_ENTRY = "subagent-launch";
 const REPORTED_ENTRY = "subagent-reported";
 const REPLY_LIMIT = 6000;
+const REPORT_REPLY_LINES = 15;
+const REPORT_REPLY_CHARS = 2500;
+const BATCH_WINDOW_MS = 60_000;
+const DEV_SERVER_COMMAND = /\bship\s+up\b|\b(?:pnpm|npm|yarn|bun)\s+(?:run\s+)?dev\b|\bvite(?:\s+dev)?\b/;
+const DEV_SERVER_START_TIMEOUT_MS = 180_000;
+const FINAL_REPLY_CONTRACT =
+	"\n\nFinal reply: at most 10 lines: what changed, what is left, and any decision for whoever launched you. They see your commits, diff and PR without you listing them.";
 const SUB_AGENT_ENV = ["PLANNOTATOR_INBOX_TOOL=0", "PLANNOTATOR_AGENT_TOOL=0", "PI_SUBAGENT=1"];
 const SHOT_PATTERN = /\bpnpm\s+(?:-s\s+)?shot\b|\bshot\s+(?:publish|outline|flow)\b/;
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
@@ -33,7 +40,17 @@ interface Launch {
 	session?: string;
 	keepOpen: boolean;
 	orchestrator?: boolean;
+	group?: string;
+	headAtLaunch?: string;
 	launchedAt: number;
+}
+
+interface WorkFacts {
+	branch?: string;
+	commits: string[];
+	shortstat?: string;
+	uncommittedFiles: number;
+	pr?: { url: string; state: string; checks: string };
 }
 
 interface Stats {
@@ -52,6 +69,7 @@ interface Report {
 	session?: string;
 	stats?: Stats;
 	error?: string;
+	facts?: WorkFacts;
 }
 
 type HerdrJson = { result?: any };
@@ -96,6 +114,42 @@ function currentWorkspace(): string {
 	return workspace;
 }
 
+async function callerPane(): Promise<{ pane: string; tab: string; workspace: string }> {
+	const fallbackWorkspace = currentWorkspace();
+	const paneId = process.env.HERDR_PANE_ID ?? "";
+	const found = await herdr(["pane", "get", paneId]).then((r) => r.result?.pane, () => undefined);
+	return {
+		pane: paneId,
+		tab: found?.tab_id ?? process.env.HERDR_TAB_ID ?? "",
+		workspace: found?.workspace_id ?? fallbackWorkspace,
+	};
+}
+
+function isInside(directory: string, root: string): boolean {
+	return directory === root || directory.startsWith(root.endsWith("/") ? root : `${root}/`);
+}
+
+export async function workspaceContainingCwd(cwd: string): Promise<string | undefined> {
+	const directory = await realpath(cwd).catch(() => cwd);
+	const workspaces = (await herdr(["workspace", "list"])).result.workspaces as any[];
+	const candidates = await Promise.all(
+		workspaces
+			.filter((w) => typeof w.worktree?.checkout_path === "string")
+			.map(async (w) => ({ workspace: w.workspace_id as string, root: await realpath(w.worktree.checkout_path).catch(() => w.worktree.checkout_path as string) })),
+	);
+	return candidates
+		.filter(({ root }) => isInside(directory, root))
+		.sort((left, right) => right.root.length - left.root.length)[0]?.workspace;
+}
+
+async function tabsOfWorkspace(workspace: string): Promise<any[]> {
+	return (await herdr(["tab", "list", "--workspace", workspace])).result.tabs as any[];
+}
+
+async function panesOfWorkspace(workspace: string): Promise<any[]> {
+	return (await herdr(["pane", "list", "--workspace", workspace])).result.panes as any[];
+}
+
 async function claimRootPane(cwd: string, branch: string): Promise<string | undefined> {
 	const configDir = await herdrText(["plugin", "config-dir", WORKTREE_PLUGIN]).then((s) => s.trim(), () => "");
 	if (!configDir) return undefined;
@@ -126,24 +180,168 @@ async function splitTarget(anyPaneInTab: string): Promise<{ pane: string; direct
 	};
 }
 
-async function openPane(workspace: string, cwd: string, tabLabel: string, envVars: string[] = []): Promise<string> {
-	const env = envVars.flatMap((kv) => ["--env", kv]);
-	const tabs = (await herdr(["tab", "list", "--workspace", workspace])).result.tabs as any[];
-	const tab = tabs.find((t) => t.label === tabLabel);
-	if (!tab) {
-		const created = await herdr([
-			"tab", "create", "--workspace", workspace, "--label", tabLabel, "--cwd", cwd, ...env, "--no-focus",
-		]);
-		return created.result.root_pane.pane_id;
-	}
-	const panes = (await herdr(["pane", "list", "--workspace", workspace])).result.panes as any[];
-	const inTab = panes.find((p) => p.tab_id === tab.tab_id);
-	if (!inTab) throw new Error(`tab ${tabLabel} has no panes`);
-	const target = await splitTarget(inTab.pane_id);
+async function splitInTab({ anyPaneInTab, cwd, env }: { anyPaneInTab: string; cwd: string; env: string[] }): Promise<string> {
+	const target = await splitTarget(anyPaneInTab);
 	const split = await herdr([
 		"pane", "split", target.pane, "--direction", target.direction, "--cwd", cwd, ...env, "--no-focus",
 	]);
 	return split.result.pane.pane_id;
+}
+
+async function openPaneInLabelledTab({ workspace, cwd, label, env }: { workspace: string; cwd: string; label: string; env: string[] }): Promise<string> {
+	const tab = (await tabsOfWorkspace(workspace)).find((t) => t.label === label);
+	if (!tab) {
+		const created = await herdr(["tab", "create", "--workspace", workspace, "--label", label, "--cwd", cwd, ...env, "--no-focus"]);
+		return created.result.root_pane.pane_id;
+	}
+	const inTab = (await panesOfWorkspace(workspace)).find((p) => p.tab_id === tab.tab_id);
+	if (!inTab) throw new Error(`tab ${label} has no panes`);
+	return splitInTab({ anyPaneInTab: inTab.pane_id, cwd, env });
+}
+
+async function placePane({
+	cwd,
+	tab,
+	workspace,
+	otherWorktreeTab,
+	envVars = [],
+}: {
+	cwd: string;
+	tab?: string;
+	workspace?: string;
+	otherWorktreeTab: string;
+	envVars?: string[];
+}): Promise<{ pane: string; workspace: string }> {
+	const env = envVars.flatMap((kv) => ["--env", kv]);
+	const caller = await callerPane();
+	const target = workspace ?? (await workspaceContainingCwd(cwd)) ?? caller.workspace;
+	if (tab) return { pane: await openPaneInLabelledTab({ workspace: target, cwd, label: tab, env }), workspace: target };
+	if (target === caller.workspace && caller.pane)
+		return { pane: await splitInTab({ anyPaneInTab: caller.pane, cwd, env }), workspace: target };
+	return { pane: await openPaneInLabelledTab({ workspace: target, cwd, label: otherWorktreeTab, env }), workspace: target };
+}
+
+function commandOutput(command: string, args: string[], cwd: string, timeoutMs = 15_000): Promise<string | undefined> {
+	return new Promise((resolve) => {
+		execFile(command, args, { cwd, timeout: timeoutMs, maxBuffer: 4 * 1024 * 1024 }, (error, stdout) =>
+			resolve(error ? undefined : stdout.trim()),
+		);
+	});
+}
+
+const passedCheck = /^(SUCCESS|NEUTRAL|SKIPPED)$/;
+const failedCheck = /^(FAILURE|ERROR|CANCELLED|TIMED_OUT|ACTION_REQUIRED|STARTUP_FAILURE)$/;
+
+export function checksSummary(rollup: ReadonlyArray<{ conclusion?: string; state?: string }>): string {
+	if (rollup.length === 0) return "no checks";
+	const outcomes = rollup.map((check) => (check.conclusion || check.state || "").toUpperCase());
+	const failed = outcomes.filter((outcome) => failedCheck.test(outcome)).length;
+	const passed = outcomes.filter((outcome) => passedCheck.test(outcome)).length;
+	const pending = outcomes.length - failed - passed;
+	return [failed && `${failed} failed`, pending && `${pending} pending`, passed && `${passed} passed`].filter(Boolean).join(", ");
+}
+
+async function workFacts(cwd: string, headAtLaunch: string | undefined): Promise<WorkFacts | undefined> {
+	const head = await commandOutput("git", ["rev-parse", "HEAD"], cwd);
+	if (!head) return undefined;
+	const [branch, status, prJson] = await Promise.all([
+		commandOutput("git", ["rev-parse", "--abbrev-ref", "HEAD"], cwd),
+		commandOutput("git", ["status", "--porcelain"], cwd),
+		commandOutput("gh", ["pr", "view", "--json", "url,state,statusCheckRollup"], cwd),
+	]);
+	const range = headAtLaunch && headAtLaunch !== head ? `${headAtLaunch}..HEAD` : undefined;
+	const [log, shortstat] = range
+		? await Promise.all([
+				commandOutput("git", ["log", "--oneline", "--max-count=10", range], cwd),
+				commandOutput("git", ["diff", "--shortstat", range], cwd),
+			])
+		: [undefined, undefined];
+	let pr: WorkFacts["pr"];
+	try {
+		const parsed = prJson ? JSON.parse(prJson) : undefined;
+		if (parsed?.url) pr = { url: parsed.url, state: parsed.state, checks: checksSummary(parsed.statusCheckRollup ?? []) };
+	} catch {
+		pr = undefined;
+	}
+	return {
+		branch,
+		commits: log ? log.split("\n").filter(Boolean) : [],
+		shortstat: shortstat || undefined,
+		uncommittedFiles: status ? status.split("\n").filter(Boolean).length : 0,
+		pr,
+	};
+}
+
+export function factsLines(facts: WorkFacts): string[] {
+	const commitLine =
+		facts.commits.length === 0
+			? "Commits since launch: none"
+			: `Commits since launch (${facts.commits.length}${facts.commits.length === 10 ? "+" : ""}): ${facts.commits.join("; ")}`;
+	return [
+		`Branch: ${facts.branch ?? "unknown"}${facts.shortstat ? ` · ${facts.shortstat}` : ""} · ${facts.uncommittedFiles} uncommitted files`,
+		commitLine,
+		facts.pr ? `PR: ${facts.pr.url} (${facts.pr.state.toLowerCase()}, checks: ${facts.pr.checks})` : "PR: none",
+	];
+}
+
+export function cappedReply(reply: string, name: string): string {
+	const lines = reply.trim().split("\n");
+	const kept = lines.slice(0, REPORT_REPLY_LINES).join("\n").slice(0, REPORT_REPLY_CHARS);
+	const cut = lines.length > REPORT_REPLY_LINES || kept.length < lines.slice(0, REPORT_REPLY_LINES).join("\n").length;
+	return cut ? `${kept}\n… (full reply: subagent_status({ name: "${name}" }))` : kept;
+}
+
+export async function devServerUrl(cwd: string): Promise<string | undefined> {
+	const root = await commandOutput("git", ["rev-parse", "--show-toplevel"], cwd);
+	const listed = await commandOutput("ship", ["ls", "--json", "--no-pr"], cwd);
+	if (!root || !listed) return undefined;
+	try {
+		const entries = JSON.parse(listed) as Array<{ path?: string; proxyDomain?: string }>;
+		const rootPath = await realpath(root).catch(() => root);
+		const entry = (
+			await Promise.all(entries.map(async (e) => ({ e, path: e.path ? await realpath(e.path).catch(() => e.path!) : undefined })))
+		).find(({ path }) => path === rootPath)?.e;
+		return entry?.proxyDomain ? `https://${entry.proxyDomain}` : undefined;
+	} catch {
+		return undefined;
+	}
+}
+
+export async function isServing(url: string): Promise<boolean> {
+	const code = await commandOutput("curl", ["-sk", "-o", "/dev/null", "-w", "%{http_code}", "--max-time", "5", url], "/", 10_000);
+	const status = Number(code);
+	return status > 0 && status < 500;
+}
+
+const shellNames = new Set(["zsh", "bash", "fish", "sh", "-zsh", "-bash", "-fish"]);
+
+async function paneAtShellPrompt(pane: string): Promise<boolean> {
+	const info = await herdr(["pane", "process-info", "--pane", pane]).then((r) => r.result?.process_info, () => undefined);
+	const processes = (info?.foreground_processes ?? []) as Array<{ name?: string }>;
+	return processes.length > 0 && processes.every((p) => shellNames.has(p.name ?? ""));
+}
+
+async function ensureDevServer({ cwd, workspace }: { cwd: string; workspace?: string }): Promise<{ url?: string; pane?: string; started: boolean }> {
+	const caller = await callerPane();
+	const target = workspace ?? (await workspaceContainingCwd(cwd)) ?? caller.workspace;
+	const url = await devServerUrl(cwd);
+	const existingPane = await devTabPane(target);
+	if (url && (await isServing(url))) return { url, pane: existingPane, started: false };
+	const pane = existingPane ?? (await openPaneInLabelledTab({ workspace: target, cwd, label: "dev", env: [] }));
+	if (await paneAtShellPrompt(pane)) await herdr(["pane", "run", pane, "ship up"]);
+	if (!url) return { url: undefined, pane, started: true };
+	const deadline = Date.now() + DEV_SERVER_START_TIMEOUT_MS;
+	while (Date.now() < deadline) {
+		if (await isServing(url)) return { url, pane, started: true };
+		await new Promise((resolve) => setTimeout(resolve, 3000));
+	}
+	throw new Error(`the dev server at ${url} did not answer within ${DEV_SERVER_START_TIMEOUT_MS / 1000}s; read pane ${pane}`);
+}
+
+async function devTabPane(workspace: string): Promise<string | undefined> {
+	const tab = (await tabsOfWorkspace(workspace)).find((t) => t.label === "dev");
+	if (!tab) return undefined;
+	return (await panesOfWorkspace(workspace)).find((p) => p.tab_id === tab.tab_id)?.pane_id;
 }
 
 export async function summarize(sessionPath: string): Promise<{ reply: string; stats: Stats; error?: string }> {
@@ -213,7 +411,15 @@ export default function (pi: ExtensionAPI) {
 	const reports = new Map<string, Report>();
 	const watchers = new Map<string, ChildProcess>();
 
-	const watch = (launch: Launch, args: string[], onFailure?: () => void) => {
+	const orchestratorsWorking = new Set<string>();
+	const pending: Array<{ launch: Launch; report: Report }> = [];
+	let batchTimer: ReturnType<typeof setTimeout> | undefined;
+
+	const watch = (
+		launch: Launch,
+		args: string[],
+		{ onSuccess = () => void finish(launch), onFailure }: { onSuccess?: () => void; onFailure?: () => void } = {},
+	) => {
 		const child = spawn("herdr", args, { stdio: ["ignore", "ignore", "pipe"] });
 		let stderr = "";
 		child.stderr?.on("data", (chunk) => (stderr += chunk));
@@ -222,16 +428,79 @@ export default function (pi: ExtensionAPI) {
 			if (watchers.get(launch.name) !== child) return;
 			watchers.delete(launch.name);
 			if (signal) return;
-			if (code === 0) void finish(launch);
+			if (code === 0) onSuccess();
 			else if (onFailure) onFailure();
 			else void finish(launch, stderr.trim() || `herdr exited with ${code}`);
 		});
 	};
 
-	const settleWatch = (launch: Launch) => watch(launch, ["agent", "wait", launch.name]);
+	const settleWatch = (launch: Launch) => {
+		if (launch.orchestrator) orchestratorsWorking.add(launch.name);
+		watch(launch, ["agent", "wait", launch.name]);
+	};
+
+	const wakeWatch = (launch: Launch) =>
+		watch(launch, ["agent", "wait", launch.name, "--until", "working"], {
+			onSuccess: () => settleWatch(launch),
+			onFailure: () => {},
+		});
+
+	const isRunning = (launch: Launch) =>
+		launch.orchestrator ? orchestratorsWorking.has(launch.name) : !reports.has(launch.name);
+
+	const reportBlock = ({ launch, report }: { launch: Launch; report: Report }) => {
+		const verb = report.outcome !== "done" ? "failed" : launch.orchestrator ? "settled (still running)" : "finished";
+		const head = `${launch.orchestrator ? "Orchestrator" : "Sub-agent"} ${launch.name} ${verb}${report.stats ? `: ${formatStats(report.stats)}` : ""}`;
+		const where = `Session: ${report.session ?? "unknown"}${!launch.keepOpen && report.outcome === "done" ? " (pane closed)" : ` (pane ${launch.pane} open)`}`;
+		return [
+			head,
+			where,
+			...(report.error ? [`Error: ${report.error}`] : []),
+			...(report.facts ? factsLines(report.facts) : []),
+			"",
+			report.reply ? cappedReply(report.reply, launch.name) : "(no reply)",
+		].join("\n");
+	};
+
+	const deliver = (items: Array<{ launch: Launch; report: Report }>) => {
+		if (items.length === 0) return;
+		const group = items[0].launch.group;
+		const heading = items.length > 1 ? `${items.length} sub-agents finished${group ? ` (tab ${group})` : ""}\n\n` : "";
+		const body = heading + items.map(reportBlock).join("\n\n");
+		const details = items.length === 1 ? items[0].report : { reports: items.map((item) => item.report) };
+		for (const { report } of items) pi.appendEntry(REPORTED_ENTRY, { name: report.name, outcome: report.outcome });
+		pi.sendMessage(
+			{ customType: "subagent-done", content: body, display: true, details },
+			{ triggerTurn: true, deliverAs: "followUp" },
+		);
+	};
+
+	const takePending = (belongs: (launch: Launch) => boolean) => {
+		const taken = pending.filter((item) => belongs(item.launch));
+		for (const item of taken) pending.splice(pending.indexOf(item), 1);
+		return taken;
+	};
+
+	const flushUngrouped = () => {
+		if (batchTimer) clearTimeout(batchTimer);
+		batchTimer = undefined;
+		deliver(takePending((launch) => !launch.group));
+	};
+
+	const queue = (launch: Launch, report: Report) => {
+		if (launch.orchestrator) return deliver([{ launch, report }]);
+		pending.push({ launch, report });
+		const others = [...launches.values()].filter((other) => !other.orchestrator && isRunning(other));
+		for (const group of new Set(pending.map((item) => item.launch.group).filter((g): g is string => !!g)))
+			if (!others.some((other) => other.group === group)) deliver(takePending((l) => l.group === group));
+		if (!pending.some((item) => !item.launch.group)) return;
+		if (!others.some((other) => !other.group)) return flushUngrouped();
+		batchTimer ??= setTimeout(flushUngrouped, BATCH_WINDOW_MS);
+	};
 
 	const finish = async (launch: Launch, failure?: string) => {
-		if (reports.has(launch.name)) return;
+		if (!launch.orchestrator && reports.has(launch.name)) return;
+		orchestratorsWorking.delete(launch.name);
 		const session = launch.session ?? (await agentInfo(launch.name))?.agent_session?.value;
 		let report: Report = { name: launch.name, outcome: failure ? "error" : "done", reply: "", session, error: failure };
 		if (session) {
@@ -248,26 +517,21 @@ export default function (pi: ExtensionAPI) {
 				report.error = `${failure ? `${failure}; ` : ""}session unreadable: ${(error as Error).message}`;
 			}
 		}
+		report.facts = await workFacts(launch.cwd, launch.headAtLaunch).catch(() => undefined);
 		reports.set(launch.name, report);
-		pi.appendEntry(REPORTED_ENTRY, { name: launch.name, outcome: report.outcome });
 		if (!launch.keepOpen && report.outcome === "done") await herdr(["pane", "close", launch.pane]).catch(() => {});
-
-		const verb = report.outcome !== "done" ? "failed" : launch.orchestrator ? "settled (still running)" : "finished";
-		const head = `${launch.orchestrator ? "Orchestrator" : "Sub-agent"} ${launch.name} ${verb}${report.stats ? `: ${formatStats(report.stats)}` : ""}`;
-		const where = `Session: ${session ?? "unknown"}${!launch.keepOpen && report.outcome === "done" ? " (pane closed)" : ` (pane ${launch.pane} open)`}`;
-		const body = [head, where, report.error ? `Error: ${report.error}` : undefined, "", truncate(report.reply || "(no reply)")]
-			.filter((line) => line !== undefined)
-			.join("\n");
-		pi.sendMessage(
-			{ customType: "subagent-done", content: body, display: true, details: report },
-			{ triggerTurn: true, deliverAs: "followUp" },
-		);
+		if (launch.orchestrator && report.outcome === "done") wakeWatch(launch);
+		queue(launch, report);
 	};
 
-	const reattach = async (launch: Launch) => {
+	const reattach = async (launch: Launch, alreadyReported: boolean) => {
 		const agent = await agentInfo(launch.name);
-		if (!agent || agent.pane_id !== launch.pane) return void finish(launch, agent ? undefined : "agent no longer running");
+		if (!agent || agent.pane_id !== launch.pane) {
+			if (!alreadyReported) void finish(launch, agent || launch.session ? undefined : "agent no longer running");
+			return;
+		}
 		if (agent.agent_status === "working") settleWatch(launch);
+		else if (alreadyReported) wakeWatch(launch);
 		else void finish(launch);
 	};
 
@@ -284,13 +548,23 @@ export default function (pi: ExtensionAPI) {
 		for (const launch of launches.values()) {
 			const outcome = reported.get(launch.name);
 			if (outcome) reports.set(launch.name, { name: launch.name, outcome, reply: "", session: launch.session });
-			else void reattach(launch);
+			if (!outcome) void reattach(launch, false);
+			else if (launch.orchestrator && outcome === "done") void reattach(launch, true);
 		}
+	});
+
+	pi.on("cache_warming_decision", (_event, ctx) => {
+		if ([...launches.values()].some(isRunning)) return { action: "warm" as const };
+		if (ctx.isIdle()) return { action: "stop" as const };
+		return undefined;
 	});
 
 	pi.on("session_shutdown", async () => {
 		for (const child of watchers.values()) child.kill();
 		watchers.clear();
+		if (batchTimer) clearTimeout(batchTimer);
+		batchTimer = undefined;
+		pending.splice(0);
 	});
 
 	const namespace = {
@@ -304,7 +578,7 @@ export default function (pi: ExtensionAPI) {
 			name: "subagent_launch",
 			label: "Launch sub-agent",
 			description:
-				"Start a pi agent and send it a brief. By default it opens a new pane in this workspace (sub-agent tab, split from the largest pane, focus kept); pass workspace for another workspace, or pane for an existing shell pane such as worktree_create's rootPane. Returns at once. When the agent settles, its final reply, cost, shot runs and image reads arrive as a message that starts a turn, and its pane closes unless keepOpen. A sub-agent has the Plannotator Inbox and these tools off; an orchestrator keeps both, its pane stays open, and you hear once, when it first settles.",
+				"Start a pi agent and send it a brief. Its pane goes to the workspace whose checkout holds cwd: next to you when that is your workspace, else split into that worktree's agent tab; tab groups agents in a tab of that name (one per reviewer set, say). Focus is kept. pane starts it in an existing shell pane such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its pane closes unless keepOpen. A sub-agent has the Plannotator Inbox and these tools off; an orchestrator keeps both, its pane stays open, and it reports each time it settles.",
 			parameters: Type.Object({
 				name: Type.String({ description: "Unique herdr agent name, [a-z][a-z0-9_-]{0,31}; also pi's session name" }),
 				cwd: Type.String({ description: "Absolute working directory" }),
@@ -312,8 +586,8 @@ export default function (pi: ExtensionAPI) {
 				thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default the user's" })),
 				briefFile: Type.Optional(Type.String({ description: "Path of the brief to send; or pass prompt" })),
 				prompt: Type.Optional(Type.String({ description: "Brief text; or pass briefFile" })),
-				tab: Type.Optional(Type.String({ description: "Tab label for a new pane; default agents" })),
-				workspace: Type.Optional(Type.String({ description: "Workspace for a new pane; default this one" })),
+				tab: Type.Optional(Type.String({ description: "Group: a tab of this name holds the agent; default none, next to you" })),
+				workspace: Type.Optional(Type.String({ description: "Override the workspace; default the one whose checkout holds cwd" })),
 				pane: Type.Optional(Type.String({ description: "Existing shell pane at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
 				orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (Inbox, sub-agents, worktrees, panes) and a pane that stays open; default false" })),
 				keepOpen: Type.Optional(Type.Boolean({ description: "Keep the pane after it finishes; default false, always true for orchestrators" })),
@@ -322,19 +596,27 @@ export default function (pi: ExtensionAPI) {
 			exposure: "codemode",
 			namespace,
 			async execute(_id, params) {
-				const here = currentWorkspace();
-				const workspace = params.workspace ?? here;
+				currentWorkspace();
 				if (!AGENT_NAME.test(params.name)) throw new Error(`invalid agent name: ${params.name}`);
 				if (params.pane && !params.orchestrator)
 					throw new Error("pane needs orchestrator: a sub-agent's env is set when its pane opens; pass workspace instead");
 				if ((params.briefFile === undefined) === (params.prompt === undefined)) throw new Error("pass exactly one of briefFile and prompt");
 				const running = launches.get(params.name);
 				if (running && !reports.has(params.name)) throw new Error(`${params.name} is still running`);
-				const prompt = params.prompt ?? (await readFile(params.briefFile!, "utf8"));
+				const prompt = (params.prompt ?? (await readFile(params.briefFile!, "utf8"))) + FINAL_REPLY_CONTRACT;
 
 				const pane =
 					params.pane ??
-					(await openPane(workspace, params.cwd, params.tab ?? "agents", params.orchestrator ? [] : SUB_AGENT_ENV));
+					(
+						await placePane({
+							cwd: params.cwd,
+							tab: params.tab,
+							workspace: params.workspace,
+							otherWorktreeTab: "agent",
+							envVars: params.orchestrator ? [] : SUB_AGENT_ENV,
+						})
+					).pane;
+				const headAtLaunch = await commandOutput("git", ["rev-parse", "HEAD"], params.cwd);
 				await herdr(
 					["agent", "start", params.name, "--kind", "pi", "--pane", pane, "--",
 						...(params.model ? ["--model", params.model] : []),
@@ -351,13 +633,16 @@ export default function (pi: ExtensionAPI) {
 					session: (await agentInfo(params.name))?.agent_session?.value,
 					keepOpen: params.orchestrator ? true : params.keepOpen ?? false,
 					orchestrator: params.orchestrator ?? false,
+					group: params.tab,
+					headAtLaunch,
 					launchedAt: Date.now(),
 				};
 				launches.set(launch.name, launch);
 				reports.delete(launch.name);
 				pi.appendEntry(LAUNCH_ENTRY, launch);
 				// `prompt --wait` fails when no activity shows within 5 s; the prompt may still have landed.
-				watch(launch, ["agent", "prompt", launch.name, prompt, "--wait"], () => void reattach(launch));
+				if (launch.orchestrator) orchestratorsWorking.add(launch.name);
+				watch(launch, ["agent", "prompt", launch.name, prompt, "--wait"], { onFailure: () => void reattach(launch, false) });
 
 				const result = { name: launch.name, pane, session: launch.session };
 				return { content: [{ type: "text", text: JSON.stringify(result) }], structuredContent: result, details: result };
@@ -380,7 +665,7 @@ export default function (pi: ExtensionAPI) {
 				if (params.name && selected.length === 0) throw new Error(`no sub-agent named ${params.name}`);
 				const agents = await Promise.all(
 					selected.map(async (launch) => {
-						const report = reports.get(launch.name);
+						const report = launch.orchestrator ? undefined : reports.get(launch.name);
 						const agent = report ? undefined : await agentInfo(launch.name);
 						const status = report?.outcome ?? (agent ? `running (${agent.agent_status})` : "gone");
 						const stats = launch.session ? await summarize(launch.session).catch(() => undefined) : undefined;
@@ -527,20 +812,45 @@ export default function (pi: ExtensionAPI) {
 			name: "pane_open",
 			label: "Open pane",
 			description:
-				"Open a shell pane, focus kept: a new tab with that label, or a split of the largest pane when the tab exists. Runs command in it when given (servers, watchers, tests).",
+				"Open a shell pane, focus kept, in the workspace whose checkout holds cwd: next to you when that is your workspace, else split into that worktree's terminal tab; tab puts it in a tab of that name. Runs command in it when given (watchers, tests). A dev server command (ship up, pnpm dev, vite) opens nothing: it returns the workspace's dev server as dev_server does.",
 			parameters: Type.Object({
 				cwd: Type.String({ description: "Absolute working directory" }),
-				tab: Type.String({ description: "Tab label" }),
-				workspace: Type.Optional(Type.String({ description: "Default this workspace" })),
+				tab: Type.Optional(Type.String({ description: "Tab label; default none, next to you" })),
+				workspace: Type.Optional(Type.String({ description: "Override the workspace; default the one whose checkout holds cwd" })),
 				command: Type.Optional(Type.String()),
 			}),
-			outputSchema: Type.Object({ pane: Type.String() }),
+			outputSchema: Type.Object({ pane: Type.Optional(Type.String()), url: Type.Optional(Type.String()), devServer: Type.Optional(Type.Boolean()) }),
 			exposure: "codemode",
 			namespace,
 			async execute(_id, params) {
-				const pane = await openPane(params.workspace ?? currentWorkspace(), params.cwd, params.tab);
+				currentWorkspace();
+				if (params.command && DEV_SERVER_COMMAND.test(params.command)) {
+					const server = await ensureDevServer({ cwd: params.cwd, workspace: params.workspace });
+					return reply({ pane: server.pane, url: server.url, devServer: true });
+				}
+				const { pane } = await placePane({ cwd: params.cwd, tab: params.tab, workspace: params.workspace, otherWorktreeTab: "terminal" });
 				if (params.command) await herdr(["pane", "run", pane, params.command]);
 				return reply({ pane });
+			},
+		}),
+	);
+
+	pi.registerTool(
+		defineTool({
+			name: "dev_server",
+			label: "Dev server",
+			description:
+				"The dev server of the checkout that holds cwd: its ship URL and the pane in its workspace's dev tab. Starts ship up there only when the URL does not answer, then waits up to 3 min for it. Use it instead of starting a server yourself.",
+			parameters: Type.Object({
+				cwd: Type.String({ description: "Absolute directory inside the checkout" }),
+				workspace: Type.Optional(Type.String({ description: "Override the workspace; default the one whose checkout holds cwd" })),
+			}),
+			outputSchema: Type.Object({ url: Type.Optional(Type.String()), pane: Type.Optional(Type.String()), started: Type.Boolean() }),
+			exposure: "codemode",
+			namespace,
+			async execute(_id, params) {
+				currentWorkspace();
+				return reply(await ensureDevServer({ cwd: params.cwd, workspace: params.workspace }));
 			},
 		}),
 	);

@@ -25,7 +25,7 @@ Commands return JSON. Take IDs and state from responses, never predict them. Cha
 
 In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. Sub-agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
 
-- Delegate: `tools.subagent_launch({ name, cwd, prompt })`; add `model` and `thinking` only when the user names them.
+- Delegate: `tools.subagent_launch({ name, cwd, prompt })`; add `model` and `thinking` only when the user names them. The tool places the pane: next to you, or in the `agent` tab of the worktree that holds `cwd`. Pass `tab` only to group agents that belong together (`review-pr`); a group reports in one message when its last agent settles.
 - A branch with its own orchestrator, when the user asks for one:
 
 ```js
@@ -34,7 +34,8 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 ```
 
 - In a ship project the ship plugin provisions a new worktree in the background and adds tabs `dev` (setup, then `ship up`) and `terminal`. Find them with `tools.pane_list({ workspace: wt.workspace })`; drive them with `pane_run`, `pane_wait`, `pane_read`.
-- An orchestrator keeps its pane and its own sub-agent tools; you hear from it once, when it first settles.
+- The dev server is ship's, one per checkout: `tools.dev_server({ cwd })` returns its URL and pane, and starts `ship up` in the `dev` tab only when the URL doesn't answer. Use that URL; start no server of your own.
+- An orchestrator keeps its pane and its own sub-agent tools; it reports each time it settles.
 - An agent in a worktree belongs in that worktree's `agent` tab, where the user looks for it: launch it in `wt.rootPane` (`orchestrator: true`), not as a new pane beside it.
 - A finished agent's pane stays open: the user may want to read it or ask it something. Never `subagent_stop` or `pane_close` a finished agent unless the user asks.
 - `worktree_remove` deletes the checkout, and in a ship project the plugin tears the workspace down. Only when the user asks.
