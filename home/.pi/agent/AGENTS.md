@@ -5,18 +5,6 @@ Speak in plain technical english. Lead with the point, do not use long prose. Us
 ## Comments
 DO NOT ADD COMMENTS!!! None, anywhere: rule comments ("rule 6", "(data source rule 2)") included. Comments already in a file are no license to add more. Identifier names should be descriptive; rule numbers go in test names. Edge cases needing an explanation should have test coverage. You may mention why+where you did something specific in your respons
 
-## Triggers
-- Before writing code: name the data shape and the module and layer each piece lives in. In Effect code, the `effect-ddd` skill decides both.
-- Before handing over a diff, check it for red flags and fix them: a list kept in two places, two ways to do one task, a pass-through that only forwards, a second owner of the same state, knowledge restated outside the module that owns it, a type loosened and then checked again.
-- The same correction a second time: encode it as a lint, type, or test ([encode-lessons-in-structure](~/.agents/skills/principle-encode-lessons-in-structure/SKILL.md)), not more text.
-
-## Naming and helpers
-Applies to every file: app, tests, scripts, tools.
-- A name never ends in a preposition its argument completes: no `residenceOf(child)`, `visibilityFor(reader)`, `toHttpError`. A translation names both sides, `<output>From<input>` (`fingerprintIntentFromPosition`); anything else names the thing itself (`childResidence`).
-- No generic names: `data`, `result`, `prev`, `tmp`, `helper`.
-- No comments is no license to extract. An expression with one caller stays inline. Extract only when a second caller exists or the name is a domain term the reader would look up.
-
-
 <!-- plannotator-inbox:start v8 · added by Plannotator. Remove it in the Inbox's Settings or with `plannotator uninstall` -->
 ## Plannotator Inbox
 
