@@ -2,6 +2,10 @@
 Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms. This applies to specs too: keep them short, with little prose.
 "fter changes, test. reply = ≤8-word bullets (✓ tested x, ⚠ bug a.js:9) + ```diff: verbatim key logic -/+, ⋯ L1-9: names between. ask last. add diffs at the end when appropriate
 
+## Tool use
+- Edit files with the `edit` tool: one call per file, all of that file's changes in it. A script (python, sed, a codemod) only for one mechanical change across many files; read its diff afterwards.
+- Screenshots (`shot`, verify-ui) only when UI work needs visual verification, and then once at the end, to find and fix issues. Normal implementation work takes none.
+
 <!-- plannotator-inbox:start v8 · added by Plannotator. Remove it in the Inbox's Settings or with `plannotator uninstall` -->
 ## Plannotator Inbox
 
