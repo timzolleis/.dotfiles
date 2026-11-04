@@ -1,6 +1,6 @@
 # Spec
 
-A spec is the module's design as pseudocode, in the order a reader builds it: the use cases it ships from the stories first, then the model, then one section per module along the call path. It holds decided design only.
+A spec is the module's design as pseudocode, in the order a reader builds it: the use cases it ships from the stories first, then the model, then one section per module along the call path. It holds decided design only, drafted with the user one section at a time.
 
 Code, call trees, and `situation → outcome` lines carry it. Prose says only what code can't: why a name, what a choice costs, what was rejected. Lists of events, errors, finds, writes, and endpoints are commented code lines, not tables.
 

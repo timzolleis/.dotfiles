@@ -11,6 +11,10 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a spec ([spec.md](spec.md)). Send it to the user and build nothing until they approve: code written before approval gets rebuilt when they change the design.
 
+A story, a spec, and any concept or plan behind them are drafted with the user, not delivered to them. Work through them in the order the decisions depend on each other, one part at a time: the use cases, then the lifecycle, the rules and their examples, then the model, then each module of the spec. Show each part as it takes shape, with its open points as questions, and start the next part once the user agrees to this one. A whole story or spec sent in one go gets skimmed and approved with its guesses still in it, and the guesses become code. So never draft a later part on top of an open question in an earlier one, and never hand the drafting of a story, a spec, or a concept to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
+
+A good drafting turn: "These are the use cases I see for document types: a member with the manage permission adds a draft type; that member edits a draft. I left out publishing; does it belong in this story? Once the use cases are right, I'll draft the rules."
+
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 
 A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the spec.

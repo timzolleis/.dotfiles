@@ -21,7 +21,7 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 
 ## Stories
 
-A **story** describes one area of the domain (a core type or a concept) and all its use cases, for the person who knows the domain, in their words, before any type name. They review it; the code must keep it true. When story and code disagree, fix the story first.
+A **story** describes one area of the domain (a core type or a concept) and all its use cases, for the person who knows the domain, in their words, before any type name. You draft it with them, one part at a time ([Designing with the user](SKILL.md#designing-with-the-user)); the code must keep it true. When story and code disagree, fix the story first.
 
 ~~~md
 ---
