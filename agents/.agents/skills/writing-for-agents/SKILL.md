@@ -17,7 +17,7 @@ Every rule has exactly one home, in one of five layers:
 |---|---|---|
 | Global `~/.pi/agent/AGENTS.md` | style: how the agent writes and speaks, and how it uses its tools | code rules, workflow |
 | `code-style` skill | how we write code anywhere: names, helpers, function signatures, tests, the red-flag check, the principles index | Effect or DDD patterns, repository facts |
-| `effect-ddd` skill | the portable concept and how we design Effect features: architecture, layers, DDD naming patterns, Effect tests, call trees, specs | general code style, repository facts |
+| `effect-ddd` skill | the portable concept and how we design Effect features: architecture, layers, DDD naming patterns, Effect tests, call trees, stories | general code style, repository facts |
 | Repository `AGENTS.md` (`CLAUDE.md` = `@AGENTS.md`) | stack, commands, layout, reuse map, legacy, explicit exceptions to the concept | concept rules |
 | Workflow skills | one activity's steps; they link the concept and `AGENTS.md` | code taste, restated pairing |
 
@@ -56,7 +56,7 @@ Inline what every branch needs. Move branch-specific reference behind a pointer.
 
 Match the writing to who drives the work.
 
-- **Collaborative guidance** describes how the agent works with the human: design, pairing, specs, reviews. Write the idea and the reason behind it, with one concrete example of a good turn. A model that understands why generalizes to cases the text never named; a model given a state machine follows the letter and loses the intent. Avoid numbered stages, exit criteria, and per-turn quotas here.
+- **Collaborative guidance** describes how the agent works with the human: design, pairing, stories, reviews. Write the idea and the reason behind it, with one concrete example of a good turn. A model that understands why generalizes to cases the text never named; a model given a state machine follows the letter and loses the intent. Avoid numbered stages, exit criteria, and per-turn quotas here.
 - **Mechanical workflows** run without the human in the loop: commit, implement, release. Write ordered steps with completion criteria.
 
 Hard guardrails (safety, test approval, reporting shape) stay as rules in either register.

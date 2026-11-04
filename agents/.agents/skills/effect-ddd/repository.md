@@ -164,7 +164,7 @@ const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEve
 - No cast. A missing write, an unknown tag, or a write whose error differs from `AbsenceEventWriteErrors` doesn't compile.
 - Convert every `DateTime.Utc` with `DateTime.toDateUtc`. Writes `select: { id: true }`: nothing is read back.
 - Write + publish are not atomic; delivery (outbox) belongs to the host.
-- Prisma's query API, not raw SQL. Raw SQL only for a behavior the spec names and the API can't express; the spec says which.
+- Prisma's query API, not raw SQL. Raw SQL only for a behavior the story's design names and the API can't express; the design says which.
 
 ### `matchTag`
 
