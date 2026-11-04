@@ -9,11 +9,11 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 ## Designing with the user
 
-Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a change ([change.md](change.md)) and the story edits it implies ([use-cases.md](use-cases.md)). Send both to the user and build nothing until they approve: code written before approval gets rebuilt when they change the design.
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a spec ([spec.md](spec.md)). Send it to the user and build nothing until they approve: code written before approval gets rebuilt when they change the design.
 
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 
-A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the change.
+A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the spec.
 
 When two modules solve the same thing differently, this skill decides which one drifted: align that one to it, never the newer module to the older.
 
@@ -37,7 +37,7 @@ Each question about a use case has a domain answer, and one component it lands i
 | What is true afterwards? | outcome: "the absence is archived" | event and its fields: `AbsenceArchivedEvent` |
 | Who sees the result? | "involved members; with permission, everyone" | view, visibility rule: `AbsenceView`, `absenceVisibilityFromReader` |
 
-Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, examples ([use-cases.md](use-cases.md)). A change's Cases then map each rule it touches to code ([change.md](change.md)).
+Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, examples. Its Cases then map each rule to code: [use-cases.md](use-cases.md).
 
 ## Deciding rules
 
@@ -54,7 +54,6 @@ Answer the domain column first, with the user, before any type name; it holds in
 ## Conventions
 
 - Build only what a current rule, reader, or client uses. A field, index, guard, visibility variant, HTTP error, request wrapper, or second schema for a consumer that doesn't exist yet (a future sync feed, an error field nobody reads) lands with that consumer.
-- Two places merge only when they are the same knowledge and change for the same domain reason. Look-alike code from different use cases or modules stays apart; so does code that would only match through parameters and branches. Readability beats KISS, KISS beats DRY.
 - Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`, `ExhaustiveRecord`). When a name or type has no truthful home, reshape the design instead.
 - A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
@@ -107,13 +106,14 @@ AbsenceController.archiveAbsence({ params })
 | Loading state for a transition or storing its event; `matchTag` | [repository.md](repository.md) |
 | A read for a client: a get, a list, a filter | [views.md](views.md) |
 | An endpoint, middleware, HTTP error, controller, or retry | [http.md](http.md) |
+| Web code that shows, edits, or checks domain values | [client.md](client.md) |
 | Naming anything | [naming.md](naming.md) |
 | Writing, keeping, or judging a test | [testing.md](testing.md) |
-| A change too large to do inline: writing a change | [change.md](change.md) |
+| A change too large to do inline: writing a spec | [spec.md](spec.md) |
 
 ## Call trees
 
-A **call tree** is the one format for a call path, in discussion and in changes; prefer it, tables, and signatures over prose:
+A **call tree** is the one format for a call path, in discussion and in specs; prefer it, tables, and signatures over prose:
 
 ```diff
   ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })

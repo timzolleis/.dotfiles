@@ -63,7 +63,7 @@ A constraint across records ("one reported absence per person and day", "one rea
 - The error names the other record (`AbsenceOverlapsError { absenceId }`) only when a client acts on it; otherwise it carries the value (`AbsenceReasonNameTakenError { name }`).
 - "Same value" is the value's `Equivalence` ([model.md](model.md)), which the form uses too; the find's query must agree with it.
 - With a unique index, the write maps the violation straight to the error; no lookup to fill its fields.
-- The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the change. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
+- The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the spec. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
 
 ## Writing a rule
 
