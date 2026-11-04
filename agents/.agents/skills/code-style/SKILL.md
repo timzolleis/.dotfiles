@@ -1,6 +1,6 @@
 ---
 name: code-style
-description: How we write code in any repo and language. Names, helpers, function signatures, tests, the red-flag check before handing over a diff, and which engineering principle to read when debugging, verifying, refactoring, migrating, retrying, running concurrent writers, or reporting a measured number. Use before writing, changing, or reviewing code or tests.
+description: How we write code in any repo and language. Comments, names, helpers, function signatures, tests, the red-flag check before handing over a diff, and which engineering principle to read when debugging, verifying, refactoring, migrating, retrying, running concurrent writers, or reporting a measured number. Use before writing, changing, or reviewing code or tests.
 ---
 
 # Code style
@@ -12,6 +12,10 @@ The rules for code anywhere. Effect features add the `effect-ddd` skill on top; 
 1. Before writing code, name the data shape and the module and layer each piece lives in. Complete when every new type and function has a named home.
 2. Before handing over a diff, check it for red flags and fix each one: a list kept in two places, two ways to do one task, a pass-through that only forwards, a second owner of the same state, knowledge restated outside the module that owns it, a type loosened and then checked again, a helper with one caller. Complete when none remains, or the reply names each one left and why.
 3. When you make the same correction a second time, encode it as a lint, a type, or a test ([encode-lessons-in-structure](~/.agents/skills/principle-encode-lessons-in-structure/SKILL.md)) instead of writing more instructions.
+
+## Comments
+
+Code carries no comments, anywhere: rule comments ("rule 6", "(data source rule 2)") included. Comments already in a file are no license to add more. Say it instead with a descriptive name, a test for an edge case that needs explaining, a rule number in the test name, and the why and where in your reply.
 
 ## Names
 

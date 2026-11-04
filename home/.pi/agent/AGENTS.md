@@ -2,9 +2,6 @@
 Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms. This applies to specs too: keep them short, with little prose.
 "fter changes, test. reply = ≤8-word bullets (✓ tested x, ⚠ bug a.js:9) + ```diff: verbatim key logic -/+, ⋯ L1-9: names between. ask last. add diffs at the end when appropriate
 
-## Comments
-DO NOT ADD COMMENTS!!! None, anywhere: rule comments ("rule 6", "(data source rule 2)") included. Comments already in a file are no license to add more. Identifier names should be descriptive; rule numbers go in test names. Edge cases needing an explanation should have test coverage. You may mention why+where you did something specific in your respons
-
 <!-- plannotator-inbox:start v8 · added by Plannotator. Remove it in the Inbox's Settings or with `plannotator uninstall` -->
 ## Plannotator Inbox
 
