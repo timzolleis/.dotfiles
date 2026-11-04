@@ -11,12 +11,13 @@ When editing a skill, also read [`SKILL-MECHANICS.md`](SKILL-MECHANICS.md).
 
 ## Where a rule lives
 
-Every rule has exactly one home, in one of four layers:
+Every rule has exactly one home, in one of five layers:
 
 | Layer | Owns | Never contains |
 |---|---|---|
 | Global `~/.pi/agent/AGENTS.md` | style: how the agent writes and speaks | code rules, workflow |
-| `effect-ddd` skill | the portable concept and how we design: architecture, naming, testing, call trees, specs | repository facts |
+| `code-style` skill | how we write code anywhere: names, helpers, function signatures, tests, the red-flag check, the principles index | Effect or DDD patterns, repository facts |
+| `effect-ddd` skill | the portable concept and how we design Effect features: architecture, layers, DDD naming patterns, Effect tests, call trees, specs | general code style, repository facts |
 | Repository `AGENTS.md` (`CLAUDE.md` = `@AGENTS.md`) | stack, commands, layout, reuse map, legacy, explicit exceptions to the concept | concept rules |
 | Workflow skills | one activity's steps; they link the concept and `AGENTS.md` | code taste, restated pairing |
 
