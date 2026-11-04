@@ -16,6 +16,8 @@ Index of principle skills. Read the matching file completely before applying it,
 | Multi-step work, stacking commits or PRs | [sequence-verifiable-units](~/.agents/skills/principle-sequence-verifiable-units/SKILL.md) |
 | Reporting or acting on a measured number | [explain-the-number](~/.agents/skills/principle-explain-the-number/SKILL.md); perf numbers also [benchmark-checklist](~/.agents/skills/benchmark-checklist/SKILL.md) |
 | Stateful logic, growing branches, repeated shape assumptions | [model-the-domain](~/.agents/skills/principle-model-the-domain/SKILL.md) |
+| Designing types or a signature; a value loosened to `string`, `Record`, `unknown` or `as`, then checked again | [type-system-discipline](~/.agents/skills/principle-type-system-discipline/SKILL.md) |
+| Placing validation, decoding, error handling, or a framework adapter | [boundary-discipline](~/.agents/skills/principle-boundary-discipline/SKILL.md) |
 | Choosing core types, sequencing scaffold vs feature | [foundational-thinking](~/.agents/skills/principle-foundational-thinking/SKILL.md) |
 | Code is hard to trace; adding a layer or state | [minimize-reader-load](~/.agents/skills/principle-minimize-reader-load/SKILL.md) |
 | New requirement into an existing design | [redesign-from-first-principles](~/.agents/skills/principle-redesign-from-first-principles/SKILL.md) |
