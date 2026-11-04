@@ -34,6 +34,7 @@ export type ExhaustiveRecord<Key extends PropertyKey, T extends Record<Key, unkn
 
 - **Finds narrow**: one per set of states a transition accepts. Each returns that state or the error named after the state it found.
 - **One write**: `publishAbsenceEvent(event)` maps each event to a write, then publishes it. A union of events gives the union of their errors.
+- **Data beside the event**: a write that needs data the event must not carry (a secret configuration) gets a second publish method over only those events, `publishAbsenceConfigurationEvent({ event, config })`, with the same transaction and `AbsenceEventWriteErrors[Tag]`. Every other event stays on `publishAbsenceEvent(event)`.
 - Rejected: splitting into `insertAbsence` + `publishAbsenceEvent` (two methods per change).
 
 ## Expected failures

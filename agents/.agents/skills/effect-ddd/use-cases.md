@@ -104,7 +104,7 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
     | NotAllowedToEditAbsenceError | AbsenceOngoingError
     | AbsenceChangedConcurrentlyError>
 }>()("ArchiveAbsenceService") {
-  static layer = Layer.effect(ArchiveAbsenceService, Effect.gen(function* () {
+  static layerNoDeps = Layer.effect(ArchiveAbsenceService, Effect.gen(function* () {
     const absenceRepository = yield* AbsenceRepository
     return ArchiveAbsenceService.of({
       archiveAbsence: Effect.fn("ArchiveAbsenceService.archiveAbsence")(function* ({ organizationId, actor, absenceId }) {
@@ -115,6 +115,8 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
       }),
     })
   }))
+
+  static layer = ArchiveAbsenceService.layerNoDeps.pipe(Layer.provide(PrismaAbsenceRepository.layer))
 }
 ```
 

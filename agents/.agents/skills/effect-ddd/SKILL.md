@@ -11,6 +11,8 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline gets a change ([change.md](change.md)) and the story edits it implies ([use-cases.md](use-cases.md)). Send both to the user and build nothing until they approve: code written before approval gets rebuilt when they change the design.
 
+Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
+
 A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the change.
 
 When two modules solve the same thing differently, this skill decides which one drifted: align that one to it, never the newer module to the older.
@@ -62,7 +64,7 @@ Answer the domain column first, with the user, before any type name; it holds in
 - Branch on a tag with `Match.valueTags` (exhaustive); never `_tag ===` or ternary chains.
 - When the result type must follow the input's tag, use `matchTag` ([repository.md](repository.md)). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
-- A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`.
+- A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`. Ids are imported from the module that owns them, never copied into `shared/`: an id is a stable branded value, and a second path to it only drifts.
 - Across a boundary (HTTP → command, port → Prisma, host type → adapter), name every field: `{ from: payload.from, to: payload.to }`, never `...payload`. A spread lets a field added on one side flow into the other unchecked. Spreads stay inside one layer (`...absenceFields`).
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
 
@@ -70,11 +72,13 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 ```text
 lib/          cross-module helpers
-shared/       ports and ids owned by other modules
+shared/       ports owned by other modules
 absence/      one folder per layer: domain/, application/, view/, infrastructure/, http/
 ```
 
-Imports point inward. `domain/` imports only `domain/`, `lib/` and `shared/`; `application/` and `view/` import those too, never each other. `infrastructure/` imports any layer but `http/`, and `http/` imports any layer. Only the host's wiring imports `http/`. A module reaches another only through a port in `shared/`.
+Imports point inward. `domain/` imports only `domain/`, `lib/` and `shared/`; `application/` and `view/` import those too, never each other. `infrastructure/` imports any layer but `http/`, and `http/` imports any layer. Only the host's wiring imports `http/`. A module reaches another only through a port in `shared/`, or another module's id.
+
+Every component carries Effect's live variant: `layerNoDeps` holds the logic and needs its ports; `layer` is `layerNoDeps.pipe(Layer.provide(…))` with the module's default adapters, so the host composes almost nothing. That `Layer.provide` line is the one place `application/` and `view/` may import `infrastructure/`; everything above it sees only ports, and tests build from `layerNoDeps` with fakes.
 
 ## One request, end to end
 
