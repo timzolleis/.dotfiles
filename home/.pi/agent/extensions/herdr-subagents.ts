@@ -312,7 +312,7 @@ export default function (pi: ExtensionAPI) {
 				thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default the user's" })),
 				briefFile: Type.Optional(Type.String({ description: "Path of the brief to send; or pass prompt" })),
 				prompt: Type.Optional(Type.String({ description: "Brief text; or pass briefFile" })),
-				tab: Type.Optional(Type.String({ description: "Tab label for a new pane; default spec-flow" })),
+				tab: Type.Optional(Type.String({ description: "Tab label for a new pane; default agents" })),
 				workspace: Type.Optional(Type.String({ description: "Workspace for a new pane; default this one" })),
 				pane: Type.Optional(Type.String({ description: "Existing shell pane at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
 				orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (Inbox, sub-agents, worktrees, panes) and a pane that stays open; default false" })),
@@ -334,7 +334,7 @@ export default function (pi: ExtensionAPI) {
 
 				const pane =
 					params.pane ??
-					(await openPane(workspace, params.cwd, params.tab ?? "spec-flow", params.orchestrator ? [] : SUB_AGENT_ENV));
+					(await openPane(workspace, params.cwd, params.tab ?? "agents", params.orchestrator ? [] : SUB_AGENT_ENV));
 				await herdr(
 					["agent", "start", params.name, "--kind", "pi", "--pane", pane, "--",
 						...(params.model ? ["--model", params.model] : []),
