@@ -1,14 +1,6 @@
 # Testing
 
-A test is permanently maintained code. Every later change to the code it covers has to keep it green, read it, and update it. Add one only when it earns that cost; adding no test is a valid outcome.
-
-Before adding a test, answer:
-
-1. Which plausible regression gets through without it?
-2. Why don't the types already catch it? (state unions, exhaustive `Match`, required input fields) When the answer is "the types", break it once and watch the type check fail: a pipeable `Effect.tapErrorTag` accepts any tag, a pipeable `Effect.catchTag` doesn't.
-3. What does it cost to keep? (fixtures, fakes, a real database)
-
-A test makes one claim, at the lowest place that owns the rule. Before keeping it, break the rule and watch the test fail.
+In an Effect module the types prove most states and errors; check before you add a test: a pipeable `Effect.tapErrorTag` accepts any tag, a pipeable `Effect.catchTag` doesn't.
 
 Usual places (defaults, not a checklist):
 
@@ -24,9 +16,6 @@ Usually no test: transitions whose rules are already tested, use cases that only
 ## Setup
 
 A rule test: one named `it` per case, plain values, the cases taken from the story's examples so the user can check them ([use-cases.md](use-cases.md)).
-
-- The title is a plain sentence about the behavior: "refuses an editor without permission to delete others' absences". No rule numbers (they live in the story's Cases), no `→`, no positional `it.each` tuples with `$0` placeholders.
-- Actors are named by their role (`creator`, `editor`, `member`), not by a person.
 
 ```ts
 // test/absence-rule.test.ts
@@ -65,7 +54,5 @@ layer(TestLayer)("PrismaAbsenceRepository", (it) => {
 ```
 
 `reset` clears the table and the fakes; `insertAbsenceRow` writes a row directly with Prisma; `outcome` turns the exit into `"ok"`, `"die"`, or the error's tag.
-
-A test file gets a helper like `outcome` only when several tests share it. A projection one test uses (`reportOf`, `guardianSlotsOf`) stays inline in its `expect`.
 
 `it.effect` runs on `TestClock`: `DateTime.now` starts at 1970-01-01, so "today" is too. A fixture that depends on the date sets the clock (`TestClock.setTime`) or carries no date.

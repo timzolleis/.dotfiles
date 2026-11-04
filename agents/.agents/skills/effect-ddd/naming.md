@@ -1,19 +1,10 @@
 # Naming
 
-Names are truthful and greppable: the name alone says what a thing is or does, without its arguments, its return type, or the surrounding code filling the gap, and a search for it finds only it.
+Beyond general naming, Effect features name each part by its role:
 
-- Name the subject: `findActiveAbsenceById`, `publishAbsenceEvent`. `findById`, `publish`, `execute` match thousands of lines.
-- An action starts with its verb: `archiveAbsence`, `generateAbsenceId`.
-- A translation names its output and its input: `absenceVisibilityFromReader(reader)`, `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`. `visibilityFor(reader)`, `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
-- A name never ends in a preposition its argument completes: `fingerprintIntentOf(position)`, `certificateRenewableFrom(certificate)`, `isDomainWithin(…)`, `visibilityFor(reader)`. `Of` is the common one: `residenceOf(child)` is `childResidence(child)`, or a translation `fingerprintIntentFromPosition(position)`. Name the thing itself: `certificateRenewalStart(certificate)`, `isDomainWithinParentDomain(…)`. A translation (`dateTimeUtcFromDate`) names both sides, so it ends in a noun.
-- Variables too: `absenceBeforeUpdate`, `previousPeriod`; not `before`, `prev`, `data`, `result`.
-- One thing keeps one name through every layer: the find's `reasonWithSameName` stays `reasonWithSameName` in the input, the rule, and its callback; no stand-in like `holder`.
 - Editing an entity's own content is `update<Type>` (`updateAbsenceReason`); no synonym (`revise`, `relabel`). Intent names are for changes with their own rules ([use-cases.md](use-cases.md)).
-- Plain words in the domain's language that say what the thing is; no borrowed jargon (`Roster` for "the persons already signed up").
 - A state says the fact its find checked (`ActiveAbsence`), not what you may do with it (`ArchivableAbsence`).
 - Prefix a concept by its variant only where the variants' fields differ (`SchoolSubmission` / `GroupSubmission`); shared ids stay unprefixed (`SubmissionId`).
-- Grep a new name before you use it: one another module already uses (`Registration` for account sign-up) is taken.
-- Files are kebab-case (`absence-rule.ts`); identifiers are camelCase / PascalCase.
 
 | Thing | Pattern | Example |
 |---|---|---|

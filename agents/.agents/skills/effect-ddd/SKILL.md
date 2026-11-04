@@ -53,18 +53,14 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 ## Conventions
 
-- Build only what a current rule, reader, or client uses. A field, index, guard, visibility variant, HTTP error, request wrapper, or second schema for a consumer that doesn't exist yet (a future sync feed, an error field nobody reads) lands with that consumer.
 - Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`, `ExhaustiveRecord`). When a name or type has no truthful home, reshape the design instead.
-- A function with more than one argument takes one object (`archiveAbsence({ absence, actor, now })`); a single argument stays positional (`publishAbsenceEvent(event)`).
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
-- Behavior is named exports imported by name; no namespace imports.
 - Every signature writes out its errors; never hide them behind a union alias.
 - An error is an `Effect`: return or `yield*` `new X(…)`, never `Effect.fail(new X(…))`. Domain code returns a `Result`, so it uses `Result.fail(new X(…))`.
 - Branch on a tag with `Match.valueTags` (exhaustive); never `_tag ===` or ternary chains.
 - When the result type must follow the input's tag, use `matchTag` ([repository.md](repository.md)). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
 - A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`. Ids are imported from the module that owns them, never copied into `shared/`: an id is a stable branded value, and a second path to it only drifts.
-- Across a boundary (HTTP → command, port → Prisma, host type → adapter), name every field: `{ from: payload.from, to: payload.to }`, never `...payload`. A spread lets a field added on one side flow into the other unchecked. Spreads stay inside one layer (`...absenceFields`).
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
 
 ## Layout
