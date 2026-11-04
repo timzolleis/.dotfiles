@@ -25,7 +25,7 @@ Usually no test: transitions whose rules are already tested, use cases that only
 
 A rule test: one named `it` per case, plain values, the cases taken from the story's examples so the user can check them ([use-cases.md](use-cases.md)).
 
-- The title is a plain sentence about the behavior: "refuses an editor without permission to delete others' absences". No rule numbers (they live in the change's Cases), no `→`, no positional `it.each` tuples with `$0` placeholders.
+- The title is a plain sentence about the behavior: "refuses an editor without permission to delete others' absences". No rule numbers (they live in the story's Cases), no `→`, no positional `it.each` tuples with `$0` placeholders.
 - Actors are named by their role (`creator`, `editor`, `member`), not by a person.
 
 ```ts
@@ -65,5 +65,7 @@ layer(TestLayer)("PrismaAbsenceRepository", (it) => {
 ```
 
 `reset` clears the table and the fakes; `insertAbsenceRow` writes a row directly with Prisma; `outcome` turns the exit into `"ok"`, `"die"`, or the error's tag.
+
+A test file gets a helper like `outcome` only when several tests share it. A projection one test uses (`reportOf`, `guardianSlotsOf`) stays inline in its `expect`.
 
 `it.effect` runs on `TestClock`: `DateTime.now` starts at 1970-01-01, so "today" is too. A fixture that depends on the date sets the clock (`TestClock.setTime`) or carries no date.
