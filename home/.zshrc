@@ -1,3 +1,6 @@
+# homebrew before /usr/bin (newer git etc.)
+eval "$(/opt/homebrew/bin/brew shellenv)"
+
 # personal scripts
 export PATH="$HOME/.local/bin:$PATH"
 
