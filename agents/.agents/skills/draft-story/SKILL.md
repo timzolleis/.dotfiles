@@ -1,6 +1,6 @@
 ---
 name: draft-story
-description: Pair with the person on a story: explore the area and the approaches together, then condense what was settled into the story file. Invoke as /skill:draft-story <area or story path>. Never delegated to a sub-agent.
+description: Pair with the person on a story, exploring the area and the approaches together, then condense what was settled into the story file. Invoke as /skill:draft-story <area or story path>. Never delegated to a sub-agent.
 disable-model-invocation: true
 ---
 
