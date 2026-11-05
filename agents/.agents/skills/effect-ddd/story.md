@@ -1,10 +1,10 @@
 # Story
 
-A **story** describes one area of the domain (a core type or a concept): its use cases and rules in the user's words, its lifecycle, and the decisions behind it. It is the current truth about the area and the only document about it: the code must keep it true, and when they disagree, fix the story first. A change to the area is a change to its story, drafted with the user one part at a time ([Designing with the user](SKILL.md#designing-with-the-user)) and built only once they agree. The story's diff in the PR is the plan; a PR that changes no story names the rule it serves. There are no change files, plans, or specs beside it: git has the history, the PR has the slice.
+A **story** describes one area of the domain (a core type or a concept): its use cases and rules in the user's words, its lifecycle, and the decisions behind it. It is the current truth about the area and the only document about it: the code must keep it true, and when they disagree, fix the story first. A change to the area is a change to its story, written once the user and the agent have explored it ([Designing with the user](SKILL.md#designing-with-the-user)), and built only once they agree. The story's diff in the PR is the plan; a PR that changes no story names the rule it serves. There are no change files, plans, or specs beside it: git has the history, the PR has the slice.
 
-A story is read three ways, and its shape serves all three: the user verifies a rule in one scroll (the rule, then its rows in the examples table); a builder's brief names one use case row and the rules it runs; a checker greps it (every rule has a use case, an example, a test name that carries its number, and symbols that resolve). Short beats complete: a story is 60 to 120 lines. Two or three examples per rule, the typical case, the refusal, and the boundary when there is one. More rows hide the rule they illustrate.
+A story is read three ways, and its shape serves all three: the user verifies a rule in one scroll (the rule, then its rows in the examples table); a builder's brief names the use case rows of its slice and the rules they run; a checker greps it (every rule has a use case, an example, a test name that carries its number, and symbols that resolve). Short beats complete: a story is 60 to 120 lines. One or two examples per rule, the typical case and the refusal, plus the boundary when a value decides it. More rows hide the rule they illustrate.
 
-Draft in this order, and show each part before the next: opening and terms, use cases, data, rules, examples, UI, then lifecycle and decisions. Signatures and call trees belong to the drafting conversation and the PR, not to the story: once built they are the code, and the story's symbols grep to it.
+The parts, in order: opening and terms, use cases, rules, examples, UI, then lifecycle and decisions. Signatures and call trees belong to the drafting conversation and the PR, not to the story: once built they are the code, and the story's symbols grep to it.
 
 ## Shape
 
@@ -13,7 +13,6 @@ Draft in this order, and show each part before the next: opening and terms, use 
 name: absence
 description: Members report absences for themselves or related users and archive them once the period has ended.
 type: story
-epics: staffing
 state: open
 ---
 
@@ -40,14 +39,6 @@ A member reports a period they are away, for themselves or, with permission, for
 
 Changes elsewhere: **Staffing** takes an active absence's assignee out of every day of its period (rule 5).
 
-## Data
-
-| Field | Type | Content |
-|---|---|---|
-| assignee | member | who is away |
-| period | days, from–to, inclusive | Mon 12 Oct – Fri 16 Oct 2026 |
-| reason | text, optional, max. 500 | "doctor's appointment" |
-
 ## Rules
 
 1. **Related users only** (`assigneeMustBeSelfOrRelatedRule`, `AbsenceActor.relatedUserIds`). A member drafts for themselves or for a user related to them: only a related user can confirm the period. Message: "You can only report absences for yourself or people you look after."
@@ -58,14 +49,14 @@ Changes elsewhere: **Staffing** takes an active absence's assignee out of every 
 
 ## Examples
 
-Alice is related to Ben, not to Carla. Alice's absence runs Mon 12 – Fri 16 Oct 2026.
+An active absence running Mon 12 – Fri 16 Oct 2026. The member is related to its assignee; the stranger is not.
 
 | Situation | Result | Test |
 |---|---|---|
-| Alice drafts for Ben | draft | `draft for a related user (rule 1) → AbsenceDraftedEvent` |
-| Alice drafts for Carla | refused | `draft for an unrelated user (rule 1) → NotRelatedToAssigneeError` |
-| Alice archives on Sat 17 Oct 00:00 | archived | `archive after the last day (rule 4) → AbsenceArchivedEvent` |
-| Alice archives on Fri 16 Oct 23:59 | refused, ongoing | `archive on the last day (rule 4) → AbsenceOngoingError` |
+| Member drafts for a related user | draft | `draft for a related user (rule 1) → AbsenceDraftedEvent` |
+| Member drafts for an unrelated user | refused | `draft for an unrelated user (rule 1) → NotRelatedToAssigneeError` |
+| Member archives on Sat 17 Oct 00:00 | archived | `archive after the last day (rule 4) → AbsenceArchivedEvent` |
+| Member archives on Fri 16 Oct 23:59 | refused, ongoing | `archive on the last day (rule 4) → AbsenceOngoingError` |
 
 ## UI
 
@@ -109,25 +100,24 @@ Rejected: archive on read when the period has ended: a read would write.
 
 ## The parts
 
-- **Frontmatter**: `description` is one sentence of who does what; it is the pointer an agent picks the story by. `epics` names the larger goals it serves, for finding stories, never a folder. `state` is `open` until the code matches every use case row, then `resolved`; a later change to the story sets it back to `open` in the PR that makes it, and the PR that catches the code up sets it to `resolved`.
+- **Frontmatter**: `description` is one sentence of who does what; it is the pointer an agent picks the story by. `state` is `open` until the code matches every use case row, then `resolved`; a later change to the story sets it back to `open` in the PR that makes it, and the PR that catches the code up sets it to `resolved`.
 - **Opening**: the user's goal as one quoted sentence, in their words. Then a short paragraph: the kinds of things, who acts, how it moves. Name the existing code it is modeled on, so the builder copies its shape instead of inventing one.
 - **Terms**: only the words a reader could misread, each with its meaning and its name in code. The code's names follow this table ([naming.md](naming.md)).
-- **Use cases**: one row per intent, who wants to do what ([use-cases.md](use-cases.md#cutting-use-cases)), the rules it runs, and its code: the use case service, filled in by the PR that builds it. A row is one PR ([Delivery](SKILL.md#delivery)); a row without code is unbuilt. Then `Changes elsewhere`: existing use cases whose behavior changes, each with the rule.
-- **Data**: the fields in domain terms, each with its type in words and an example value. Not the table.
+- **Use cases**: one row per intent, who wants to do what ([use-cases.md](use-cases.md#cutting-use-cases)), the rules it runs, and its code: the use case service, filled in by the PR that builds it. A row without code is unbuilt. Then `Changes elsewhere`: existing use cases whose behavior changes, each with the rule.
 - **Rules**: a numbered list, numbered per story and never renumbered. Each: a bold short name, the code symbols that carry it in parentheses (rule function, actor flag, find, view: filled in by the PR that builds it), then what holds, why, and what follows from it, including the consequences nobody would guess ("a period ending today can be archived from tomorrow"). The reason decides the edge cases nobody listed. The user-facing message word for word. Two to four lines a rule; a rule that needs more is two rules. Cite `rule 3` within the story, `absence rule 3` across stories. Only some rules become a code rule; place each with [rules.md](rules.md).
-- **Examples**: one table of concrete values (dates, users, amounts), never placeholders; a sentence above it names the fixture. Grouped by fixture when there are several, never one table per rule. Each row names its **test**, `situation (rule n) → outcome`, which is the test's name in code ([testing.md](testing.md)); the test uses the row's values. A row without a test is a decision the user never checked; a test without a row is a decision the user never saw.
+- **Examples**: one table of described situations ("Admin enables `absences` again"), with roles instead of names; a concrete value (a date, an amount) only where the value decides the case; a sentence above it names the fixture. Grouped by fixture when there are several, never one table per rule. Each row names its **test**, `situation (rule n) → outcome`, which is the test's name in code ([testing.md](testing.md)); the test uses the row's values. A row without a test is a decision the user never checked; a test without a row is a decision the user never saw.
 - **UI**, when the story has one: where it lives, the exact copy, columns and order, the empty state, dialog defaults, what disables an action and which rule.
 - **Not included**: what a reader would expect and the story leaves out, one line.
 - **Deliberately different**: where the story departs from the code it is modeled on, or from what a reader would expect, with the reason. A reader who would "fix" it reads why not.
 - **Open**: each undecided point with the options and a recommendation. Empty before the lifecycle is drawn.
-- **Lifecycle**, when there is more than one state: the state diagram, then one line per state saying what it guarantees. The states' names are the code's ([naming.md](naming.md)). No field lists, no signatures: `Data` has the fields, the code has the types.
+- **Lifecycle**, when there is more than one state: the state diagram, then one line per state saying what it guarantees. The states' names are the code's ([naming.md](naming.md)). No field lists, no signatures: the code has the types.
 - **Decisions**: a table of decision, why, code, for what a reader would otherwise "fix": a name, a split, a non-obvious path (a second load, a policy, a cross-module port). A decision cites rules as `(rule n)`, never restates them; a new or changed rule goes into Rules first. `Rejected:` only for an alternative a reader would propose again; `Cost:` only for a downside the story accepts. One line each.
 
 What the story does not hold: signatures, ports, call trees, per-file tables, host mapping. The layers are mechanical ([Layout](SKILL.md#layout)), the exhaustive matches catch a missing one, the host's `AGENTS.md` maps the concept to the host once, and a call tree is how a path is discussed ([Call trees](SKILL.md#call-trees)), in the chat or the PR, before it is code. Every symbol in the story greps to its definition.
 
 ## The PR
 
-A PR is one use case row or one view. Its body is the story's diff when it has one, the example rows it makes true, and the call tree when the path isn't the plain find → decide → evolve → save; a PR with no story diff names the rule it serves. It is done when: every example row of its rules has its test, named as the row; the row's `Code` and the rules' symbols are filled in; `state` is right; the host's checks pass. Nothing else is written down.
+A PR is one slice: the use case rows and views agreed for it ([Delivery](SKILL.md#delivery)). Its body is the story's diff when it has one, the example rows it makes true, and the call tree when the path isn't the plain find → decide → evolve → save; a PR with no story diff names the rule it serves. It is done when: every example row of its rules has its test, named as the row; the row's `Code` and the rules' symbols are filled in; `state` is right; the host's checks pass. Nothing else is written down.
 
 ## Checking a story
 

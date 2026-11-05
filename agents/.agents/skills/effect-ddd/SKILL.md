@@ -11,9 +11,7 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story ([story.md](story.md)); its signatures and call trees are shown in the conversation, not written into the story. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
 
-A story and any concept or plan behind it are drafted with the user, not delivered to them (`draft-story`: explore the approaches together, then condense what was settled into the file). Work through it in the order the decisions depend on each other, one part at a time: the use cases, then the rules and their examples, then the UI, then the design: lifecycle, model, each module. Show each part as it takes shape, with its open points as questions, and start the next part once the user agrees to this one. A whole story sent in one go gets skimmed and approved with its guesses still in it, and the guesses become code. So never draft a later part on top of an open question in an earlier one, and never hand the drafting of a story or a concept to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
-
-A good drafting turn: "These are the use cases I see for document types: a member with the manage permission adds a draft type; that member edits a draft. I left out publishing; does it belong in this story? Once the use cases are right, I'll draft the rules."
+A story comes out of exploring with the user: talk the area through, options and recommendations, until they say to write it down. Then condense what was settled into the story ([story.md](story.md)) in one go: nothing they didn't settle, their open points in `## Open`, their reasons as the rules' why. Their edits afterwards are diffs on the file. Never hand the exploring to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
 
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 
@@ -111,13 +109,9 @@ AbsenceController.archiveAbsence({ params })
 
 ## Delivery
 
-The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). The PRs are its use cases, one at a time. The exhaustive matches (`evolve` over events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile, so no PR has to carry every layer of every use case to be checked. A use case adds nothing to the repository.
+The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). Before any code, the story is cut into slices with the user, one PR each, stacked. A slice is logically complete: a reviewer reads it as one behavior end to end (enable and disable together, not enable alone), and it fits one review sitting. The module's first slice holds its shape: the core type, the use cases that belong together, a view, the host's wiring. The exhaustive matches (`evolve` over events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile.
 
-1. **Story**: the story's diff, agreed with the user ([story.md](story.md)). Code may ride along only for the tracer bullet.
-2. **Tracer bullet**: one core type, one use case, one view, end to end with the host's wiring. This PR holds the module's shape, so review it for structure.
-3. **One use case or one view per PR**: its transition, rules, event, `evolve` branch, endpoint, handler, client, and the story's `Code` cells it fills in. Review it for the rules. Reads come with the use case that first needs them.
-
-A PR that adds a part no use case in it reads (an actor flag, a find, an error) is early; move the part to the PR with its reader.
+A PR that adds a part no use case in it reads (an actor flag, a find, an error) is early; move the part to the slice with its reader.
 
 ## Read next
 
