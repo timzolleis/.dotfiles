@@ -1,6 +1,6 @@
 ---
 name: build-story
-description: Build an approved story in slices agreed with the person: one builder sub-agent per slice as stacked PRs, one reviewer over the whole stack at the end, questions and results relayed through the Inbox. Invoke as /skill:build-story <story path or name> [rows]. Needs herdr.
+description: Build an approved story in slices agreed with the person, with one builder sub-agent per slice as stacked PRs, one reviewer over the whole stack at the end, questions and results relayed through the Inbox. Invoke as /skill:build-story <story path or name> [rows]. Needs herdr.
 disable-model-invocation: true
 ---
 
