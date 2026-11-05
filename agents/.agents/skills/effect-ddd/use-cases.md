@@ -25,7 +25,7 @@ The use cases of one area, with its rules, examples, lifecycle, and decisions, l
 
 ## Service
 
-One `Context.Service` per use case. Every one is the same four steps: find the narrowed state, call its transition, `evolve` the event onto the state, save. The last line is the same in every use case; a create has no find and passes `before: Option.none()`. A use case whose flag decides alone gates first: `if (!actor.mayManageAbsences) return yield* new NotAllowedToManageAbsencesError({ actorId: actor.userId })` before the find ([access.md](access.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
+One `Context.Service` per use case. Every one is the same four steps: find the narrowed state, call its transition, `evolve` the event onto the state, save. The last line is the write the event kind allows: a create has no find and calls `insertAbsence({ event, after: initialAbsence(event) })`; a change calls `updateAbsence`; a delete evolves nothing and calls `deleteAbsence({ event, before })` ([repository.md](repository.md#port)). A transition wired to the wrong write doesn't compile. A use case whose flag decides alone gates first: `if (!actor.mayManageAbsences) return yield* new NotAllowedToManageAbsencesError({ actorId: actor.userId })` before the find ([access.md](access.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
 
 ```ts
 // absence/application/archive-absence-service.ts
@@ -44,8 +44,7 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
         const now = yield* DateTime.now
         const absence = yield* absenceRepository.findActiveAbsenceById({ organizationId, absenceId })
         const event = yield* Effect.fromResult(archiveAbsence({ absence, actor, now }))
-        const before = Option.some(absence)
-        yield* absenceRepository.saveAbsence({ event, before, after: evolveAbsence({ absence: before, event }) })
+        yield* absenceRepository.updateAbsence({ event, before: absence, after: evolveAbsence({ absence, event }) })
       }),
     })
   }))
@@ -78,7 +77,7 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 ├─ reassignAbsence({ absence, actor, assigneeId, assigneeIsOrganizationMember, now })
 │    : Result<AbsenceReassignedEvent, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
 │  └─ checkRules(reassignAbsenceRules, input)
-├─ evolveAbsence({ absence: before, event }): Option<Absence>
-└─ AbsenceRepository.saveAbsence({ event, before, after })
+├─ evolveAbsence({ absence, event }): Absence
+└─ AbsenceRepository.updateAbsence({ event, before, after })
      : Effect<void, AbsenceChangedConcurrentlyError>
 ```

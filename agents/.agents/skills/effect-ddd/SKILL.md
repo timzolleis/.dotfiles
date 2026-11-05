@@ -71,7 +71,7 @@ Answer the domain column first, with the user, before any type name; it holds in
 - An error is an `Effect`: return or `yield*` `new X(…)`, never `Effect.fail(new X(…))`. Domain code returns a `Result`, so it uses `Result.fail(new X(…))`.
 - Branch on a tag with `Match.valueTags` (exhaustive); never `_tag ===` or ternary chains.
 - When the result type must follow the input's tag, use `matchTag` ([http.md](http.md), the HTTP error mapper). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
-- Make illegal states unrepresentable; make illegal calls die. A state the types allow but the domain doesn't is a wrong state design; a call that only a bug can make (`evolve` yielding nothing from nothing) earns one `Effect.die`, not overloads ([repository.md](repository.md)).
+- Make illegal states unrepresentable; make illegal calls die. A state the types allow but the domain doesn't is a wrong state design: three writes with the states each needs, over one `save` of two `Option`s that also allows nothing-to-nothing ([repository.md](repository.md)). A call only a bug can make, that no plain type removes, earns one `Effect.die`: never overloads, a conditional type, or a cast.
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
 - A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`. Ids are imported from the module that owns them, never copied into `shared/`: an id is a stable branded value, and a second path to it only drifts.
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
@@ -101,15 +101,15 @@ AbsenceController.archiveAbsence({ params })
 │  ├─ AbsenceRepository.findActiveAbsenceById(…)
 │  ├─ archiveAbsence({ absence, actor, now })
 │  │  └─ checkRules(archiveAbsenceRules, input)
-│  ├─ evolveAbsence({ absence: before, event })
-│  └─ AbsenceRepository.saveAbsence({ event, before, after })
+│  ├─ evolveAbsence({ absence, event })
+│  └─ AbsenceRepository.updateAbsence({ event, before, after })
 ├─ AbsenceViews.getAbsenceById({ organizationId, visibility, absenceId })
 └─ any domain error → absenceHttpErrorFromAbsenceError(error)
 ```
 
 ## Delivery
 
-The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). Before any code, the story is cut into slices with the user, one PR each, stacked. A slice is logically complete: a reviewer reads it as one behavior end to end (enable and disable together, not enable alone), and it fits one review sitting. The module's first slice holds its shape: the core type, the use cases that belong together, a view, the host's wiring. The exhaustive matches (`evolve` over events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile.
+The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). Before any code, the story is cut into slices with the user, one PR each, stacked. A slice is logically complete: a reviewer reads it as one behavior end to end (enable and disable together, not enable alone), and it fits one review sitting. The module's first slice holds its shape: the core type, the use cases that belong together, a view, the host's wiring. The exhaustive matches (`evolveAbsence` over change events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile.
 
 A PR that adds a part no use case in it reads (an actor flag, a find, an error) is early; move the part to the slice with its reader.
 
@@ -137,13 +137,13 @@ A **call tree** is the one format for a call path, in discussion and in a PR; pr
   ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
   ├─ AbsenceRepository.findActiveAbsenceById({ organizationId, absenceId })
   │    : Effect<ActiveAbsence, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError>
-- ├─ AbsenceRepository.updateAbsence(changes)
-- │    : Effect<void>
+- └─ AbsenceRepository.patchAbsence(changes)
+-      : Effect<void>
 + ├─ archiveAbsence({ absence, actor, now })
 + │    : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
-+ ├─ evolveAbsence({ absence: before, event }): Option<Absence>
-  └─ AbsenceRepository.saveAbsence({ event, before, after })
-       : Effect<void, AbsenceChangedConcurrentlyError>
++ ├─ evolveAbsence({ absence, event }): Absence
++ └─ AbsenceRepository.updateAbsence({ event, before, after })
++      : Effect<void, AbsenceChangedConcurrentlyError>
 ```
 
 - The root is the entry point; each call is `Owner.method(args)`, indented under its caller with `├─`, `└─`, `│`.

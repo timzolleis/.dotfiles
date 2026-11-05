@@ -108,29 +108,39 @@ export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
 
 ## Evolve
 
-A transition decides; `evolve` applies. One per core type, total over the state before and every event of the type: `Option<State>` in, `Option<State>` out, `None` meaning the thing doesn't exist (before a create, after a delete).
+A transition decides; `evolve` applies. Every event is one of three kinds: it brings the thing into existence, changes it, or removes it. The kinds are types next to the event union, and `evolve` is typed by them: `initialAbsence` builds the state a creation event brings into existence, `evolveAbsence` applies a change event to the state it changes. A deletion event has no state after it, so nothing applies it: the use case hands `deleteAbsence` the state before it ([repository.md](repository.md#writes)).
+
+```ts
+// absence/domain/absence-event.ts
+// Exclude puts a new event under change until this file names it a creation or a deletion.
+export type AbsenceCreationEvent = AbsenceDraftedEvent
+export type AbsenceDeletionEvent = AbsenceDeletedEvent
+export type AbsenceChangeEvent = Exclude<AbsenceEvent, AbsenceCreationEvent | AbsenceDeletionEvent>
+```
 
 ```ts
 // absence/domain/absence.ts
-export type EvolveAbsenceInput = { readonly absence: Option.Option<Absence>; readonly event: AbsenceEvent }
-export const evolveAbsence = ({ absence, event }: EvolveAbsenceInput): Option.Option<Absence> =>
+export const initialAbsence = (event: AbsenceCreationEvent): Absence =>
+  DraftAbsence.make({
+    absenceId: event.absenceId, organizationId: event.organizationId, creatorId: event.creatorId,
+    assigneeId: event.assigneeId, period: event.period, createdAt: event.occurredOn, updatedAt: event.occurredOn,
+  })
+
+export type EvolveAbsenceInput = { readonly absence: Absence; readonly event: AbsenceChangeEvent }
+export const evolveAbsence = ({ absence, event }: EvolveAbsenceInput): Absence =>
   Match.valueTags(event, {
-    AbsenceDraftedEvent: (event) => Option.some(DraftAbsence.make({
-      absenceId: event.absenceId, organizationId: event.organizationId, creatorId: event.creatorId,
-      assigneeId: event.assigneeId, period: event.period, createdAt: event.occurredOn, updatedAt: event.occurredOn,
-    })),
-    AbsenceReassignedEvent: (event) => Option.map(absence, (absence) => ({ ...absence, assigneeId: event.assigneeId, updatedAt: event.occurredOn })),
-    AbsenceActivatedEvent: (event) => Option.map(absence, (absence) => ActiveAbsence.make({ ...absenceFieldsOf(absence), activatedAt: event.occurredOn, updatedAt: event.occurredOn })),
-    AbsenceDeletedEvent: () => Option.none(),
-    // …one branch per event
+    AbsenceReassignedEvent: (event) => ({ ...absence, assigneeId: event.assigneeId, updatedAt: event.occurredOn }),
+    AbsenceActivatedEvent: (event) => ActiveAbsence.make({ ...absenceFieldsOf(absence), activatedAt: event.occurredOn, updatedAt: event.occurredOn }),
+    // …one branch per change event
   })
 ```
 
 - `evolve` trusts `decide`: it checks no rule and no state, because the transition that produced the event already did. An event applied to a state it can't change (an `AbsenceActivatedEvent` on an `ArchivedAbsence`) is a defect upstream; `evolve` maps what it can and never fails.
-- `Match.valueTags`: a new event doesn't compile until `evolve` applies it. An event that changes nothing in the state (`AbsenceValidationRequestedEvent`) returns `absence` unchanged, written out, so the reader sees the decision.
-- Every branch sets `updatedAt: event.occurredOn`: the state after `evolve` is exactly the row the repository stores, and `before.updatedAt` is the guard it stores it behind ([repository.md](repository.md#save)).
-- Where it's read: the use case hands `before` and `after` to `saveAbsence`, and the repository stores `after` without reading the event; tests apply `decide` then `evolve` and assert on the state, with no database ([testing.md](testing.md)); a use case that needs the state after its own event (a second transition in the same intent, a policy that reads the result) has `after` and reads nothing back.
+- `Match.valueTags`: a new event lands in `AbsenceChangeEvent` and doesn't compile until `evolveAbsence` applies it, or `absence-event.ts` names it a creation or a deletion. A second creation event turns `initialAbsence` into a `Match.valueTags` too. An event that changes nothing in the state (`AbsenceValidationRequestedEvent`) returns `absence` unchanged, written out, so the reader sees the decision.
+- Every branch sets `updatedAt: event.occurredOn`: the state after `evolve` is exactly the row the repository stores, and `before.updatedAt` is the guard it stores it behind ([repository.md](repository.md#writes)).
+- Where it's read: the use case hands the state before and after to `insertAbsence`, `updateAbsence` or `deleteAbsence`, and the repository stores `after` without reading the event; tests apply `decide` then `evolve` and assert on the state, with no database ([testing.md](testing.md)); a use case that needs the state after its own event (a second transition in the same intent, a policy that reads the result) has `after` and reads nothing back.
 - It is the one statement of what each event means for the state. Nothing else, no SQL and no handler, restates it.
+- Rejected: one `evolve` over `Option<Absence>` and every event. A change on `None` and a creation yielding `None` were calls the types allowed, so every use case wrapped its state in `Option.some` and the adapter died on nothing-to-nothing. Typing that one function by event (conditional types over the kinds) was rejected too: its body ends in a cast, and callers need `Option.Some` / `Option.None` values that Effect's constructors don't return.
 
 ## Events
 
