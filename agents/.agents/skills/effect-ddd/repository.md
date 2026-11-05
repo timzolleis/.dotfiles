@@ -1,6 +1,6 @@
 # Repository
 
-The repository is the write side's port: it loads the state a transition needs and persists the event the transition returns. No generic save or update. The port lives in the domain; the Prisma adapter lives in `infrastructure/`.
+The repository is the write side's port: it loads the state a transition needs and stores the state `evolve` produced. It never interprets an event; what an event means for the state is said once, in `evolve` ([model.md](model.md#evolve)). No generic update. The port lives in the domain; the Prisma adapter lives in `infrastructure/`.
 
 ## Port
 
@@ -8,12 +8,12 @@ The repository is the write side's port: it loads the state a transition needs a
 // absence/domain/absence-repository.ts
 export type FindAbsenceByIdInput = { readonly organizationId: OrganizationId; readonly absenceId: AbsenceId }
 
-// A new event doesn't compile until it names its write error.
-export type AbsenceEventWriteErrors = ExhaustiveRecord<AbsenceEvent["_tag"], {
-  AbsenceDraftedEvent: AbsenceAlreadyExistsError
-  AbsenceRescheduledEvent: AbsenceChangedConcurrentlyError
-  // …one per event
-}>
+// before → after: None → Some inserts, Some → Some updates, Some → None deletes. The pair says which; nothing else does.
+export type SaveAbsenceInput = {
+  readonly event: AbsenceEvent
+  readonly before: Option.Option<Absence>
+  readonly after: Option.Option<Absence>
+}
 
 export class AbsenceRepository extends Context.Service<AbsenceRepository, {
   findDraftAbsenceById(input: FindAbsenceByIdInput):
@@ -22,20 +22,15 @@ export class AbsenceRepository extends Context.Service<AbsenceRepository, {
     Effect.Effect<ActiveAbsence, AbsenceNotFoundError | AbsenceStillDraftError | AbsenceAlreadyArchivedError>
   findEditableAbsenceById(input: FindAbsenceByIdInput):
     Effect.Effect<EditableAbsence, AbsenceNotFoundError | AbsenceAlreadyArchivedError>
-  publishAbsenceEvent<Tag extends AbsenceEvent["_tag"]>(event: MemberWithTag<AbsenceEvent, Tag>): Effect.Effect<void, AbsenceEventWriteErrors[Tag]>
+  saveAbsence(input: SaveAbsenceInput): Effect.Effect<void, AbsenceChangedConcurrentlyError>
 }>()("AbsenceRepository") {}
 ```
 
-```ts
-// lib/exhaustive-record.ts
-// Fails to compile until T has an entry for every key.
-export type ExhaustiveRecord<Key extends PropertyKey, T extends Record<Key, unknown>> = T
-```
-
 - **Finds narrow**: one per set of states a transition accepts. Each returns that state or the error named after the state it found.
-- **One write**: `publishAbsenceEvent(event)` maps each event to a write, then publishes it. A union of events gives the union of their errors.
-- **Data beside the event**: a write that needs data the event must not carry (a secret configuration) gets a second publish method over only those events, `publishAbsenceConfigurationEvent({ event, config })`, with the same transaction and `AbsenceEventWriteErrors[Tag]`. Every other event stays on `publishAbsenceEvent(event)`.
-- Rejected: splitting into `insertAbsence` + `publishAbsenceEvent` (two methods per change).
+- **One save**: stores `after`, guarded by `before`, then publishes `event`. A new event or a new transition adds nothing here.
+- **One error**: every save fails the same way, when the row is not in the state `before` says: an id already taken on insert, no row matching the guard on update or delete. Both mean another write came first, and the client recovers the same way (reload). A user-visible unique key the module has (`Organization.slug`) is its own domain error (`OrganizationSlugTakenError`) next to it on `save`, declared per module, not per event.
+- **Make illegal states unrepresentable; make illegal calls die.** `(None, None)` is a transition bug the decide → evolve test catches; it dies in the adapter. Narrowing the pair in types (`Option.Some` / `Option.None` arms, overloads on `evolve`) was rejected: it costs a `Some` constructor and three signatures to remove one `die`.
+- Rejected: one write per event (`publishAbsenceEvent(event)` mapped to SQL by tag): it stated each event's meaning twice, in `evolve` and in SQL, needed `previous…` fields on events for the guards, and grew the repository with every use case.
 
 ## Expected failures
 
@@ -44,10 +39,10 @@ The port declares no infrastructure errors. Each operation has one expected fail
 | Operation | Expected failure | Becomes |
 |---|---|---|
 | find by id | no row | `AbsenceNotFoundError` |
-| insert | id taken | `AbsenceAlreadyExistsError` |
-| guarded update / delete | no row matched the guard | `AbsenceChangedConcurrentlyError` |
+| save, `None → Some` | id taken | `AbsenceChangedConcurrentlyError` |
+| save, `Some → …` | no row matched the guard | `AbsenceChangedConcurrentlyError` |
 
-With Prisma, a find (`findUniqueOrThrow`) and a guarded `update` / `delete` fail with `PrismaRecordNotFoundError`; a taken id is `PrismaUniqueConstraintError`. Each operation catches its expected one and dies on the rest ([Finds](#finds), [Writes](#writes)). Each write spells out its own `catchTag`, even where two writes map the same failure: a shared combinator (`orChangedConcurrently`) hides which failure the write expects.
+With Prisma, a find (`findUniqueOrThrow`) and a guarded `update` / `delete` fail with `PrismaRecordNotFoundError`; a taken id is `PrismaUniqueConstraintError`. Each operation catches its expected one and dies on the rest ([Finds](#finds), [Save](#save)).
 
 ## Finds
 
@@ -76,7 +71,7 @@ With Prisma, a find (`findUniqueOrThrow`) and a guarded `update` / `delete` fail
 - Check `status` first, then decode only the state the find returns. Nothing decodes the full union.
 - `status` is a Prisma enum, so the match is exhaustive and a new state doesn't compile until every find handles it.
 - A row with an allowed `status` that doesn't decode is corrupt: die.
-- `organizationId` next to the unique `id` in `where`: another tenant's row is not found.
+- `organizationId` next to the unique `id` in `where`: another tenant's row is not found. A host with soft deletes adds `deletedAt: null` to every find and guard.
 
 ## Decoding rows
 
@@ -116,78 +111,60 @@ const decodeActiveAbsence = (row: AbsenceRow) =>
 - A nullable column that a state requires: `NullOr(X).pipe(Schema.refine(Predicate.isNotNull))`. A `null` fails the decode and dies like any corrupt row. No branch before the decode.
 - `…FromFields` marks the decode-only variants; the state schema stays the schema for everything else.
 
-## Writes
+## Encoding states
 
-One guarded write per event, then publish:
-
-| Event | Write | Guard (`where`, plus `id` and `organizationId`) | Expected failure |
-|---|---|---|---|
-| `AbsenceDraftedEvent` | `create { status: "draft", …, createdAt: occurredOn }` | — | id taken → `AbsenceAlreadyExistsError` |
-| `AbsenceRescheduledEvent` | `update { from, to }` | `status in ["draft", "active"]` | no row → `AbsenceChangedConcurrentlyError` |
-| `AbsenceReassignedEvent` | `update { assigneeId }` | `status in ["draft", "active"]` | no row → `AbsenceChangedConcurrentlyError` |
-| `AbsenceActivatedEvent` | `update { status: "active", activatedAt: occurredOn }` | `status: "draft"` | no row → `AbsenceChangedConcurrentlyError` |
-| `AbsenceArchivedEvent` | `update { status: "archived", archivedAt: occurredOn }` | `status: "active"` | no row → `AbsenceChangedConcurrentlyError` |
-| `AbsenceDeletedEvent` | `delete` | `status in ["draft", "active"]` | no row → `AbsenceChangedConcurrentlyError` |
+The inverse of the decode: one row shape from each state, exhaustive over the states.
 
 ```ts
 // absence/infrastructure/prisma-absence-repository.ts
-// Out is the port's error map, given explicitly: inferred from the writes, it wouldn't match AbsenceEventWriteErrors[Tag] for a generic Tag.
-const writeAbsenceEvent = matchTag<AbsenceEvent>()<{
-  readonly [Tag in AbsenceEvent["_tag"]]: Effect.Effect<void, AbsenceEventWriteErrors[Tag]>
-}>({
-  AbsenceArchivedEvent: (event) =>
-    prisma.absence.update({
-      where: { id: event.absenceId, organizationId: event.organizationId, status: "active" },
-      data: { status: "archived", archivedAt: DateTime.toDateUtc(event.occurredOn) },
-      select: { id: true },
-    }).pipe(
-      Effect.catchTag(
-        "PrismaRecordNotFoundError",
-        () => new AbsenceChangedConcurrentlyError({ absenceId: event.absenceId }),
-        (error) => Effect.die(error),
-      ),
-      Effect.asVoid,
-    ),
-  // …one per event, as in the table
-})
+const absenceRowFromState = (absence: Absence): Prisma.AbsenceUncheckedCreateInput =>
+  Match.valueTags(absence, {
+    DraftAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "draft", activatedAt: null, archivedAt: null }),
+    ActiveAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "active", activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: null }),
+    ArchivedAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "archived", activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: DateTime.toDateUtc(absence.archivedAt) }),
+  })
+```
 
-const publishAbsenceEvent = Effect.fn("PrismaAbsenceRepository.publishAbsenceEvent")(
-  function* <Tag extends AbsenceEvent["_tag"]>(event: MemberWithTag<AbsenceEvent, Tag>) {
-    yield* writeAbsenceEvent(event)
+- `Match.valueTags` over the states: a new state doesn't compile until it has a row shape.
+- Every column is written, from the state. The state carries `updatedAt` and `evolve` sets it from the event, so the row is `after` and nothing else ([model.md](model.md#evolve)).
+- Convert every `DateTime.Utc` with `DateTime.toDateUtc`.
+
+## Save
+
+```ts
+// absence/infrastructure/prisma-absence-repository.ts
+const saveAbsence = Effect.fn("PrismaAbsenceRepository.saveAbsence")(
+  function* ({ event, before, after }: SaveAbsenceInput) {
+    if (Option.isNone(before)) {
+      if (Option.isNone(after)) return yield* Effect.die(new Error(`${event._tag} evolved nothing from nothing`))
+      yield* prisma.absence.create({ data: absenceRowFromState(after.value), select: { id: true } }).pipe(
+        Effect.catchTag(
+          "PrismaUniqueConstraintError",
+          () => new AbsenceChangedConcurrentlyError({ absenceId: after.value.absenceId }),
+          (error) => Effect.die(error),
+        ),
+      )
+    } else {
+      const guard = { id: before.value.absenceId, organizationId: before.value.organizationId, updatedAt: DateTime.toDateUtc(before.value.updatedAt) }
+      yield* Option.match(after, {
+        onSome: (after) => prisma.absence.update({ where: guard, data: absenceRowFromState(after), select: { id: true } }),
+        onNone: () => prisma.absence.delete({ where: guard, select: { id: true } }),
+      }).pipe(
+        Effect.catchTag(
+          "PrismaRecordNotFoundError",
+          () => new AbsenceChangedConcurrentlyError({ absenceId: before.value.absenceId }),
+          (error) => Effect.die(error),
+        ),
+      )
+    }
     yield* domainEvents.publishDomainEvent(event)   // not atomic with the write
   },
 )
 ```
 
+- The guard is `before`'s identity and `updatedAt`. It catches every write between find and save, whatever field it touched, so events carry no `previous…` fields for the guard.
 - The guard sits in `where` of `update` / `delete`, not `updateMany` / `deleteMany` plus a `count === 0` check. No row matched → the expected failure ([Expected failures](#expected-failures)).
-- The guard also holds each field the transition read and the write replaces (`assigneeId: event.previousAssigneeId`): a change between find and write fails the guard instead of being overwritten.
-- No cast. A missing write, an unknown tag, or a write whose error differs from `AbsenceEventWriteErrors` doesn't compile.
-- Convert every `DateTime.Utc` with `DateTime.toDateUtc`. Writes `select: { id: true }`: nothing is read back.
+- Three writes, ever: insert, guarded update, guarded delete (`update { deletedAt }` in a host with soft deletes). Writes `select: { id: true }`: nothing is read back; a caller that needs the state after the write has `after`.
 - Write + publish are not atomic; delivery (outbox) belongs to the host.
-- Prisma's query API, not raw SQL. Raw SQL only for a behavior the story's design names and the API can't express; the design says which.
-
-### `matchTag`
-
-`matchTag` is the one helper for tag dispatch whose result type follows the tag:
-
-```ts
-// lib/match-tag.ts
-type Tagged = { readonly _tag: string }
-
-export type MemberWithTag<U extends Tagged, Tag extends U["_tag"]> = Extract<U, { readonly _tag: Tag }>
-
-type HandlersByTag<U extends Tagged, Out> = { readonly [Tag in keyof Out]: (value: MemberWithTag<U, Tag & U["_tag"]>) => Out[Tag] }
-
-export const matchTag = <U extends Tagged>() =>
-  <Out extends { readonly [Tag in U["_tag"]]: unknown }>(
-    handlers: HandlersByTag<U, Out> & { readonly [Tag in Exclude<keyof Out, U["_tag"]>]: never },
-  ) => {
-    // Indexing the mapped type with a generic Tag keeps value and result correlated (TypeScript #47109).
-    const handlerByTag: HandlersByTag<U, Out> = handlers
-    return <Tag extends U["_tag"]>(value: MemberWithTag<U, Tag>): Out[Tag] => handlerByTag[value._tag](value)
-  }
-```
-
-- `matchTag<U>()(handlers)`: one handler per tag of `U`; the result is `<Tag>(value: MemberWithTag<U, Tag>) => Out[Tag]`.
-- Give `Out` when a declared type already fixes the result (the port here). Otherwise let it infer from the handlers ([http.md](http.md), HTTP errors).
-- Not `Match.valueTags`: it returns the union of every branch's result, which a generic signature only accepts with a cast. `Match.valueTags` stays the default when the union is fine.
+- Prisma's query API, not raw SQL. Raw SQL only for a behavior a story decision names and the API can't express.
+- Cost: `updatedAt` has millisecond precision, so two writes of one row within the same millisecond could pass each other's guard. A host that needs more adds a `version` column and guards on it instead.

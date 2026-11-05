@@ -11,7 +11,8 @@ Rows apply when the host has the concept ([access.md](access.md)).
 | Constraint depends on | Example | Place |
 |---|---|---|
 | Tenant membership | the actor is a member of the route's organization | the host's tenant check at the edge (`OrganizationMemberMiddleware`, [http.md](http.md)); never the domain |
-| A permission | may edit someone else's active absence | a flag on the actor, set by the permission adapter; a rule decides |
+| A permission alone | may export; may manage data sources | a flag on the actor; the use case checks it before the find and fails with `NotAllowedTo…Error`. Not a rule: a rule list of one gate is ceremony |
+| A permission with state or ownership | may edit someone else's active absence, or is its creator | a flag on the actor, set by the permission adapter; a rule decides |
 | Visibility | sees absences they're involved in; with a read permission, all | the visibility rule (`absenceVisibilityFromReader`); views filter by it |
 | State | archived can't be edited | the narrowing find; the input's state type accepts only allowed states |
 | Who acts | the creator, or a permitted user on an active absence | first rule in the transition's list |
@@ -48,7 +49,8 @@ export const reassignAbsenceRules: ReadonlyArray<ReassignAbsenceRule> = [
 // …one rule type and list per transition
 ```
 
-- Per transition: a rule type over its input and an ordered list. The order decides which rejection is reported; the who-acts rule, if any, comes first. It also keeps the later rules from reporting on what the actor may not know about: another family's child is "not related", never "already signed up".
+- Per transition with two or more rules: a rule type over its input and an ordered list. The order decides which rejection is reported; the who-acts rule, if any, comes first. It also keeps the later rules from reporting on what the actor may not know about: another family's child is "not related", never "already signed up".
+- A transition with one rule calls it: `yield* onlyPermittedCanArchiveRule(input)`. The list and its type arrive with the second rule, which is when order starts to matter.
 - One list per transition, even when two lists are identical today, so they can diverge without a rename.
 - A shared rule takes a subset of the input (`{ actor; assigneeId }`), so it fits every list that names it.
 - A new rule is one function added to one list, plus its error in the rule type and the transition's signature.
@@ -63,7 +65,7 @@ A constraint across records ("one reported absence per person and day", "one rea
 - The error names the other record (`AbsenceOverlapsError { absenceId }`) only when a client acts on it; otherwise it carries the value (`AbsenceReasonNameTakenError { name }`).
 - "Same value" is the value's `Equivalence` ([model.md](model.md)), which the form uses too; the find's query must agree with it.
 - With a unique index, the write maps the violation straight to the error; no lookup to fill its fields.
-- The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the story's design. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
+- The rule reports; it doesn't guarantee. Two writes at the same moment both pass. Default: a `Cost:` line in the story's decisions. Guard in the database only when the race leaves wrong data that a reload or retry doesn't fix (a double booking, money, another organization's data); write that outcome in one sentence first. A gap in positions or a tie in sort order is not one.
 
 ## Writing a rule
 

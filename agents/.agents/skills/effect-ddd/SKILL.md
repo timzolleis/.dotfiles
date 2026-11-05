@@ -9,15 +9,15 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 ## Designing with the user
 
-Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story, its design included ([story.md](story.md)). Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story ([story.md](story.md)); its signatures and call trees are shown in the conversation, not written into the story. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
 
-A story and any concept or plan behind it are drafted with the user, not delivered to them. Work through it in the order the decisions depend on each other, one part at a time: the use cases, then the rules and their examples, then the UI, then the design: lifecycle, model, each module. Show each part as it takes shape, with its open points as questions, and start the next part once the user agrees to this one. A whole story sent in one go gets skimmed and approved with its guesses still in it, and the guesses become code. So never draft a later part on top of an open question in an earlier one, and never hand the drafting of a story or a concept to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
+A story and any concept or plan behind it are drafted with the user, not delivered to them (`draft-story`: explore the approaches together, then condense what was settled into the file). Work through it in the order the decisions depend on each other, one part at a time: the use cases, then the rules and their examples, then the UI, then the design: lifecycle, model, each module. Show each part as it takes shape, with its open points as questions, and start the next part once the user agrees to this one. A whole story sent in one go gets skimmed and approved with its guesses still in it, and the guesses become code. So never draft a later part on top of an open question in an earlier one, and never hand the drafting of a story or a concept to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
 
 A good drafting turn: "These are the use cases I see for document types: a member with the manage permission adds a draft type; that member edits a draft. I left out publishing; does it belong in this story? Once the use cases are right, I'll draft the rules."
 
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 
-A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the story's design.
+A rare edge case that would make the code much harder is never dropped silently. Name the case, who notices it and how often, and what handling it costs, then ask. The answer becomes a rule, or a `Cost:` line in the story's decisions.
 
 When two modules solve the same thing differently, this skill decides which one drifted: align that one to it, never the newer module to the older.
 
@@ -41,14 +41,14 @@ Each question about a use case has a domain answer, and one component it lands i
 | What is true afterwards? | outcome: "the absence is archived" | event and its fields: `AbsenceArchivedEvent` |
 | Who sees the result? | "involved members; with permission, everyone" | view, visibility rule: `AbsenceView`, `absenceVisibilityFromReader` |
 
-Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, examples. Its Cases then map each rule to code: [use-cases.md](use-cases.md).
+Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, each with its examples, tests and code ([story.md](story.md)).
 
 ## Deciding rules
 
 1. **The domain is pure**: states, transitions, rules, events, errors. No services, no I/O, no transport.
 2. **One schema per state.** A transition accepts only the states that allow it, so a wrong state doesn't compile.
-3. **A transition is a pure function**: input → `Result<Event, …errors>`. A use case only loads, calls the transition, and publishes the event.
-4. **With permissions, each is a flag on the actor**; a rule decides. No permission gates. A read rule filters by visibility; it never rejects. Without an access model there is no actor until a rule or a reader of the event needs the user ([access.md](access.md)).
+3. **A transition is a pure function**: input → `Result<Event, …errors>`; `evolve` applies the event to the state ([model.md](model.md)). A use case only loads, calls the transition, evolves, and saves. The repository stores the evolved state and never interprets an event ([repository.md](repository.md)).
+4. **With permissions, each is a flag on the actor.** A flag that decides alone, without state or ownership, is a gate: the use case checks it first, before any find, and fails with the module's `NotAllowedTo…Error`. A flag the decision combines with state or ownership ("the creator, or anyone permitted") is a rule in the transition's list, so a gate never turns "creator OR permitted" into "creator AND permitted". A read rule filters by visibility; it never rejects. Without an access model there is no actor until a rule or a reader of the event needs the user ([access.md](access.md)).
 5. **The domain stays truthful.** Retries and idempotency are softened at the HTTP edge with `catchTag`.
 6. **Decode at every edge**, with no branching or `Effect.die` before the decode.
 7. **A client-actionable failure is a typed error**; corrupt data and infrastructure failures die.
@@ -57,12 +57,23 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 ## Conventions
 
-- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`, `ExhaustiveRecord`). When a name or type has no truthful home, reshape the design instead.
+- Invent nothing the rule doesn't need: no wrapper types, helper abstractions, or combinators beyond the `lib/` helpers this skill defines (`prefixedId`, `checkRules`, `withOptionalTag`, `dateTimeUtcFromDate`, `matchTag`, `messageWithDefault`). When a name or type has no truthful home, reshape the design instead.
+- Copy the example's shape, never its weight. `absence` has tenants, creators, related users, and five flags; a host with one boolean role has none of that. Each part arrives with the first reader that needs it, and a part nothing reads today is left out:
+
+  | Part | Exists once |
+  |---|---|
+  | actor flag | a rule reads it, and two actors the host can build differ on it; flags that always agree are one flag |
+  | second actor type in a module | a core type's flags differ from the module's other core types' |
+  | rule type and list | a transition has two rules; one rule is called directly ([rules.md](rules.md)) |
+  | `Result` on a transition | the transition has a rule; without one it returns the event |
+  | visibility | two readers see different rows ([access.md](access.md)) |
+  | `actor`, `actorId` | a rule or a reader of the event needs the user ([access.md](access.md)) |
 - Data is `Schema.Struct` / `Schema.TaggedStruct` plus `type X = typeof X.Type`; values can be spread. Errors are the only classes. No `Schema.Class` for data: encoding checks the instance, so a spread copy fails with `InvalidType`.
 - Every signature writes out its errors; never hide them behind a union alias.
 - An error is an `Effect`: return or `yield*` `new X(…)`, never `Effect.fail(new X(…))`. Domain code returns a `Result`, so it uses `Result.fail(new X(…))`.
 - Branch on a tag with `Match.valueTags` (exhaustive); never `_tag ===` or ternary chains.
-- When the result type must follow the input's tag, use `matchTag` ([repository.md](repository.md)). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
+- When the result type must follow the input's tag, use `matchTag` ([http.md](http.md), the HTTP error mapper). `Match` returns the union of all branches, which a generic signature only accepts with a cast. Never hand-write the mapped type or cast.
+- Make illegal states unrepresentable; make illegal calls die. A state the types allow but the domain doesn't is a wrong state design; a call that only a bug can make (`evolve` yielding nothing from nothing) earns one `Effect.die`, not overloads ([repository.md](repository.md)).
 - Time is `DateTime.Utc` everywhere except at Prisma ([model.md](model.md)).
 - A port is a `Context.Service` in the module that owns it; ports owned elsewhere sit in `shared/`. Ids are imported from the module that owns them, never copied into `shared/`: an id is a stable branded value, and a second path to it only drifts.
 - Spans: `Effect.fn("ArchiveAbsenceService.archiveAbsence")` on every service method. The span records a domain error with full context before the edge maps it.
@@ -74,6 +85,8 @@ lib/          cross-module helpers
 shared/       ports owned by other modules
 absence/      one folder per layer: domain/, application/, view/, infrastructure/, http/
 ```
+
+A module is one core type: its id, states, transitions, rules, events, errors, and repository. A second core type with its own id and events (a membership inside an organization) is its own module, even when it exists only inside the first; what crosses between them is an event and a policy, never a second write in the first's repository. A host with several bounded contexts nests modules under their context (`administration/absence/`), names the contexts and their dependencies in its `CONTEXT.md`, and lets a context reach another only through a port in its own `shared/`.
 
 Imports point inward. `domain/` imports only `domain/`, `lib/` and `shared/`; `application/` and `view/` import those too, never each other. `infrastructure/` imports any layer but `http/`, and `http/` imports any layer. Only the host's wiring imports `http/`. A module reaches another only through a port in `shared/`, or another module's id.
 
@@ -90,10 +103,21 @@ AbsenceController.archiveAbsence({ params })
 │  ├─ AbsenceRepository.findActiveAbsenceById(…)
 │  ├─ archiveAbsence({ absence, actor, now })
 │  │  └─ checkRules(archiveAbsenceRules, input)
-│  └─ AbsenceRepository.publishAbsenceEvent(event)
+│  ├─ evolveAbsence({ absence: before, event })
+│  └─ AbsenceRepository.saveAbsence({ event, before, after })
 ├─ AbsenceViews.getAbsenceById({ organizationId, visibility, absenceId })
 └─ any domain error → absenceHttpErrorFromAbsenceError(error)
 ```
+
+## Delivery
+
+The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). The PRs are its use cases, one at a time. The exhaustive matches (`evolve` over events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile, so no PR has to carry every layer of every use case to be checked. A use case adds nothing to the repository.
+
+1. **Story**: the story's diff, agreed with the user ([story.md](story.md)). Code may ride along only for the tracer bullet.
+2. **Tracer bullet**: one core type, one use case, one view, end to end with the host's wiring. This PR holds the module's shape, so review it for structure.
+3. **One use case or one view per PR**: its transition, rules, event, `evolve` branch, endpoint, handler, client, and the story's `Code` cells it fills in. Review it for the rules. Reads come with the use case that first needs them.
+
+A PR that adds a part no use case in it reads (an actor flag, a find, an error) is early; move the part to the PR with its reader.
 
 ## Read next
 
@@ -103,17 +127,17 @@ AbsenceController.archiveAbsence({ params })
 | Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
 | Adding a rule, or deciding where a constraint lives | [rules.md](rules.md) |
 | Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |
-| Loading state for a transition or storing its event; `matchTag` | [repository.md](repository.md) |
+| Loading state for a transition or saving the evolved state | [repository.md](repository.md) |
 | A read for a client: a get, a list, a filter | [views.md](views.md) |
 | An endpoint, middleware, HTTP error, controller, or retry | [http.md](http.md) |
 | Web code that shows, edits, or checks domain values | [client.md](client.md) |
 | Naming anything | [naming.md](naming.md) |
 | Writing, keeping, or judging a test | [testing.md](testing.md) |
-| Writing or changing a story, its design included | [story.md](story.md) |
+| Writing or changing a story | [story.md](story.md) |
 
 ## Call trees
 
-A **call tree** is the one format for a call path, in discussion and in a story's design; prefer it, tables, and signatures over prose:
+A **call tree** is the one format for a call path, in discussion and in a PR; prefer it, tables, and signatures over prose:
 
 ```diff
   ArchiveAbsenceService.archiveAbsence({ organizationId, actor, absenceId })
@@ -123,7 +147,8 @@ A **call tree** is the one format for a call path, in discussion and in a story'
 - │    : Effect<void>
 + ├─ archiveAbsence({ absence, actor, now })
 + │    : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
-  └─ AbsenceRepository.publishAbsenceEvent(event)
++ ├─ evolveAbsence({ absence: before, event }): Option<Absence>
+  └─ AbsenceRepository.saveAbsence({ event, before, after })
        : Effect<void, AbsenceChangedConcurrentlyError>
 ```
 

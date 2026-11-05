@@ -30,17 +30,18 @@ export type AbsenceActor = {
 }
 ```
 
-- One actor per core type: `userId`, capability flags, and facts about the actor loaded per request.
+- One actor per module: `userId`, capability flags, and facts about the actor loaded per request. A core type gets its own actor when its flags differ from the others'; two actors whose flags always agree are one actor.
 - Flags name capabilities, not roles: capabilities are granted per person, so no role name fits.
+- A flag exists when a rule reads it and two actors the host can build differ on it. A host whose only role is "admin" has one flag per module (`mayManageAbsences`), not one per verb: flags that always agree are one flag, and the second arrives with the role that splits them.
 - A permission becomes a flag; a rule or the visibility rule decides. A gate would turn "creator OR permission" into "creator AND permission". A pure capability (export) costs one flag plus a one-line rule.
 
 | Who triggers the intent | Actor |
 |---|---|
 | A user, synchronously (HTTP) | built per request by the permission adapter |
 | A user, deferred (queued command, scheduled export) | rebuilt at run time from the persisted `userId`; permissions may have changed since enqueue |
-| The system: time, rule, or another module's event | open: decide with the first real case (actor-less transition with its own rule list vs. an actor variant every rule handles). The trigger event's `actorId` is not this actor. |
+| The system: time, rule, or another module's event | no actor. The transition takes no `actor`, its rules are the constraints that still hold without one (time, state), and its event carries no `actorId`. The trigger event's `actorId` is not this actor. |
 
-Never build a user actor with every flag set for a job.
+Never build a user actor with every flag set for a job, and never add an actor variant every rule has to handle: a system intent is its own transition.
 
 ## Permission adapter
 

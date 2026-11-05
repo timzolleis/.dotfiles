@@ -118,7 +118,25 @@ export class AbsenceNotFoundHttpError extends Schema.TaggedError<AbsenceNotFound
 - Fields: `message` only. Add a field only when the client needs it to act (`editableUntil`); never internal ids or actor data.
 - Status: not found / invisible 404; not allowed 403; invalid value or referenced entity 422; wrong state, closed window, race, existing id 409.
 
-The mapper is `matchTag` ([repository.md](repository.md), Writes) with `Out` inferred:
+The mapper is `matchTag`, the one helper for tag dispatch whose result type follows the tag:
+
+```ts
+// lib/match-tag.ts
+type Tagged = { readonly _tag: string }
+
+export type MemberWithTag<U extends Tagged, Tag extends U["_tag"]> = Extract<U, { readonly _tag: Tag }>
+
+type HandlersByTag<U extends Tagged, Out> = { readonly [Tag in keyof Out]: (value: MemberWithTag<U, Tag & U["_tag"]>) => Out[Tag] }
+
+export const matchTag = <U extends Tagged>() =>
+  <Out extends { readonly [Tag in U["_tag"]]: unknown }>(
+    handlers: HandlersByTag<U, Out> & { readonly [Tag in Exclude<keyof Out, U["_tag"]>]: never },
+  ) => {
+    // Indexing the mapped type with a generic Tag keeps value and result correlated (TypeScript #47109).
+    const handlerByTag: HandlersByTag<U, Out> = handlers
+    return <Tag extends U["_tag"]>(value: MemberWithTag<U, Tag>): Out[Tag] => handlerByTag[value._tag](value)
+  }
+```
 
 ```ts
 // absence/http/absence-http-errors.ts
@@ -127,6 +145,8 @@ export const absenceHttpErrorFromAbsenceError = matchTag<AbsenceError>()({
   // …one per domain error
 })
 ```
+
+- `matchTag<U>()(handlers)`: one handler per tag of `U`, `Out` inferred from the handlers; the result is `<Tag>(value: MemberWithTag<U, Tag>) => Out[Tag]`. The HTTP mapper is its only use; everywhere else the union `Match.valueTags` returns is fine.
 
 - The mapper's input is the errors that reach HTTP. An error the edge catches on every path gets no HTTP class; exclude it, with its reason:
 
@@ -194,4 +214,4 @@ archiveAbsenceService.archiveAbsence(command).pipe(
 )
 ```
 
-A create retried with the same client id catches `AbsenceAlreadyExistsError` and reads back; visibility decides whether that is 200 (same creator) or 404 (someone else's id).
+A create retried with the same client id catches `AbsenceChangedConcurrentlyError` and reads back; visibility decides whether that is 200 (same creator) or 404 (someone else's id).

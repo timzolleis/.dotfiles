@@ -21,11 +21,11 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 
 ## Stories
 
-The use cases of one area, with its rules, examples, and design, live in its story ([story.md](story.md)).
+The use cases of one area, with its rules, examples, lifecycle, and decisions, live in its story ([story.md](story.md)).
 
 ## Service
 
-One `Context.Service` per use case. Every one is the same three steps: find the narrowed state, call its transition, publish the event. Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
+One `Context.Service` per use case. Every one is the same four steps: find the narrowed state, call its transition, `evolve` the event onto the state, save. The last line is the same in every use case; a create has no find and passes `before: Option.none()`. A use case whose flag decides alone gates first: `if (!actor.mayManageAbsences) return yield* new NotAllowedToManageAbsencesError({ actorId: actor.userId })` before the find ([access.md](access.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
 
 ```ts
 // absence/application/archive-absence-service.ts
@@ -44,7 +44,8 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
         const now = yield* DateTime.now
         const absence = yield* absenceRepository.findActiveAbsenceById({ organizationId, absenceId })
         const event = yield* Effect.fromResult(archiveAbsence({ absence, actor, now }))
-        yield* absenceRepository.publishAbsenceEvent(event)
+        const before = Option.some(absence)
+        yield* absenceRepository.saveAbsence({ event, before, after: evolveAbsence({ absence: before, event }) })
       }),
     })
   }))
@@ -77,6 +78,7 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 ├─ reassignAbsence({ absence, actor, assigneeId, assigneeIsOrganizationMember, now })
 │    : Result<AbsenceReassignedEvent, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
 │  └─ checkRules(reassignAbsenceRules, input)
-└─ AbsenceRepository.publishAbsenceEvent(event)
+├─ evolveAbsence({ absence: before, event }): Option<Absence>
+└─ AbsenceRepository.saveAbsence({ event, before, after })
      : Effect<void, AbsenceChangedConcurrentlyError>
 ```
