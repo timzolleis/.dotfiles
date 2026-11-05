@@ -14,7 +14,7 @@ Start by asking for what only they have, in one message: the goal in their words
 
 ## 2. Explore
 
-A conversation, one topic per turn, in the order the decisions depend on each other: the use cases → what the domain decides on and its lifecycle → the rules and their edge cases → effects on other areas → the UI. A turn is as long as its topic needs and no longer, and it is always one of:
+A conversation, one topic per turn, in the order the decisions depend on each other: the use cases → where they live: transitions on a module that exists, or a new core type with its own identity and lifecycle (a value that dies with its owner is a field on the owner, not a module) → the rules and their edge cases → effects on other areas → the UI. A turn is as long as its topic needs and no longer, and it is always one of:
 
 - **Options**: two or three approaches, each in a line or a short sketch, with what it costs and what it rules out; your recommendation and why; the question. Discussion material belongs here: a lifecycle diagram, a call tree, a signature, a table of cases: anything that makes the choice concrete, knowing none of it goes into the story.
 - **Pushback**: a constraint they gave that conflicts with another, a rule whose consequence they may not want, an edge case that would make the code much harder. Name it, say what it costs, ask.
