@@ -1,111 +1,111 @@
 ---
 name: herdr
-description: "Control Herdr panes, tabs, workspaces, commands, dev servers, other background processes, and agents. Use for subagents when the user or another skill explicitly asks for or requires them. Requires HERDR_ENV=1."
+description: "Control the Herdr app's spaces, tabs and panes and its herdr-core (`hc`) terminals: commands, dev servers, other background processes, and agents. Use for subagents when the user or another skill explicitly asks for or requires them. Requires HC_TERMINAL_ID."
 ---
 
 # Herdr
 
-Herdr organizes terminals into workspaces, tabs, and panes, detects coding agents in panes, and exposes the current session through the `herdr` CLI.
+Herdr is a desktop app: spaces hold tabs, tabs hold panes. Every pane shows a terminal run by herdr-core, whose CLI is `hc`. `hc` starts, reads, messages, waits on and ends terminals; `herdr-app` changes only what the person sees. The old terminal multiplexer `herdr` (`herdr pane …`, `HERDR_ENV`, `HERDR_PANE_ID`) is gone: never call it.
 
 Before any control command:
 
 ```bash
-test "${HERDR_ENV:-}" = 1
+test -n "${HC_TERMINAL_ID:-}"
 ```
 
-If it fails, say you are not running inside Herdr and stop.
+If it fails, say you are not running in a herdr-core terminal and stop.
 
-## CLI
+## Manuals
 
-The installed binary owns the syntax. Run `herdr --help`, then a group without a subcommand (`herdr agent`, `herdr pane`, `herdr workspace`, `herdr tab`, `herdr worktree`, …) to list its commands. Bare `herdr` launches the TUI; never run it. Never probe a mutating nested command by omitting arguments: `herdr workspace create` runs with defaults.
+The installed binaries own the syntax. Read `hc --skill` before driving terminals and `herdr-app --skill` before changing the window; `hc <command> --help` and `herdr-app commands` list exact arguments. Never launch bare `hc` or `herdr-app`: both open something interactive.
 
-Commands return JSON. Take IDs and state from responses, never predict them. Chain steps in one bash call and pipe through `jq` to keep only the fields you need. Server errors are JSON on stderr with exit 1; syntax errors exit 2.
+## The model
+
+| Thing | Is | Rule |
+|---|---|---|
+| Space | one work stream: a branch, a story | named after its task; one per stream, never per agent |
+| Worktree | a checkout of one branch | only agents that write code get one; reviewers share the checkout |
+| Slice | a worktree of a stream's sub-branch `<branch>--<slice>` (a stacked PR) | no space of its own: its agent's tab sits in the stream's space |
+| Tab | one agent, named after its job | a space starts with one tab, its orchestrator's; a reviewer set shares one tab |
+| Pane | one terminal | never split an agent into another agent's tab |
+| Background terminal | setup, dev server | hidden (no `herdr.space` label); the status bar shows and peeks them |
+| Inbox | what needs the person | decide, review, verify, do; updates are quiet |
+
+Never change the person's view (`layout.*`, `space.select`, `tab.select`, focus) unless they ask: they work in this window. A screenshot that needs another view switches, shoots and switches back in one command.
 
 ## Codemode tools
 
-In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. Sub-agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
+In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. `workspace` is a space id; `pane` and `rootPane` are terminal addresses (`t7`). Agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
 
-- Delegate: `tools.subagent_launch({ name, cwd, prompt })`; add `model` and `thinking` only when the user names them. The tool places the pane: next to you, or in the `agent` tab of the worktree that holds `cwd`. Pass `tab` only to group agents that belong together (`review-pr`); a group reports in one message when its last agent settles.
-- A branch with its own orchestrator, when the user asks for one:
+- Delegate: `tools.subagent_launch({ name, cwd, prompt, task, role })`. It opens a new tab named after the agent in your space (`tab` groups a set, which reports in one message). `task` (default the brief's first line) and `role` (`impl` | `review`) show in the agents list. Add `model` and `thinking` only when the user names them.
+- A finished agent's terminal stays open and its tab settles (folded into `+N` in the tab bar) so the person can read it. `subagent_send({ name, text })` steers a running or finished agent. `subagent_stop` only when the user asks or the work is merged.
+- A stream with its own orchestrator, when the user asks for one:
 
 ```js
-const wt = await tools.worktree_create({ cwd, branch, startPi: false });
+const wt = await tools.worktree_create({ cwd, branch, task: "Export architecture", startPi: false });
 await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrator: true, prompt });
 ```
 
-- In a ship project the ship plugin provisions a new worktree in the background and adds tabs `dev` (setup, then `ship up`) and `terminal`. Find them with `tools.pane_list({ workspace: wt.workspace })`; drive them with `pane_run`, `pane_wait`, `pane_read`.
-- The dev server is ship's, one per checkout: `tools.dev_server({ cwd })` returns its URL and pane, and starts `ship up` in the `dev` tab only when the URL doesn't answer. Use that URL; start no server of your own.
-- An orchestrator keeps its pane and its own sub-agent tools; it reports each time it settles.
-- An agent in a worktree belongs in that worktree's `agent` tab, where the user looks for it: launch it in `wt.rootPane` (`orchestrator: true`), not as a new pane beside it.
-- A finished agent's pane stays open: the user may want to read it or ask it something. Never `subagent_stop` or `pane_close` a finished agent unless the user asks.
-- `worktree_remove` deletes the checkout, and in a ship project the plugin tears the workspace down. Only when the user asks.
+- `worktree_create` puts the checkout in `~/.herdr/worktrees/<repo>/<branch>`, opens it as a space with one tab, and runs setup (`ship create --bare` in a ship project, else the package install and `.env` copies) in a hidden terminal. `serve: true`, or `dev_server({ cwd })` later, starts the dev server hidden and returns its URL. Start no server of your own.
+- Slices: `worktree_create({ cwd, parent: <stream branch>, branch: "api" })` makes `<parent>--api` with no space and returns `{ path, branch }`; launch the slice agent with `subagent_launch({ cwd: path, ... })`. `worktree_list({ cwd })` shows streams with their slices, dirty and merged.
+- A bare worktree has `DATABASE_URL=` empty: anything that needs the database fails until `ship create <project> <branch>` upgrades it with its own clone.
+- An orchestrator keeps its terminal and its tools, outlives you, and reports each time it settles; its reports show in your chat without starting a turn, except errors and exits.
+- `worktree_remove({ workspace })` or `({ path })` for a slice closes the space, deletes the checkout and runs `ship down`. Only when the user asks; it refuses an unmerged slice without `force`.
 
-## Panes, agents, IDs
+## Identity and the Inbox
 
-- Pane commands control raw terminals: shells, tests, servers. Agent commands control the recognized agent in a pane and report `idle`, `working`, `blocked`, `done`, or `unknown`.
-- `idle` and `done` mean ready for input. `blocked` means an approval or question UI. `unknown` is unclassified and does not prove completion.
-- IDs are opaque (`w1`, `w1:t1`, `w1:p1`) and never reused. After `pane move`, use `.result.move_result.pane.pane_id` or the agent name.
-- Agent commands take a live agent name (`[a-z][a-z0-9_-]{0,31}`, unique) or the pane ID hosting it. The name clears when the agent exits.
-- Your pane is `$HERDR_PANE_ID` (also `$HERDR_TAB_ID`, `$HERDR_WORKSPACE_ID`). Target it with `--current`; commands without a target may hit the UI-focused pane, which can be the user's.
-- New IDs: `workspace create` → `.result.workspace`, `.result.tab`, `.result.root_pane`; `tab create` → `.result.tab`, `.result.root_pane`; `pane split` → `.result.pane`.
+- `agent_status({ task, now })`: set `task` (2-6 words, a ticket title) when you take a new piece of work, `now` when a step starts. The agents list shows both.
+- `inbox_send` for a decision only the person can make (`:::question` blocks, your pick as `Recommended:`), something only they can do (`:::action`), a check in the running app (`verify: { url, steps }`), or finished long work. `inbox_guide` for a code change (`base`: the slice below, for stacked PRs). `inbox_steps` keeps the thread's plan current. `thread` defaults to the branch. `supersedes` withdraws questions that no longer apply.
+- Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person; each slice reaches the Inbox only after a reviewer agent passed it; anything the person can see gets a verify item.
 
-## Start and prompt an agent
+## Terminals and addresses
 
-Use a sibling pane in the current tab and `$PWD`; create a workspace, tab, worktree, or other cwd only when the user asks. Honor a requested direction; otherwise check `herdr pane layout --pane "$HERDR_PANE_ID"` and split a wide pane right, a narrow or tall one down. Avoid repeated same-direction splits.
+- Your terminal is `$HC_TERMINAL_ID`. Addresses (`t7`) are never reused; names (`review`) are unique among live terminals. `hc get $HC_TERMINAL_ID` shows your labels: `herdr.space` and `herdr.tab` are the space and tab you are in.
+- A terminal shows up in the window only with both labels: `hc run --bg --label herdr.space=<space> --label herdr.tab=<tab> …` adds a pane to that tab. A tab id Herdr doesn't know becomes a new tab; name it with `herdr-app do tab.rename --id <tab> --name <name>` once the app has adopted it. Unlabeled terminals stay hidden; a sub-agent without labels shows under its parent in the agents list.
+- Terminals you start with `hc run` are your children and end when you end, unless `--outlive-parent`; `--no-parent` makes a plain pane. Pass `--no-notify` when you wait for the result yourself, or hc types notes about it into your input.
+- `herdr-app ls` lists spaces, tabs and their terminals; use its ids rather than guessing.
 
-```bash
-p=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq -r .result.pane.pane_id)
-herdr agent start reviewer --kind pi --pane "$p"
-herdr agent prompt reviewer "Review the current diff; report only actionable findings." --wait --timeout 120000
-```
+## Start an agent
 
-- `agent start` needs a pane at its shell prompt and never creates layout. Use the kind the user names, else `pi`. Native agent arguments go after `--`. `agent_not_ready` means blocked at startup: wait for idle before prompting.
-- `--wait` returns at the first `idle`, `done`, or `blocked`; do not add `--until` for those. Use `agent wait <name> --until blocked` only for a state-specific wait.
-- `agent_prompt_stalled` or `timeout` does not prove the prompt was lost. Inspect `agent get` and `agent read` before resending.
-- `agent_blocked` or a `blocked` result: read the dialog and ask the user before answering it. UI keys: `herdr agent send-keys <name> esc`.
-
-## Pi agents
-
-Model and thinking are pi flags, after `--`. Pass them only when the user asks; otherwise pi uses the user's defaults.
+Run agents interactively, never in a one-shot print mode. node tools such as pi need a login shell, so start them through `zsh -lic`:
 
 ```bash
-herdr agent start reviewer --kind pi --pane "$p" -- --model claude-sonnet-5-5 --thinking high --name reviewer
+hc run --bg --no-notify --name reviewer --cwd "$PWD" \
+  --label herdr.space=<space> --label herdr.tab=<tab> \
+  -- zsh -lic 'exec pi "$@"' pi --name reviewer -- "Review the current diff; report only actionable findings."
 ```
 
-- `--model` takes an ID or pattern, optionally `provider/id`; `--model sonnet:high` sets both. `pi --list-models [search]` lists models.
-- `--thinking`: `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, `max`.
-- `--name` names pi's session; reuse the Herdr agent name.
-- Pi never reports `blocked`. A question ends its turn with `done`; read the reply before prompting again.
+- Model and thinking are pi flags: `--model claude-sonnet-5-5`, `--thinking high`. Pass them only when the user asks. `pi --list-models [search]` lists models.
+- `--name` names pi's session; reuse the terminal name. `--session-id <uuid>` fixes the session id, so its file is `~/.pi/agent/sessions/*/*_<uuid>.jsonl`.
+- pi reports its status itself (`working`, `idle`, `done`); `hc get <t>` shows it with a `turn` counter. `hc wait <t>` returns at once when the agent is not working, so a freshly started agent with a task in argv may look idle: follow `hc events --json --terminal <t>` for the next `turn` event instead, or start it without a task and use `hc send --wait <t> "<task>"`.
+- `blocked` means a person is needed: read the screen and ask the user.
 
 Read pi's reply from its session file, not the screen:
 
 ```bash
-session=$(herdr agent get reviewer | jq -r .result.agent.agent_session.value)
 jq -rs '[.[] | select(.message.role == "assistant")] | last | .message.content[] | select(.type == "text") | .text' "$session"
 ```
 
-## Commands in another pane
+## Commands in another terminal
 
 ```bash
-p=$(herdr pane split --current --direction right --cwd "$PWD" --no-focus | jq -r .result.pane.pane_id)
-herdr pane run "$p" "just test"
-herdr pane wait-output "$p" --match "test result" --timeout 120000
-herdr pane read "$p" --source recent-unwrapped --lines 120
+t=$(hc run --bg --json --no-parent --cwd "$PWD" --label herdr.space=<space> --label herdr.tab=<tab> | jq -r .address)
+hc send "$t" "just test"
+hc wait "$t" --output "test result" --timeout 120
+hc read "$t" --lines 120
 ```
 
-- `wait-output` also matches output that already exists. `--regex` takes a Rust regex. Without `--timeout` it waits forever.
-- Sources: `visible` (viewport), `recent` (soft-wrapped), `recent-unwrapped` (logs, transcripts), `detection` (agent-detection snapshot). Add `--format ansi` when colors are evidence.
-- When a non-pi agent's reply does not fit in a larger read, ask it to write the reply to a temp Markdown file and answer with the path. Fallback only.
+- `hc run` without a command starts a login shell. `hc send` types a line and presses Enter.
+- `hc wait --output X` matches plain text printed after the wait starts; read first when the line may already be on screen. It also ends on exit, error or blocked, and on its timeout (default 180 s, then wait again).
+- `hc read --lines N` prints the screen plus N lines of history.
+- Never sleep or poll for anything hc runs: wait with `hc wait`.
 
 ## Safety
 
-- Use `--no-focus` unless the user asked to switch context.
-- Target with `--current`, an explicit pane ID, or a unique agent name, never another client's focus.
-- Close only workspaces, tabs, panes, and sessions you created, unless the user asks. Never add `--group` to bypass `workspace_group_close_required`.
-- Use `--trust-repository` only after the user verified the repository; never as a retry.
-- Check `herdr status` before relying on new server features. A missing method is not permission to stop or upgrade the server.
-- Never run `herdr server stop` or kill the Herdr process unless the user intends it. Experiment in a named test session.
+- Changing the window (new spaces, tabs, splits, focus) only when the user asked or a tool above does it for them.
+- End only terminals you started: `hc kill <t>; hc rm <t>`. `hc ls` lists every terminal of the user, not just yours.
+- Never `hc server stop`, restart the core, or quit the app unless the user intends it.
 
 ## Other machines
 
-Before any `herdr --machine` command or `herdr machine` profile change, read [references/remote-machines.md](references/remote-machines.md).
+`hc machine ls` lists machines. `hc run --on <machine> …` returns `machine/t7`: use that full address afterwards. `hc exec --on <machine> <cmd>` runs one command; `hc file read|write|edit --on <machine>` touches remote files. `herdr-app do space.new --machine <machine> --folder <path>` opens a space there. The codemode tools act on this machine only.
