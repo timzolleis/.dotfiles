@@ -33,6 +33,8 @@ The installed binaries own the syntax. Read `hc --skill` before driving terminal
 
 Never change the person's view (`layout.*`, `space.select`, `tab.select`, focus) unless they ask: they work in this window. A screenshot that needs another view switches, shoots and switches back in one command.
 
+The person's own mods are the `-plus` ones in `~/.config/herdr-app/mods`, with the layout `layouts/tim.json`. Edit them there: Herdr reloads only real files there, never through a symlink. After a change, `~/.dotfiles/dot herdr save` copies them into the dotfiles.
+
 ## Codemode tools
 
 In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. `workspace` is a space id; `pane` and `rootPane` are terminal addresses (`t7`). Agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
