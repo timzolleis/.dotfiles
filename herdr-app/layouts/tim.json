@@ -1,0 +1,108 @@
+{
+  "id": "root",
+  "type": "row",
+  "cloned_from": { "name": "main", "version": "0.1.13" },
+  "preview": "layouts/tim.svg",
+  "titlebar": "none",
+  "traffic_lights": [12, 16],
+  "theme": { "light": "linear-light", "dark": "linear" },
+  "ui_font": "Geist",
+  "background": "canvas",
+  "terminal_padding": [12, 14],
+  "children": [
+    {
+      "id": "sidebar",
+      "type": "column",
+      "size": { "px": 260 },
+      "min": 44,
+      "max": 480,
+      "background": "chrome",
+      "resizable": false,
+      "children": [
+        { "id": "brand", "type": "block", "size": { "px": 46 }, "window_drag": true, "content": { "mod": "workspace-chrome-plus" } },
+        {
+          "id": "sidebar-lists",
+          "type": "column",
+          "children": [
+            { "id": "spaces", "type": "block", "size": { "weight": 0.8 }, "min": 90, "content": { "mod": "spaces-plus" } },
+            { "id": "agents", "type": "block", "size": { "weight": 1.6 }, "min": 90, "content": { "mod": "agents-plus" } },
+            { "id": "inbox", "type": "block", "size": { "weight": 0.5 }, "min": 90, "content": { "mod": "inbox-plus", "props": { "view": "side" } } }
+          ]
+        },
+        { "id": "sidebar-footer", "type": "block", "size": { "px": 69 }, "content": { "mod": "workspace-chrome-plus", "props": { "footer": true } } }
+      ]
+    },
+    {
+      "id": "work",
+      "type": "column",
+      "resizable": false,
+      "padding": [8, 8],
+      "children": [
+        {
+          "id": "work-card",
+          "type": "column",
+          "background": "background",
+          "radius": 10,
+          "border": { "width": 1, "color": "border" },
+          "shadow": "sm",
+          "resizable": false,
+          "children": [
+            { "id": "tabs", "type": "block", "size": { "px": 42 }, "window_drag": true, "content": { "mod": "tabs-plus" } },
+            {
+              "id": "work-body",
+              "type": "row",
+              "divider": { "width": 1, "color": "border" },
+              "children": [
+                {
+                  "id": "center",
+                  "type": "stack",
+                  "active": "main",
+                  "children": [
+                    {
+                      "id": "main",
+                      "type": "block",
+                      "content": {
+                        "tab": "active",
+                        "pane": {
+                          "gap": 6,
+                          "radius": 8,
+                          "background": "background",
+                          "lone": false,
+                          "border": { "width": 1, "color": "border" },
+                          "focus": { "width": 1, "color": "accent" },
+                          "header": { "content": { "mod": "pane-plus" }, "height": 28, "position": "top", "reveal": "always" }
+                        }
+                      }
+                    },
+                    { "id": "inbox-screen", "type": "block", "content": { "mod": "inbox-plus", "props": { "view": "screen" } } }
+                  ]
+                },
+                {
+                  "id": "panel",
+                  "type": "column",
+                  "hidden": true,
+                  "size": { "px": 400 },
+                  "min": 280,
+                  "max": 1100,
+                  "children": [
+                    {
+                      "id": "panel-body",
+                      "type": "stack",
+                      "active": "changes",
+                      "children": [
+                        { "id": "files", "type": "block", "content": { "mod": "files-plus" } },
+                        { "id": "changes", "type": "block", "content": { "mod": "changes-plus" } },
+                        { "id": "inbox-panel", "type": "block", "content": { "mod": "inbox-plus", "props": { "view": "panel" } } }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        },
+        { "id": "status", "type": "block", "size": { "px": 30 }, "content": { "mod": "status-plus" } }
+      ]
+    }
+  ]
+}

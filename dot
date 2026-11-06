@@ -9,6 +9,9 @@
 #   agents/          own skills; each ~/.agents/skills/<skill> is a directory
 #                    symlink into this repo
 #   packages/bundle  Brewfile
+#   herdr-app/       a copy of ~/.config/herdr-app's own mods, layout and keys;
+#                    copied, not linked: Herdr reloads a mod only when a real
+#                    file under ~/.config/herdr-app changes
 #
 set -euo pipefail
 
@@ -16,6 +19,8 @@ DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 readonly DOTFILES_DIR
 readonly BREWFILE="${DOTFILES_DIR}/packages/bundle"
 readonly SKILLS_DIR="${DOTFILES_DIR}/agents/.agents/skills"
+readonly HERDR_HOME="${HOME}/.config/herdr-app"
+readonly HERDR_COPY="${DOTFILES_DIR}/herdr-app"
 readonly PI_PACKAGE="@earendil-works/pi-coding-agent"
 readonly NODE_VERSION="24"
 
@@ -45,6 +50,37 @@ cmd_stow() {
     mkdir -p "${HOME}/.agents/skills"
     stow --dir "$DOTFILES_DIR" --target "$HOME" --restow agents
     ok "stowed agents/"
+}
+
+# ─── herdr ───────────────────────────────────────────────────────────────────
+# The person's own Herdr files: the -plus mods (the app regenerates their .d.ts
+# and jsconfig.json), the layout, keys, settings and themes.
+herdr_rsync() {
+    # rsync takes the first rule that matches: the generated files are excluded first.
+    rsync -a --delete --delete-excluded \
+        --exclude='*.d.ts' --exclude='jsconfig.json' \
+        --include='mods/' --include='mods/*-plus/' --include='mods/*-plus/**' --exclude='mods/**' \
+        --include='layouts/' --include='layouts/tim.*' --exclude='layouts/**' \
+        --include='themes/' --include='themes/**' \
+        --include='keys.json' --include='settings.json' \
+        --exclude='*' \
+        "$@"
+}
+
+cmd_herdr() {
+    case "${1:-}" in
+        save)
+            mkdir -p "$HERDR_COPY"
+            herdr_rsync "${HERDR_HOME}/" "${HERDR_COPY}/"
+            ok "copied ${HERDR_HOME} → ${HERDR_COPY}; review with: git -C $DOTFILES_DIR status herdr-app" ;;
+        restore)
+            [[ -d "$HERDR_COPY" ]] || { warn "no ${HERDR_COPY} yet"; return; }
+            mkdir -p "$HERDR_HOME"
+            # No --delete back into the app: it keeps files of its own there.
+            rsync -a --exclude='*.d.ts' --exclude='jsconfig.json' "${HERDR_COPY}/" "${HERDR_HOME}/"
+            ok "copied ${HERDR_COPY} → ${HERDR_HOME}" ;;
+        *) err "usage: dot herdr save|restore"; exit 1 ;;
+    esac
 }
 
 # ─── doctor ──────────────────────────────────────────────────────────────────
@@ -85,6 +121,13 @@ cmd_doctor() {
     done
     ((failures += skill_failures))
     [[ $skill_failures -eq 0 ]] && ok "all skills link into the repo"
+
+    hdr "Herdr copy"
+    if [[ -d "$HERDR_COPY" ]] && herdr_rsync --dry-run --itemize-changes "${HERDR_HOME}/" "${HERDR_COPY}/" | grep -q .; then
+        warn "~/.config/herdr-app differs from the copy (run: dot herdr save)"
+    else
+        ok "herdr-app copy is current"
+    fi
 
     hdr "Secret guard"
     local tracked
@@ -140,6 +183,7 @@ cmd_init() {
 
     hdr "4/4 Symlinks"
     cmd_stow
+    cmd_herdr restore
 
     hdr "Done — manual next steps"
     echo "  1. pi            # first run reinstalls packages from settings.json, then: /login"
@@ -156,6 +200,9 @@ cmd_update() {
     brew bundle --file "$BREWFILE"
 
     cmd_stow
+
+    hdr "Herdr"
+    cmd_herdr restore
 }
 
 # ─── brew-dump ───────────────────────────────────────────────────────────────
@@ -177,6 +224,8 @@ Commands:
   doctor      Verify tools, symlinks, and that no secrets are tracked
   update      git pull + brew bundle + stow
   brew-dump   Regenerate packages/bundle from installed packages
+  herdr save|restore
+              Copy Herdr's mods, layout and keys into the repo, or back
 EOF
 }
 
@@ -186,5 +235,6 @@ case "${1:-}" in
     doctor)    cmd_doctor ;;
     update)    cmd_update ;;
     brew-dump) cmd_brew_dump ;;
+    herdr)     cmd_herdr "${2:-}" ;;
     *)         usage; [[ -n "${1:-}" ]] && exit 1 ;;
 esac
