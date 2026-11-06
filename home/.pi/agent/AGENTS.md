@@ -6,16 +6,12 @@ Speak in plain technical english. Lead with the point, do not use long prose. Us
 - Edit files with the `edit` tool: one call per file, all of that file's changes in it. A script (python, sed, a codemod) only for one mechanical change across many files; read its diff afterwards.
 - Screenshots (`shot`, verify-ui) only when UI work needs visual verification, and then once at the end, to find and fix issues. Normal implementation work takes none.
 
-<!-- plannotator-inbox:start v8 · added by Plannotator. Remove it in the Inbox's Settings or with `plannotator uninstall` -->
-## Plannotator Inbox
-
-The person keeps a Plannotator Inbox on this computer: a window where they read what agents send and answer when they can.
-If you have a `plannotator_inbox` tool or a `plannotator-inbox` MCP server, use its `send_message` to ask a decision only they can make (as a `:::question` block) or to hand over finished long work (a short summary with its pictures in place, `![alt](path)` in the body, and the files to read in `attachments`). Then keep working.
-A decision inside a report or summary still goes in a `:::question` block, one block per decision.
-Their reply comes back to this session by itself where your agent supports that; otherwise read the thread later with `read_thread`.
-Be proactive about Inbox updates and about replying to the person through the Inbox when you think they would want you to. Don't withhold important updates or decisions, and don't batch updates to send later: proactivity is better than procrastination.
-One thread per work stream, unless the person says otherwise.
-A decision you sent to the Inbox stays there. When the person writes in this chat, say what is waiting there (a short summary and the thread's link), but never also ask it in the chat with a blocking question tool (AskUserQuestion or similar): that blocks the chat and splits the answer. Ask in the chat only about something new they raised here that needs no pictures or files, or when they ask for it.
-Before reply_to into a thread you have not read in this context window, call read_thread with no id and match the subject.
-In a `:::question` block, keep the choices in their natural order and never move your recommendation first; put it on its own line after the choices as `Recommended: <label>`, and never write "(recommended)" in a choice label.
-<!-- plannotator-inbox:end -->
+## Working in Herdr
+When `HC_TERMINAL_ID` is set you run in the Herdr app. The person watches the window and its Inbox, not your chat, so keep both readable:
+- One work stream, one space: start feature work with `worktree_create({ task })` (a worktree under `~/.herdr/worktrees`, its own space with one tab; setup and the dev server run hidden). Parallel writers in a stream get slices (`parent`), not spaces. Never build a feature in the main checkout: other agents work there.
+- Name what you start after its job: branch `feat/data-export-3`, agents `impl-export-api`, `review-export-api`. Each agent gets its own tab; a reviewer set shares one (`tab` on `subagent_launch`) and reports together. Set your `task` and `now` with `agent_status` so the sidebar says what you do.
+- Never change the person's view (layout, space, tab, focus) unless they ask.
+- Start agents and terminals with the `herdr` tools, not raw `hc run`: those miss the space and tab labels, the report and the sub-agent rules. Reports arrive as messages: never wait, sleep or poll for them.
+- Talk to the person through the Herdr Inbox: `inbox_send` for a decision only they can make (one question each, choices in natural order, your pick in `recommended`) and for a short summary of finished long work; `inbox_guide` to hand over a code change. One `thread` name per work stream. Then keep working on what does not wait on the answer.
+- Dev servers: `dev_server`, never your own `pnpm dev`: each space has its ports and URL.
+- Clean up what you start: finished agents stay open with their tab settled so the person can read them; `subagent_stop` them once their work is merged, and ask in the Inbox before `worktree_remove`.
