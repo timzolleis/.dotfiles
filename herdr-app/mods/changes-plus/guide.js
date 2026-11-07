@@ -65,6 +65,7 @@ export class Guide {
     const ref = guideRef();
     if (!ref?.id || ref.id === this.id) return;
     this.id = ref.id; this.item = null; this.files = {}; this.error = null; this.open = new Set();
+    this.at = ref.chapter ?? 0;
     // Viewed files, kept per review: ticking one folds it away.
     this.viewed = new Set(JSON.parse(localStorage.getItem(`viewed:${ref.id}`) ?? "[]")); this.fold = new Map();
     for (const b of this.boxes) b.set_value("");
@@ -244,13 +245,34 @@ export class Guide {
         .child(button("changes", "Request changes", false, "changes"))
         .child(button("approve", "Looks good", true, "approve"));
 
+    // One chapter at a time: every diff on screen is a virtual list the host fills in JS twice a
+    // frame, so a page of all chapters (35 files) rebuilt ~1,700 rows a frame while scrolling.
+    const at = Math.max(0, Math.min(this.at ?? 0, list.length - 1));
+    const go = (i) => (_e, cx) => { this.at = i; cx.notify(); };
+    const contents = v_flex().gap(1).children(list.map((ch, i) => {
+      const names = ch.diffs.map((d) => d.file), seen = names.filter((f) => this.viewed.has(f)).length, done = names.length > 0 && seen === names.length;
+      return h_flex().id(`toc-${i}`).h(28).px(8).gap(10).items_center().rounded(6).cursor_pointer()
+        .when(i === at, (e) => e.bg(t.selected)).hover((s) => s.bg(i === at ? t.selected : t.hover))
+        .on_click(go(i))
+        .child(div().w(16).flex_none().text_size(11.5).text_color(i === at ? t.accent : t.dim).child(String(i + 1)))
+        .child(div().flex_1().min_w(0).truncate().text_size(12.5).text_color(done ? t.muted : t.foreground).child(ch.title))
+        .child(div().flex_none().text_size(11).text_color(done ? t.done : t.dim).child(done ? "Viewed" : seen ? `${seen}/${names.length}` : `${names.length} ${names.length === 1 ? "file" : "files"}`));
+    }));
+    const next = at + 1 < list.length
+      ? h_flex().id("guide-next").h(34).px(14).gap(8).items_center().self_end().rounded_full().border_1().border_color(t.border).text_size(12.5).cursor_pointer()
+        .hover((s) => s.bg(t.hover)).on_click(go(at + 1))
+        .child(div().text_color(t.dim).child("Next")).child(div().font_medium().child(list[at + 1].title))
+      : null;
+
     return frame.child(top)
-      .child(v_flex().id(`guide-body-${this.id}`).flex_1().min_h(0).overflow_y_scrollbar()
+      .child(v_flex().id(`guide-body-${this.id}-${at}`).flex_1().min_h(0).overflow_y_scrollbar()
         .child(v_flex().w_full().max_w(980).px(20).py(18).gap(22)
           .child(v_flex().gap(8)
             .child(div().text_size(20).font_semibold().child(g.title ?? this.item.subject))
-            .when(Boolean(g.intent), (e) => e.child(div().text_size(13.5).text_color(t.muted).child(g.intent))))
-          .children(list.map((ch, i) => this.chapter(t, ch, i, diffRow, cx)))))
+            .when(at === 0 && Boolean(g.intent), (e) => e.child(div().text_size(13.5).text_color(t.muted).child(g.intent))))
+          .when(list.length > 1, (e) => e.child(contents))
+          .when(list.length > 0, (e) => e.child(this.chapter(t, list[at], at, diffRow, cx)))
+          .when(Boolean(next), (e) => e.child(next))))
       .child(footer);
   }
 }
