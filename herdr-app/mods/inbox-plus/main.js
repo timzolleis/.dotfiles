@@ -114,7 +114,7 @@ export default class Inbox extends View {
     this.handle = cx.focus_handle();
     this.shown = false;
     this.refresh(cx);
-    cx.timer.every(20000, (cx) => this.refresh(cx));
+    cx.timer.every(60000, (cx) => this.refresh(cx));
     cx.spawn(async (cx) => {
       try {
         await fs.mkdir(DIR(), { recursive: true }).catch(() => {});

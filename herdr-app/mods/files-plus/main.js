@@ -1,7 +1,18 @@
 // A lazy file browser for the focused pane's folder, with bounded read-only previews.
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, Editor, EditorState } from "gpui-base";
-import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window } from "herdr";
+import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, window, layout } from "herdr";
+
+function find(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) { const found = find(child, id); if (found) return found; }
+  return null;
+}
+// The panel shows Files. Hidden, it lists nothing: its timer and watch keep running.
+const shown = () => { const root = layout(); return !find(root, "panel")?.hidden && find(root, "panel-body")?.active === "files"; };
+// Events only under these: build output and git's storage, not worth a reload.
+const NOISE = /\/(node_modules|target|\.next|\.turbo|dist|build|coverage|\.cache)\/|\/\.git\/(objects|logs)\/|\.DS_Store$/;
+const noise = (paths) => paths.length > 0 && paths.every((p) => NOISE.test(p));
 
 function location() {
   const space = spaces().find(s => s.active), f = focused();
@@ -51,7 +62,7 @@ export default class Files extends View {
     this.watched = root;
     const context = this.context;
     cx.spawn(async cx => {
-      try { while (this.context === context) { await watchFolder(root); if (this.current(context)) this.refresh(cx); } }
+      try { while (this.context === context) { const paths = await watchFolder(root); if (this.current(context) && !noise(paths)) this.refresh(cx); } }
       catch { if (this.context === context) this.watched = null; }
     });
   }
@@ -79,7 +90,9 @@ export default class Files extends View {
       this.loading = false;
       if (saved?.file) this.show(saved.file, cx);
     }
+    if (!shown()) { this.stale = true; return; }
     if (!cwd || this.loading) return;
+    this.stale = false;
     const context = this.context;
     this.loading = true;
     this.limited = false;
@@ -164,7 +177,7 @@ export default class Files extends View {
   }
 
   render(cx) {
-    if (key() !== this.context?.key) this.refresh(cx);
+    if (key() !== this.context?.key || (this.stale && shown())) this.refresh(cx);
     const t = theme();
     return v_flex().id("files").size_full().min_h(0).overflow_hidden().bg(t.background).text_color(t.foreground).text_size(13)
       .child(h_flex().h(42).flex_none().px(14).gap(8).items_center().border_b(1).border_color(t.border)

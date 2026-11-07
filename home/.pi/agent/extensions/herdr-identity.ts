@@ -53,6 +53,9 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		ownsTerminal = ctx.hasUI;
 		if (!ownsTerminal) return;
+		// The default spinner changes every 80 ms, and Herdr redraws its whole window for each
+		// change of a visible terminal. Herdr shows working in the sidebar and tab; the turn timer ticks.
+		ctx.ui.setWorkingIndicator({ frames: [ctx.ui.theme.fg("accent", "◐")] });
 		const sessionName = pi.getSessionName();
 		if (!task && sessionName) task = sessionName.slice(0, LABEL_MAX);
 		if (task) ctx.ui.setTitle(task);

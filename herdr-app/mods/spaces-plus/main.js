@@ -69,7 +69,7 @@ export default class Spaces extends View {
     cx.timer.every(15000, cx => this.refreshMachines(cx));
     // `git status` walks the whole tree, on another machine a process there:
     // only when its answer could have changed (see `due`).
-    cx.timer.every(250, (cx) => this.checkNew(cx));
+    cx.timer.every(1000, (cx) => this.checkNew(cx));
   }
 
   checkNew(cx) {
@@ -199,9 +199,9 @@ export default class Spaces extends View {
     this.checked[key] = Date.now();
     this.unsure.delete(key);
     try {
-      // No optional locks: a status that touched the index would wake the watch again.
-      // Writes nothing under .git (index lock, fsmonitor cookie): watch() would wake on it.
-      const r = await exec("git", ["--no-optional-locks", "-c", "core.fsmonitor=false", "status", "--porcelain=v2", "--branch"], { cwd, on });
+      // Only refs, never the working tree: a status walked every file of every worktree each time
+      // the repo's .git changed. Nothing here writes under .git, so watch() does not wake on it.
+      const r = await exec("git", ["rev-parse", "--path-format=absolute", "--show-toplevel", "--git-common-dir"], { cwd, on });
       if (r.code !== 0) {
         // Only git's own "no" is remembered as no repo; anything else is asked again.
         if (!/not a git repository/i.test(r.stderr)) this.unsure.add(key);
@@ -209,18 +209,17 @@ export default class Spaces extends View {
         return;
       }
       // The repo's own .git folder names it; a worktree's top differs from it.
-      const top = await exec("git", ["rev-parse", "--show-toplevel"], { cwd, on });
-      const common = await exec("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd, on });
-      const repo = common.stdout.trim();
+      const [top, repo] = r.stdout.trim().split("\n");
+      const [head, ab] = await Promise.all([
+        exec("git", ["symbolic-ref", "--short", "-q", "HEAD"], { cwd, on }),
+        exec("git", ["rev-list", "--left-right", "--count", "HEAD...@{upstream}"], { cwd, on }),
+      ]);
       const name = repo.endsWith("/.git") ? base(repo.slice(0, -5)) : base(repo).replace(/\.git$/, "");
-      const info = { name, branch: null, ahead: 0, behind: 0, repo: JSON.stringify([on, repo]), linked: repo !== `${top.stdout.trim()}/.git` };
-      for (const line of r.stdout.split("\n")) {
-        if (line.startsWith("# branch.head ")) info.branch = line.slice(14);
-        else if (line.startsWith("# branch.ab ")) {
-          const [a, b] = line.slice(12).split(" ");
-          info.ahead = Math.abs(parseInt(a, 10)) || 0;
-          info.behind = Math.abs(parseInt(b, 10)) || 0;
-        }
+      const info = { name, branch: head.code === 0 ? head.stdout.trim() : "(detached)", ahead: 0, behind: 0, repo: JSON.stringify([on, repo]), linked: repo !== `${top}/.git` };
+      if (ab.code === 0) {
+        const [a, b] = ab.stdout.trim().split(/\s+/);
+        info.ahead = parseInt(a, 10) || 0;
+        info.behind = parseInt(b, 10) || 0;
       }
       this.git[key] = info;
       if (!on) this.watch(repo, cx);

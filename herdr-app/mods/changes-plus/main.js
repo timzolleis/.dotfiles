@@ -1,7 +1,19 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, v_virtual_list } from "gpui-base";
 import { highlight } from "./shiki.js";
-import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, shared, setShared, props, openOverlay, closeOverlay } from "herdr";
+import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, shared, setShared, props, openOverlay, closeOverlay, layout } from "herdr";
+
+function find(node, id) {
+  if (node?.id === id) return node;
+  for (const child of node?.children ?? []) { const found = find(child, id); if (found) return found; }
+  return null;
+}
+// The panel shows Changes. Hidden, it runs no git: timers and watches keep running in a
+// hidden copy, and a build's events would each start a status and a diff.
+const shown = () => { const root = layout(); return !find(root, "panel")?.hidden && find(root, "panel-body")?.active === "changes"; };
+// Events only under these can't change what git shows (ignored or git's own storage).
+const NOISE = /\/(node_modules|target|\.next|\.turbo|dist|build|coverage|\.cache)\/|\/\.git\/(objects|logs)\/|\.DS_Store$/;
+const noise = (paths) => paths.length > 0 && paths.every((p) => NOISE.test(p));
 
 function location() {
   const space = spaces().find((s) => s.active), f = focused();
@@ -72,15 +84,18 @@ export default class Changes extends View {
     cx.spawn(async (cx) => {
       try {
         while (this.watched === root) {
-          await watchFolder(root);
-          if (this.watched === root) this.refresh(cx);
+          const paths = await watchFolder(root);
+          if (this.watched === root && !noise(paths)) this.refresh(cx);
         }
       } catch { this.watched = null; }
     });
   }
 
   refresh(cx) {
+    if (props()?.modeMenu) return;
+    if (!shown()) { this.stale = true; return; }
     if (this.loading || this.busy) return;
+    this.stale = false;
     const { cwd, on } = location(), context = key(), mode = this.mode;
     if (context !== this.context || mode !== this.listed) {
       this.context = context; this.listed = mode; this.root = null; this.files = []; this.open = null; this.base = null;
@@ -244,7 +259,7 @@ export default class Changes extends View {
   render(cx) {
     if (props()?.modeMenu) return this.modeMenu(theme());
     if (modeOf() !== this.mode) { this.mode = modeOf(); this.loading = false; this.refresh(cx); }
-    else if (key() !== this.context) this.refresh(cx);
+    else if (key() !== this.context || (this.stale && shown())) this.refresh(cx);
     const uncommitted = this.mode === "uncommitted";
     const empty = uncommitted ? "No uncommitted changes" : this.mode === "committed" ? "No commits on this branch" : "Nothing differs from main";
     const t = theme(), add = this.files.reduce((n, f) => n + f.add, 0), del = this.files.reduce((n, f) => n + f.del, 0);
