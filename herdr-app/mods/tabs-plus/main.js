@@ -102,7 +102,7 @@ export default class Tabs extends View {
         .child(div().max_w(200).truncate().child(c.zoomed ? `${name} Z` : name))
         // The thinking orb (github.com/Jakubantalik/thinking-orbs), pre-rendered as an animated
         // WebP: it plays without a script, where a spinning SVG turned every frame.
-        .when(c.status === "working", el => el.child(image(`mods/tabs-plus/orb-${settings().dark ? "dark" : "light"}.webp`).size(16).flex_none()))
+        .when(c.status === "working", el => el.child(image(`mods/tabs-plus/orb-still-${settings().dark ? "dark" : "light"}.webp`).size(16).flex_none()))
         .when(c.status === "blocked" || c.status === "done", el => el.child(div().size(6).rounded(3).bg(t[c.status])))
         .when(c.active, el => el.child(div().id(`close-${c.id}`).text_color(t.dim).on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); }).child(svg("mods/pane/close.svg").size(12))));
     };
