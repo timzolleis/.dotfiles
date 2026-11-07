@@ -1,8 +1,8 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, TextareaState, Textarea, Scrollbar, v_virtual_list } from "gpui-base";
 import { Notes } from "./blocks.js";
-import { highlightRows } from "./syntax.js";
-import { appHome, readTextFile, writeTextFile, shared, settings, notify } from "herdr";
+import { highlight } from "./shiki.js";
+import { appHome, readTextFile, writeTextFile, shared, settings, notify, theme } from "herdr";
 
 // A guided review an agent sent with inbox_guide (herdr-inbox.ts), as one long page:
 // the intent, then every chapter in the agent's order with its overview and the files
@@ -80,9 +80,24 @@ export class Guide {
         if (this.id !== ref.id) return;
         this.item = item;
         this.files = parsePatch(patch);
-        for (const [path, f] of Object.entries(this.files)) f.rows = highlightRows(diffRows(f.lines), path);
+        for (const f of Object.values(this.files)) f.rows = diffRows(f.lines);
       } catch (e) { this.error = e?.message ?? String(e); }
       cx.notify();
+      if (this.item) this.light(this.at, cx);
+    });
+  }
+
+  // Colors one chapter's diffs through Shiki, then the next chapter ahead of the click.
+  light(i, cx) {
+    const ch = this.item ? chapters(this.item.guide ?? {})[i] : null;
+    const files = (ch?.diffs ?? []).map((d) => ({ path: d.file, rows: this.files[d.file]?.rows })).filter((f) => f.rows && !f.rows.lit);
+    if (!files.length) return;
+    for (const f of files) f.rows.lit = true;
+    const id = this.id;
+    cx.spawn(async (cx) => {
+      if (!(await highlight(files, theme())) || this.id !== id) return;
+      cx.notify();
+      if (i === this.at) this.light(i + 1, cx);
     });
   }
 
@@ -249,7 +264,7 @@ export class Guide {
     // One chapter at a time: every diff on screen is a virtual list the host fills in JS twice a
     // frame, so a page of all chapters (35 files) rebuilt ~1,700 rows a frame while scrolling.
     const at = Math.max(0, Math.min(this.at ?? 0, list.length - 1));
-    const go = (i) => (_e, cx) => { this.at = i; cx.notify(); };
+    const go = (i) => (_e, cx) => { this.at = i; this.light(i, cx); cx.notify(); };
     const contents = v_flex().gap(1).children(list.map((ch, i) => {
       const names = ch.diffs.map((d) => d.file), seen = names.filter((f) => this.viewed.has(f)).length, done = names.length > 0 && seen === names.length;
       return h_flex().id(`toc-${i}`).h(28).px(8).gap(10).items_center().rounded(6).cursor_pointer()

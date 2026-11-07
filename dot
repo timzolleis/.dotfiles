@@ -9,7 +9,7 @@
 #   agents/          own skills; each ~/.agents/skills/<skill> is a directory
 #                    symlink into this repo
 #   packages/bundle  Brewfile
-#   herdr-app/       a copy of ~/.config/herdr-app's own mods, layout and keys;
+#   herdr-app/       a copy of ~/.config/herdr-app's own mods, layout, keys and tools;
 #                    copied, not linked: Herdr reloads a mod only when a real
 #                    file under ~/.config/herdr-app changes
 #
@@ -62,6 +62,7 @@ herdr_rsync() {
         --include='mods/' --include='mods/*-plus/' --include='mods/*-plus/**' --exclude='mods/**' \
         --include='layouts/' --include='layouts/tim.*' --exclude='layouts/**' \
         --include='themes/' --include='themes/**' \
+        --include='tools/' --include='tools/*/' --include='tools/*/package.json' --include='tools/*/package-lock.json' --include='tools/*/*.mjs' \
         --include='keys.json' --include='settings.json' \
         --exclude='*' \
         "$@"
@@ -78,6 +79,11 @@ cmd_herdr() {
             mkdir -p "$HERDR_HOME"
             # No --delete back into the app: it keeps files of its own there.
             rsync -a --exclude='*.d.ts' --exclude='jsconfig.json' "${HERDR_COPY}/" "${HERDR_HOME}/"
+            # Tools (the Shiki server) get their packages back from their lockfiles.
+            local tool
+            for tool in "${HERDR_HOME}"/tools/*/; do
+                [[ -f "${tool}package-lock.json" ]] && npm ci --prefix "$tool" --silent --no-audit --no-fund
+            done
             ok "copied ${HERDR_COPY} → ${HERDR_HOME}" ;;
         *) err "usage: dot herdr save|restore"; exit 1 ;;
     esac

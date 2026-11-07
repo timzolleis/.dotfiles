@@ -1,0 +1,7 @@
+{
+  "name": "herdr-shiki",
+  "private": true,
+  "type": "module",
+  "description": "Warm Shiki highlighter for Herdr's diff views (changes-plus)",
+  "dependencies": { "shiki": "^4.5.0" }
+}

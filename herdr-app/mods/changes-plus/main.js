@@ -1,7 +1,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, v_virtual_list } from "gpui-base";
 import { Guide, guideRef } from "./guide.js";
-import { highlightRows, syntaxColors } from "./syntax.js";
+import { highlight } from "./shiki.js";
 import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, shared, setShared, props, openOverlay, closeOverlay } from "herdr";
 
 function location() {
@@ -148,7 +148,7 @@ export default class Changes extends View {
         // The first file's diff shows until you pick another.
         if (!this.open && !this.closed && files.length) this.open = files[0].path;
         if (this.open) {
-          try { await this.load(this.open, context); }
+          try { await this.load(this.open, context); this.light(cx); }
           catch { if (key() === context) this.setLines(["Cannot preview this diff (too large or unreadable)"]); }
         }
       } catch (e) { if (key() === context && this.mode === mode) { this.error = e?.message ?? String(e); this.files = []; this.setLines([]); this.open = null; } }
@@ -189,8 +189,20 @@ export default class Changes extends View {
   }
 
   setLines(lines) {
-    this.rows = highlightRows(diffRows(lines), this.open);
+    // The 10 s refresh reloads the open diff: the same text keeps its rows and their colors.
+    const text = lines.join("\n");
+    if (text === this.linesText) return;
+    this.linesText = text;
+    this.rows = diffRows(lines);
     this.diffWidth = Math.max(300, ...lines.map(line => line.length * 7 + 50));
+  }
+
+  // Colors the open diff once; rows draw plain until Shiki answers.
+  light(cx) {
+    const rows = this.rows, path = this.open;
+    if (!path || rows.lit || !rows.some((r) => r.kind === "+" || r.kind === "-" || r.kind === " ")) return;
+    rows.lit = true;
+    cx.spawn(async (cx) => { if ((await highlight([{ path, rows }], theme())) && this.rows === rows) cx.notify(); });
   }
 
   pick(path, cx) {
@@ -198,7 +210,7 @@ export default class Changes extends View {
     this.closed = !this.open;
     const context = this.context;
     if (this.open) cx.spawn(async (cx) => {
-      try { await this.load(path, context); }
+      try { await this.load(path, context); this.light(cx); }
       catch (e) { if (key() === context && this.open === path) this.note = `Cannot preview this diff (too large or unreadable): ${e}`; }
       cx.notify();
     });
@@ -226,13 +238,12 @@ export default class Changes extends View {
   diffRow({ kind, number, text, spans }, t, mark) {
     if (kind === "@") return div().w_full().px(12).h(20).flex_none().truncate().bg(t.raised).text_color(t.dim).child(text);
     // Rows draw inside a virtual list, where handlers throw: the list's on_item_click takes the click.
-    const colors = spans ? syntaxColors(t) : null;
     const gutter = div().w(30).flex_none().text_right().text_color(mark?.on ? t.accent : t.dim).child(number === undefined ? "" : String(number));
     return h_flex().w_full().h(20).flex_none().gap(10).when(kind === "+", (e) => e.bg(t.ansi2 + "18")).when(kind === "-", (e) => e.bg(t.ansi1 + "18")).when(Boolean(mark?.on), (e) => e.bg(t.accent + "26"))
       .when(Boolean(mark), (e) => e.cursor_pointer().hover((s) => s.bg(t.accent + "14")))
       .child(gutter)
       .child(spans
-        ? h_flex().flex_1().min_w(0).overflow_hidden().whitespace_nowrap().children(spans.map((s) => div().flex_none().text_color(colors[s.kind]).child(s.text)))
+        ? h_flex().flex_1().min_w(0).overflow_hidden().whitespace_nowrap().children(spans.map((s) => div().flex_none().text_color(s.color ?? t.foreground).child(s.text)))
         : div().flex_1().min_w(0).truncate().child(text));
   }
 
