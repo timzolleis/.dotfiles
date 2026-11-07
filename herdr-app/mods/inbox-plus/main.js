@@ -2,7 +2,7 @@ import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, TextView, InputState, Input, TextareaState, Textarea } from "gpui-base";
 import { theme, layout, openOverlay, closeOverlay, props, agents, focused, appHome, readTextFile, writeTextFile, watchFolder, notify, playSound, shared, setShared, run, exec } from "herdr";
 import * as fs from "fs/promises";
-import { Notes, codeBlocks } from "./blocks.js";
+import { Notes, codeMarkdown } from "./blocks.js";
 
 // The Herdr Inbox: what pi agents send the person (herdr-inbox.ts writes one JSON file per
 // item), plus agents whose status is blocked. One mod, three views (props.view):
@@ -489,7 +489,7 @@ export default class Inbox extends View {
       .when(Boolean(replyTo), (e) => e.child(h_flex().id("reply-to").gap(6).items_center().text_size(12).text_color(t.dim).cursor_pointer().hover((s) => s.text_color(t.foreground))
         .on_click((_e, cx) => this.select(replyTo.id, cx)).child(div().child("In reply to")).child(div().min_w(0).truncate().text_color(t.muted).child(replyTo.subject))));
 
-    const body = item.body ? v_flex().w_full().min_w(0).gap(2).children(this.notes.view(t, cx, { id: `body-${item.id}`, target: "body", md: item.body, list: annotations, locked })) : null;
+    const body = item.body ? this.notes.view(t, cx, { id: `body-${item.id}`, target: "body", md: item.body, list: annotations, locked }) : null;
     const attachments = (item.attachments ?? []).map((path, k) => this.attachment(t, item, path, k, annotations, locked, cx));
     const live = liveQuestions(item);
     const withdrawn = (item.questions ?? []).filter((q) => q.withdrawn);
@@ -544,7 +544,7 @@ export default class Inbox extends View {
 
   attachment(t, item, path, k, annotations, locked, cx) {
     const text = this.fileText(path, cx), md = /\.(md|markdown|mdx)$/i.test(path), id = `att-${item.id}-${k}`, target = `file:${path}`;
-    const code = text && !md ? codeBlocks(text) : null;
+    const code = text && !md ? codeMarkdown(path, text) : null;
     return v_flex().flex_none().rounded(10).border_1().border_color(t.border).overflow_hidden()
       .child(h_flex().h(34).px(12).gap(8).items_center().bg(t.surface).border_b(1).border_color(t.border)
         .child(svg("mods/workspace-chrome/file-text.svg").size(13).text_color(t.dim))
@@ -553,8 +553,8 @@ export default class Inbox extends View {
       .child(v_flex().w_full().min_w(0).p(12).gap(2)
         .when(text === undefined, (e) => e.child(div().text_size(12).text_color(t.dim).child("Loading…")))
         .when(text === null, (e) => e.child(div().text_size(12).text_color(t.dim).child("Cannot read this file")))
-        .when(Boolean(text) && md, (e) => e.children(this.notes.view(t, cx, { id, target, md: text, list: annotations, locked, size: 13 })))
-        .when(Boolean(code), (e) => e.children(this.notes.view(t, cx, { id, target, blocks: code.blocks, numbers: true, list: annotations, locked, size: 13 })))
+        .when(Boolean(text) && md, (e) => e.child(this.notes.view(t, cx, { id, target, md: text, list: annotations, locked, size: 13 })))
+        .when(Boolean(code), (e) => e.child(this.notes.view(t, cx, { id, target, md: code?.md ?? "", list: annotations, locked, size: 13 })))
         .when(Boolean(code?.more), (e) => e.child(div().pt(6).text_size(11.5).text_color(t.dim).child(`${code.more} more lines not shown`))));
   }
 
@@ -659,6 +659,7 @@ export default class Inbox extends View {
 
   onKey(e, cx) {
     // In a box, Escape leaves the box first.
+    if (e.key === "escape" && this.notes.pop) { this.notes.close(cx); this.handle.focus(); cx.stop_propagation(); return; }
     if (e.key === "escape" && this.typing.size) { this.typing.clear(); this.handle.focus(); cx.stop_propagation(); cx.notify(); return; }
     if (e.key === "escape") { cx.stop_propagation(); this.close(); return; }
     if (this.typing.size) return;

@@ -27,9 +27,9 @@ type Answer = { key: string; picked?: string[]; text?: string; skipped?: boolean
 // Something only the person can do; the answer says whether they did.
 type Action = { key: string; text: string; detail?: string; withdrawn?: boolean };
 type VerifyStep = { key: string; text: string };
-// A comment on one block of a message or an attached file.
-// target: "body" | "file:<path>"; block counts from 0; line is set for code files.
-type Annotation = { target: string; block: number; quote: string; text: string; line?: number };
+// A comment on text the person highlighted in a message or an attached file.
+// target: "body" | "file:<path>". block and line: older items, commented per block.
+type Annotation = { target: string; quote: string; text: string; block?: number; line?: number };
 type Item = {
 	v: 1;
 	id: string;
