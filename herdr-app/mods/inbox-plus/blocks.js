@@ -9,7 +9,24 @@ import { settings } from "herdr";
 
 const short = (s) => (s.length > 300 ? `${s.slice(0, 300)}…` : s);
 
+// Parsed once per text: render runs on every change of anything the inbox shows.
+const parsed = new Map();
+function cached(kind, text, make) {
+  const key = `${kind}\0${text}`;
+  let hit = parsed.get(key);
+  if (!hit) {
+    hit = make();
+    if (parsed.size >= 64) parsed.delete(parsed.keys().next().value);
+    parsed.set(key, hit);
+  }
+  return hit;
+}
+
 export function splitBlocks(md) {
+  return cached("md", String(md ?? ""), () => splitBlocksNow(md));
+}
+
+function splitBlocksNow(md) {
   const out = [], lines = String(md ?? "").split("\n");
   let para = [], fence = null, callout = null;
   const flush = () => {
@@ -56,6 +73,10 @@ export function splitBlocks(md) {
 
 // A code file as one block per line.
 export function codeBlocks(text, max = 300) {
+  return cached(`code${max}`, String(text ?? ""), () => codeBlocksNow(text, max));
+}
+
+function codeBlocksNow(text, max) {
   const lines = String(text ?? "").replace(/\n$/, "").split("\n");
   return { blocks: lines.slice(0, max).map((l) => ({ kind: "code", md: l, quote: l })), more: Math.max(0, lines.length - max) };
 }
@@ -66,7 +87,6 @@ export class Notes {
     this.box = TextareaState.new({ placeholder: "Comment", rows: 2 });
     this.box.set_auto_grow(2, 8);
     this.edit = null;
-    this.hover = null;
   }
 
   open(key, text, cx) {
@@ -98,7 +118,6 @@ export class Notes {
     return all.map((b, i) => {
       const key = `${id}:${i}`, line = numbers ? i + 1 : undefined;
       const note = list.find((n) => n.target === target && n.block === i);
-      const lit = this.hover === key || this.edit === key;
       const markdown = (text, extra) => TextView.markdown(`${id}-${i}${extra ?? ""}`, text).selectable(true).text_size(size);
       let body;
       if (b.kind === "code") {
@@ -115,9 +134,12 @@ export class Notes {
       } else {
         body = div().when(b.kind === "li", (e) => e.pl((b.depth ?? 0) * 16)).when(b.kind === "h", (e) => e.pt(6)).child(markdown(b.md));
       }
+      // The + shows by style alone: a hover that re-rendered the mod laid out every block of
+      // the document again, and redrew the window, each time the pointer crossed a block.
       const add = locked ? null : div().id(`add-${key}`).size(20).mt(1).flex_none().flex().items_center().justify_center().rounded(5).cursor_pointer()
-        .when(lit || Boolean(note), (e) => e.child(svg(note ? "mods/workspace-chrome/square-pen.svg" : "mods/workspace-chrome/plus.svg").size(12).text_color(note ? t.accent : t.dim)))
-        .hover((s) => s.bg(t.hover))
+        .text_color(note || this.edit === key ? t.accent : t.dim + "40")
+        .child(svg(note ? "mods/workspace-chrome/square-pen.svg" : "mods/workspace-chrome/plus.svg").size(12))
+        .hover((s) => s.bg(t.hover).text_color(note ? t.accent : t.foreground))
         .tooltip(note ? "Edit comment" : "Comment on this block")
         .on_click((_e, cx) => this.open(key, note?.text ?? "", cx));
       const save = (text, cx) => {
@@ -129,7 +151,6 @@ export class Notes {
         this.close(cx);
       };
       return v_flex().id(`blk-${key}`).w_full().min_w(0).flex_none()
-        .on_hover((hovered, cx) => { if (hovered) this.hover = key; else if (this.hover === key) this.hover = null; else return; cx.notify(); })
         .child(h_flex().w_full().gap(4).items_start()
           .when(!locked, (e) => e.child(add))
           .child(div().flex_1().min_w(0).w_full().when(Boolean(note), (e) => e.border_l(2).border_color(t.accent).pl(8)).child(body)))
