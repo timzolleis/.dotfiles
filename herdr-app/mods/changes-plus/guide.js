@@ -1,6 +1,7 @@
 import { div, svg } from "gpui-kit";
 import { v_flex, h_flex, TextareaState, Textarea, Scrollbar, v_virtual_list } from "gpui-base";
 import { Notes } from "./blocks.js";
+import { highlightRows } from "./syntax.js";
 import { appHome, readTextFile, writeTextFile, shared, settings, notify } from "herdr";
 
 // A guided review an agent sent with inbox_guide (herdr-inbox.ts), as one long page:
@@ -79,7 +80,7 @@ export class Guide {
         if (this.id !== ref.id) return;
         this.item = item;
         this.files = parsePatch(patch);
-        for (const f of Object.values(this.files)) f.rows = diffRows(f.lines);
+        for (const [path, f] of Object.entries(this.files)) f.rows = highlightRows(diffRows(f.lines), path);
       } catch (e) { this.error = e?.message ?? String(e); }
       cx.notify();
     });

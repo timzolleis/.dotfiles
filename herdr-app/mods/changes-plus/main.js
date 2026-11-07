@@ -1,6 +1,7 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, v_virtual_list } from "gpui-base";
 import { Guide, guideRef } from "./guide.js";
+import { highlightRows, syntaxColors } from "./syntax.js";
 import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, shared, setShared, props, openOverlay, closeOverlay } from "herdr";
 
 function location() {
@@ -188,7 +189,7 @@ export default class Changes extends View {
   }
 
   setLines(lines) {
-    this.rows = diffRows(lines);
+    this.rows = highlightRows(diffRows(lines), this.open);
     this.diffWidth = Math.max(300, ...lines.map(line => line.length * 7 + 50));
   }
 
@@ -222,14 +223,17 @@ export default class Changes extends View {
   }
 
   // mark: in a guided review, the line number is a button that comments on the line.
-  diffRow({ kind, number, text }, t, mark) {
+  diffRow({ kind, number, text, spans }, t, mark) {
     if (kind === "@") return div().w_full().px(12).h(20).flex_none().truncate().bg(t.raised).text_color(t.dim).child(text);
     // Rows draw inside a virtual list, where handlers throw: the list's on_item_click takes the click.
+    const colors = spans ? syntaxColors(t) : null;
     const gutter = div().w(30).flex_none().text_right().text_color(mark?.on ? t.accent : t.dim).child(number === undefined ? "" : String(number));
     return h_flex().w_full().h(20).flex_none().gap(10).when(kind === "+", (e) => e.bg(t.ansi2 + "18")).when(kind === "-", (e) => e.bg(t.ansi1 + "18")).when(Boolean(mark?.on), (e) => e.bg(t.accent + "26"))
       .when(Boolean(mark), (e) => e.cursor_pointer().hover((s) => s.bg(t.accent + "14")))
       .child(gutter)
-      .child(div().flex_1().min_w(0).truncate().child(text));
+      .child(spans
+        ? h_flex().flex_1().min_w(0).overflow_hidden().whitespace_nowrap().children(spans.map((s) => div().flex_none().text_color(colors[s.kind]).child(s.text)))
+        : div().flex_1().min_w(0).truncate().child(text));
   }
 
   render(cx) {
