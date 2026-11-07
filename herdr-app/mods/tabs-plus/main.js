@@ -100,9 +100,8 @@ export default class Tabs extends View {
         .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openOverlay({ mod: "menu", kind: "popup", width: 200, props: { tab: "tab", target: { id: c.id, space: space.id } } }); })
         .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14)))
         .child(div().max_w(200).truncate().child(c.zoomed ? `${name} Z` : name))
-        // The thinking orb (github.com/Jakubantalik/thinking-orbs), pre-rendered as an animated
-        // WebP: it plays without a script, where a spinning SVG turned every frame.
-        .when(c.status === "working", el => el.child(image(`mods/tabs-plus/orb-still-${settings().dark ? "dark" : "light"}.webp`).size(16).flex_none()))
+        // Working: a still half-filled ring. Any motion redraws the whole window every frame.
+        .when(c.status === "working", el => el.child(svg("mods/tabs-plus/working.svg").size(11).mx(1).flex_none().text_color(t.working)))
         .when(c.status === "blocked" || c.status === "done", el => el.child(div().size(6).rounded(3).bg(t[c.status])))
         .when(c.active, el => el.child(div().id(`close-${c.id}`).text_color(t.dim).on_mouse_down("left", stop).on_click((_e, cx) => { cx.stop_propagation(); run("tab.close", { id: c.id }); }).child(svg("mods/pane/close.svg").size(12))));
     };
