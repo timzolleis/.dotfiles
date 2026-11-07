@@ -1,5 +1,5 @@
 import { div, svg } from "gpui-kit";
-import { v_flex, h_flex, TextView, TextareaState, Textarea } from "gpui-base";
+import { v_flex, h_flex, TextView, TextareaState, Textarea, Popup } from "gpui-base";
 
 // Comments on highlighted text, as in Plannotator: select text in a message or an attached
 // file and a popover asks for the comment. A document is one selectable TextView: one
@@ -97,15 +97,18 @@ export class Notes {
         .on_mouse_down("left", (ev, cx) => { this.down = ev.position; if (this.armed) { this.armed = null; cx.notify(); } })
         .on_mouse_up("left", (ev, cx) => this.grab(ev, cx, id, target)))
       .child(TextView.markdown(`md-${id}`, md).selectable(true).text_size(size))
-      .when(Boolean(armed), (e) => e.child(h_flex().absolute().top(armed.y + 12).left(Math.max(0, armed.x - 20)).h(24).px(9).gap(6).items_center()
-        .rounded_full().bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(11.5).text_color(t.muted)
-        .child(div().font_semibold().text_color(t.foreground).child("⌘C")).child(div().child("to comment"))))
-      .when(Boolean(pop), (e) => e.child(v_flex().id(`pop-${id}`).absolute().top(pop.y + 14).left(Math.max(0, Math.min(pop.x - 40, 360))).w(340).p(10).gap(8)
-        .rounded(12).bg(t.popover).border_1().border_color(t.border).shadow_lg()
-        .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
-        .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
-        .child(div().pl(8).border_l(2).border_color(t.accent).text_size(12).text_color(t.muted).child(short(pop.quote, 240)))
-        .child(this.editor(t, save(-1, { target, quote: pop.quote }), "Comment"))));
+      // Popups paint in a layer above the window: an absolute child painted under what follows it.
+      .when(Boolean(armed), (e) => e.child(Popup.new(`hint-${id}`, div().size(1)).absolute().top(armed.y + 10).left(armed.x).anchor("top_left")
+        .content(h_flex().h(24).px(9).gap(6).items_center()
+          .rounded_full().bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(11.5).text_color(t.muted)
+          .child(div().font_semibold().text_color(t.foreground).child("⌘C")).child(div().child("to comment")))))
+      .when(Boolean(pop), (e) => e.child(Popup.new(`pop-${id}`, div().size(1)).absolute().top(pop.y + 10).left(pop.x).anchor("top_left")
+        .content(v_flex().id(`pop-body-${id}`).w(340).p(10).gap(8)
+          .rounded(12).bg(t.popover).border_1().border_color(t.border).shadow_lg()
+          .on_mouse_down("left", (_e, cx) => cx.stop_propagation())
+          .on_mouse_up("left", (_e, cx) => cx.stop_propagation())
+          .child(div().pl(8).border_l(2).border_color(t.accent).text_size(12).text_color(t.muted).child(short(pop.quote, 240)))
+          .child(this.editor(t, save(-1, { target, quote: pop.quote }), "Comment")))));
     const comments = mine.map(({ n, i }) => {
       const key = `sel:${i}`;
       if (this.edit === key) return v_flex().gap(6).child(div().pl(8).border_l(2).border_color(t.accent).text_size(12).text_color(t.muted).child(short(n.quote, 200))).child(this.editor(t, save(i, n)));
