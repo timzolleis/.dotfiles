@@ -5,11 +5,8 @@ import { v_flex, h_flex, TextView, TextareaState, Textarea } from "gpui-base";
 // file and a popover asks for the comment. A document is one selectable TextView: one
 // markdown view per block made every pointer move and every frame lay out hundreds of them.
 //
-// TextView has no selection event. On a mouse-up after a drag (or a double-click) the
-// selection is copied with the window's own Copy action, read from the clipboard, and the
-// clipboard is put back. A sentinel tells "nothing selected" from "copied the same text".
-
-const SENTINEL = "\u0000herdr-inbox-selection";
+// TextView has no selection event and a mod cannot run the native Copy, so the person copies:
+// select, ⌘C, and the popover opens with what was copied.
 const short = (s, n = 300) => (s.length > n ? `${s.slice(0, n)}…` : s);
 
 // A code file as fenced markdown, so it stays one view; long files are cut.
@@ -26,7 +23,8 @@ export class Notes {
     this.box = TextareaState.new({ placeholder: "Comment", rows: 2 });
     this.box.set_auto_grow(2, 8);
     this.edit = null; // a verify step's key, or "sel:<n>" for a comment being edited
-    this.pop = null; // { id, target, quote, x, y, at? } while the popover is open
+    this.pop = null; // { id, target, quote, x, y } while the popover is open
+    this.armed = null; // { id, x, y } after a selection, until ⌘C or 6 s
     this.down = null;
   }
 
@@ -38,7 +36,7 @@ export class Notes {
     cx.notify();
   }
 
-  close(cx) { this.edit = null; this.pop = null; cx.notify(); }
+  close(cx) { this.edit = null; this.pop = null; this.armed = null; cx.notify(); }
 
   // The comment box with Cancel and Save, for whatever `open` was called for.
   editor(t, save, label = "Save") {
@@ -54,28 +52,34 @@ export class Notes {
         .child(button("note-save", label, true, (_e, cx) => save(this.box.value().trim(), cx))));
   }
 
-  // After a drag or a double-click: what is selected, or nothing.
+  // After a drag or a double-click: a hint at the pointer, then the popover once the person
+  // copies (⌘C). The clipboard is read for 6 s, only after such a gesture.
   grab(e, cx, id, target) {
     const down = this.down;
     this.down = null;
     const dragged = down && Math.abs(e.position.x - down.x) + Math.abs(e.position.y - down.y) > 4;
     if (!dragged && e.click_count < 2) return;
     const before = cx.read_from_clipboard();
-    cx.write_to_clipboard(SENTINEL);
-    window.dispatch_action("shell_root::Copy");
     const at = { x: e.local_position?.x ?? 24, y: e.local_position?.y ?? 0 };
-    // The action runs after this handler returns.
-    cx.timer.after(40, (cx) => {
+    const armed = { id, ...at };
+    this.armed = armed;
+    this.pop = null;
+    cx.notify();
+    let left = 40;
+    const look = (cx) => {
+      if (this.armed !== armed) return;
       const text = cx.read_from_clipboard();
-      cx.write_to_clipboard(before ?? "");
-      const quote = text && text !== SENTINEL ? text.trim() : "";
-      if (!quote) return;
-      this.edit = null;
-      this.pop = { id, target, quote, ...at };
-      this.box.set_value("");
-      this.box.focus();
-      cx.notify();
-    });
+      if (text && text !== before && text.trim()) {
+        this.armed = null;
+        this.edit = null;
+        this.pop = { id, target, quote: text.trim(), ...at };
+        this.box.set_value("");
+        this.box.focus();
+        cx.notify();
+      } else if (--left > 0) cx.timer.after(150, look);
+      else { this.armed = null; cx.notify(); }
+    };
+    cx.timer.after(150, look);
   }
 
   // opts: id (unique), target ("body" | "file:<path>"), md, list (annotations, mutated), locked, size.
@@ -87,11 +91,15 @@ export class Notes {
       this.close(cx);
     };
     const pop = this.pop?.id === id ? this.pop : null;
+    const armed = this.armed?.id === id ? this.armed : null;
     const doc = div().id(`doc-${id}`).relative().w_full().min_w(0)
       .when(!locked, (e) => e
-        .on_mouse_down("left", (ev) => { this.down = ev.position; })
+        .on_mouse_down("left", (ev, cx) => { this.down = ev.position; if (this.armed) { this.armed = null; cx.notify(); } })
         .on_mouse_up("left", (ev, cx) => this.grab(ev, cx, id, target)))
       .child(TextView.markdown(`md-${id}`, md).selectable(true).text_size(size))
+      .when(Boolean(armed), (e) => e.child(h_flex().absolute().top(armed.y + 12).left(Math.max(0, armed.x - 20)).h(24).px(9).gap(6).items_center()
+        .rounded_full().bg(t.popover).border_1().border_color(t.border).shadow_md().text_size(11.5).text_color(t.muted)
+        .child(div().font_semibold().text_color(t.foreground).child("⌘C")).child(div().child("to comment"))))
       .when(Boolean(pop), (e) => e.child(v_flex().id(`pop-${id}`).absolute().top(pop.y + 14).left(Math.max(0, Math.min(pop.x - 40, 360))).w(340).p(10).gap(8)
         .rounded(12).bg(t.popover).border_1().border_color(t.border).shadow_lg()
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation())

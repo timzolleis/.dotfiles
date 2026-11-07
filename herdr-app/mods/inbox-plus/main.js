@@ -659,7 +659,7 @@ export default class Inbox extends View {
 
   onKey(e, cx) {
     // In a box, Escape leaves the box first.
-    if (e.key === "escape" && this.notes.pop) { this.notes.close(cx); this.handle.focus(); cx.stop_propagation(); return; }
+    if (e.key === "escape" && (this.notes.pop || this.notes.armed)) { this.notes.close(cx); this.handle.focus(); cx.stop_propagation(); return; }
     if (e.key === "escape" && this.typing.size) { this.typing.clear(); this.handle.focus(); cx.stop_propagation(); cx.notify(); return; }
     if (e.key === "escape") { cx.stop_propagation(); this.close(); return; }
     if (this.typing.size) return;
