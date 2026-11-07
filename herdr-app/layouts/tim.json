@@ -43,6 +43,7 @@
           "type": "column",
           "background": "background",
           "radius": 10,
+          "padding": 3,
           "border": { "width": 1, "color": "border" },
           "resizable": false,
           "children": [
