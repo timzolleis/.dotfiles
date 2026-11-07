@@ -29,7 +29,7 @@ The installed binaries own the syntax. Read `hc --skill` before driving terminal
 | Tab | one agent, named after its job | a space starts with one tab, its orchestrator's; a reviewer set shares one tab |
 | Pane | one terminal | never split an agent into another agent's tab |
 | Background terminal | setup, dev server | hidden (no `herdr.space` label); the status bar shows and peeks them |
-| Inbox | what needs the person | decide, review, verify, do; updates are quiet |
+| Inbox | what needs the person | decide, verify, do; updates are quiet |
 
 Never change the person's view (`layout.*`, `space.select`, `tab.select`, focus) unless they ask: they work in this window. A screenshot that needs another view switches, shoots and switches back in one command.
 
@@ -57,7 +57,7 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 ## Identity and the Inbox
 
 - `agent_status({ task, now })`: set `task` (2-6 words, a ticket title) when you take a new piece of work, `now` when a step starts. The agents list shows both.
-- `inbox_send` for a decision only the person can make (`:::question` blocks, your pick as `Recommended:`), something only they can do (`:::action`), a check in the running app (`verify: { url, steps }`), or finished long work. `inbox_guide` for a code change (`base`: the slice below, for stacked PRs). `inbox_steps` keeps the thread's plan current. `thread` defaults to the branch. `supersedes` withdraws questions that no longer apply.
+- `inbox_send` for a decision only the person can make (`:::question` blocks, your pick as `Recommended:`), something only they can do (`:::action`), a check in the running app (`verify: { url, steps }`), or finished long work. `inbox_steps` keeps the thread's plan current. `thread` defaults to the branch. `supersedes` withdraws questions that no longer apply.
 - Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person; each slice reaches the Inbox only after a reviewer agent passed it; anything the person can see gets a verify item.
 
 ## Terminals and addresses

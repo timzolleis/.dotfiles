@@ -46,14 +46,13 @@ function needOf(item) {
   if (item.archived_at) return "archived";
   if (item.kind === "reply") return "reply";
   if (item.answer || item.withdrawn_at) return "done";
-  if (item.kind === "guide") return "review";
   if (item.kind === "verify") return "verify";
   if (liveQuestions(item).length) return "ask";
   if (liveActions(item).length) return "act";
   return item.read_at ? "done" : "update";
 }
 // Only these ping (toast, sound, the count); updates just badge.
-const NEEDS = ["agent", "ask", "act", "verify", "review"];
+const NEEDS = ["agent", "ask", "act", "verify"];
 // Still waiting for a Send: comments may be added and sent.
 const isOpen = (item) => !item.answer && !item.archived_at && !item.withdrawn_at && item.kind !== "reply";
 
@@ -61,7 +60,6 @@ const isOpen = (item) => !item.answer && !item.archived_at && !item.withdrawn_at
 // outranks everything; within a level the oldest waiting comes first.
 const LEVELS = [
   { id: "stopped", label: "Blocks agent", tag: "Blocks agent" },
-  { id: "review", label: "Review", tag: "Review" },
   { id: "verify", label: "Verify", tag: "Verify" },
   { id: "ask", label: "Asks", tag: "Asks" },
   { id: "act", label: "To do", tag: "Do" },
@@ -180,7 +178,7 @@ export default class Inbox extends View {
     for (const i of fresh) {
       const need = needOf(i);
       notify({
-        title: { ask: `${i.from?.name ?? "Agent"} asks`, act: `${i.from?.name ?? "Agent"} needs you`, verify: "Check this", review: "Review ready" }[need] ?? i.from?.name ?? "Agent",
+        title: { ask: `${i.from?.name ?? "Agent"} asks`, act: `${i.from?.name ?? "Agent"} needs you`, verify: "Check this" }[need] ?? i.from?.name ?? "Agent",
         body: liveQuestions(i)[0]?.prompt ?? liveActions(i)[0]?.text ?? i.subject,
         level: i.questions?.some((q) => q.stopped) ? "warning" : "info",
         timeout: 10000,
@@ -237,7 +235,7 @@ export default class Inbox extends View {
   }
 
   // One Send: answers, actions, verify marks, comments and the note.
-  send(item, cx, verdict) {
+  send(item, cx) {
     const d = this.drafts.get(item.id);
     if (!d) return;
     const here = this.bound === item.id;
@@ -258,7 +256,6 @@ export default class Inbox extends View {
         ...(verify.length ? { verify } : {}),
         ...(annotations.length ? { annotations } : {}),
         ...(note ? { note } : {}),
-        ...(verdict ? { verdict } : {}),
       };
       i.state = "answered";
       i.read_at ??= at;
@@ -373,7 +370,7 @@ export default class Inbox extends View {
   }
 
   badge(t, need, compact) {
-    const spec = { agent: ["Blocked", t.blocked], ask: ["Asks", t.blocked], act: ["To do", t.blocked], verify: ["Verify", t.blocked], review: ["Review", t.accent], update: ["New", t.accent] }[need];
+    const spec = { agent: ["Blocked", t.blocked], ask: ["Asks", t.blocked], act: ["To do", t.blocked], verify: ["Verify", t.blocked], update: ["New", t.accent] }[need];
     if (!spec) return null;
     if (compact) return div().size(7).flex_none().rounded(4).bg(need === "update" ? t.dim : spec[1]);
     return div().flex_none().px(8).h(20).rounded_full().bg(spec[1] + (need === "update" ? "18" : "22")).text_size(11).font_medium().text_color(need === "update" ? t.muted : spec[1]).flex().items_center().child(spec[0]);
@@ -430,7 +427,7 @@ export default class Inbox extends View {
     const steps = this.steps.get(thread)?.steps;
     if (!steps?.length) return null;
     const mark = (s) => s.status === "done" ? svg(STEP_DONE).size(11).flex_none().text_color(t.done)
-      : s.status === "doing" ? div().size(7).flex_none().rounded(4).bg(t.accent).loop("opacity", { from: 0.35, to: 1, period: 1200 })
+      : s.status === "doing" ? div().size(7).flex_none().rounded(4).bg(t.accent)
       : s.status === "waiting" ? div().size(7).flex_none().rounded(4).bg(t.blocked)
       : div().size(7).flex_none().rounded(4).border_1().border_color(t.input);
     return h_flex().flex_wrap().gap_x(14).gap_y(4).pt(2)
@@ -464,7 +461,7 @@ export default class Inbox extends View {
   detailOf(t, item, cx) {
     if (!item) return v_flex().flex_1().items_center().justify_center().gap(6).text_color(t.dim)
       .child(svg("mods/inbox-plus/inbox.svg").size(22).text_color(t.dim))
-      .child(div().text_size(13).child(this.items.length ? "Select an item" : "Nothing yet. Agents' questions and reviews show up here."));
+      .child(div().text_size(13).child(this.items.length ? "Select an item" : "Nothing yet. Agents' questions show up here."));
     this.current = item;
     const who = this.who(item), open = isOpen(item);
     if (open) this.bind(item);
@@ -499,7 +496,6 @@ export default class Inbox extends View {
     const questions = live.map((q, n) => this.question(t, item, q, n, d, open, cx));
     const actions = liveActions(item).length ? this.actionsCard(t, item, d, open) : null;
     const verify = item.verify ? this.verifyCard(t, item, d, open) : null;
-    const guide = item.kind === "guide" ? this.guideCard(t, item, cx) : null;
     const answered = item.answer ? this.answered(t, item) : null;
     const replies = this.items.filter((i) => i.kind === "reply" && i.reply_to === item.id).sort((a, b) => a.created_at.localeCompare(b.created_at));
     const noteBox = open ? div().w_full().min_h(52).px(12).py(9).rounded(12).border_1().border_color(t.border).bg(t.background).text_size(13).on_mouse_down("left", (_e, cx) => cx.stop_propagation()).child(Textarea.new(this.note).w_full()) : null;
@@ -508,10 +504,7 @@ export default class Inbox extends View {
     const parts = open ? this.summary(item, d) : [];
     const bar = open ? h_flex().gap(8).items_center()
       .child(div().flex_1().min_w(0).truncate().text_size(12).text_color(t.dim).child(parts.join(" · ")))
-      .when(item.kind === "guide", (e) => e
-        .child(button("changes", "Request changes", false, (_e, cx) => this.send(item, cx, "changes")))
-        .child(button("approve", "Looks good", true, (_e, cx) => this.send(item, cx, "approve"))))
-      .when(item.kind !== "guide", (e) => e.child(button("send", "Send", true, (_e, cx) => this.send(item, cx), parts.length > 0 || NEEDS.includes(needOf(item))))) : null;
+      .child(button("send", "Send", true, (_e, cx) => this.send(item, cx), parts.length > 0 || NEEDS.includes(needOf(item)))) : null;
     const replyRow = item.from?.session ? h_flex().gap(8).items_center()
       .child(div().h(32).flex_1().min_w(0).px(14).flex().items_center().rounded_full().border_1().border_color(t.border).bg(t.background).text_size(13)
         .on_mouse_down("left", (_e, cx) => cx.stop_propagation()).child(Input.new(this.reply).w_full()))
@@ -527,7 +520,6 @@ export default class Inbox extends View {
           .when(withdrawn.length > 0, (e) => e.child(v_flex().gap(2).children(withdrawn.map((q) => div().text_size(12).text_color(t.dim).line_through().child(q.prompt)))))
           .when(Boolean(actions), (e) => e.child(actions))
           .when(Boolean(verify), (e) => e.child(verify))
-          .when(Boolean(guide), (e) => e.child(guide))
           .when(Boolean(answered), (e) => e.child(answered))
           .children(replies.map((r) => h_flex().gap(8).px(14).py(8).rounded(10).bg(t.raised).text_size(13)
             .child(div().flex_none().text_size(12).text_color(t.dim).child(`You · ${ago(r.created_at)}`)).child(div().flex_1().min_w(0).child(r.body))))
@@ -641,44 +633,12 @@ export default class Inbox extends View {
       }));
   }
 
-  guideCard(t, item, cx) {
-    const g = item.guide ?? {};
-    const files = g.files?.length ?? 0;
-    return v_flex().p(14).gap(10).rounded(10).bg(t.surface).border_1().border_color(t.border)
-      .child(h_flex().gap(8).items_center()
-        .child(svg("mods/workspace-chrome/git-compare.svg").size(15).text_color(t.accent))
-        .child(div().flex_1().text_size(14).font_semibold().child("Guided review"))
-        .child(div().text_size(12).text_color(t.dim).child(`${g.sections?.length ?? 0} ${g.sections?.length === 1 ? "chapter" : "chapters"} · ${files} ${files === 1 ? "file" : "files"}${g.base ? ` · vs ${g.base}` : ""}`)))
-      .when(Boolean(g.intent), (e) => e.child(div().text_size(13).text_color(t.muted).child(g.intent)))
-      .children((g.sections ?? []).map((s, i) => h_flex().id(`ch-${i}`).px(8).py(6).gap(10).rounded(6).items_center().cursor_pointer().hover((st) => st.bg(t.hover))
-        .on_click(() => this.openGuide(item, i))
-        .child(div().w(18).flex_none().text_size(12).text_color(t.dim).child(String(i + 1)))
-        .child(div().flex_1().min_w(0).truncate().text_size(13).child(s.title))
-        .child(div().flex_none().text_size(11.5).text_color(t.dim).child(`${s.diffs?.length ?? 0} ${s.diffs?.length === 1 ? "file" : "files"}`))))
-      .child(h_flex().child(div().id("open-guide").h(30).px(14).flex().items_center().rounded_full().bg(t.solid).text_color(t.solid_foreground).text_size(12.5).font_medium().cursor_pointer()
-        .on_click(() => this.openGuide(item, 0)).child("Open review in Changes")));
-  }
-
-  openGuide(item, chapter) {
-    setShared("changes.guide", { id: item.id, chapter });
-    setShared("changes.mode", "guide");
-    if (find(layout(), "center")?.active === "inbox-screen") showScreen(false);
-    run("layout.select", { stack: "panel-body", child: "changes" });
-    // A review needs room for its diffs.
-    if ((find(layout(), "panel")?.size?.px ?? 0) < 680) run("layout.resize", { id: "panel", px: 720 });
-    run("layout.show", { id: "panel" });
-  }
-
   answered(t, item) {
     const a = item.answer;
-    const verdict = a.verdict === "approve" ? "Looks good" : a.verdict === "changes" ? "Changes requested" : null;
-    const lines = (a.comments ?? []).filter((c) => c.line !== undefined);
     return v_flex().gap(6).px(14).py(10).rounded(10).bg(t.raised)
       .child(h_flex().gap(8).items_center().text_size(12).text_color(t.dim)
         .child(svg("mods/workspace-chrome/circle-check.svg").size(14).text_color(t.done))
-        .child(div().child(ago(a.at) === "now" ? "You answered just now" : `You answered ${ago(a.at)} ago`))
-        .when(Boolean(verdict), (e) => e.child(div().text_color(t.foreground).child(`· ${verdict}`)))
-        .when(lines.length > 0, (e) => e.child(div().child(`· ${lines.length} line ${lines.length === 1 ? "comment" : "comments"}`))))
+        .child(div().child(ago(a.at) === "now" ? "You answered just now" : `You answered ${ago(a.at)} ago`)))
       .when(Boolean(a.note), (e) => e.child(div().text_size(13).child(a.note)));
   }
 

@@ -22,7 +22,7 @@ const TAB_ADOPTION_TIMEOUT_MS = 5_000;
 const FINAL_REPLY_CONTRACT =
 	"\n\nFinal reply: at most 10 lines: what changed, what is left, and any decision for whoever launched you. They see your commits, diff and PR without you listing them.";
 const SUB_AGENT_ENV = ["PLANNOTATOR_INBOX_TOOL=0", "PLANNOTATOR_AGENT_TOOL=0", "PI_SUBAGENT=1"];
-const SUB_AGENT_EXCLUDED_TOOLS = "inbox_send,inbox_guide,inbox_read";
+const SUB_AGENT_EXCLUDED_TOOLS = "inbox_send,inbox_read";
 const SHOT_PATTERN = /\bpnpm\s+(?:-s\s+)?shot\b|\bshot\s+(?:publish|outline|flow)\b/;
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 const WORKTREE_ROOT = join(homedir(), ".herdr/worktrees");

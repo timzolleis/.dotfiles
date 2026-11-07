@@ -1,6 +1,5 @@
 import { View, div, svg } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input, Scrollbar, v_virtual_list } from "gpui-base";
-import { Guide, guideRef } from "./guide.js";
 import { highlight } from "./shiki.js";
 import { spaces, panes, focused, exec, readTextFile, watchFolder, theme, settings, shared, setShared, props, openOverlay, closeOverlay } from "herdr";
 
@@ -21,7 +20,6 @@ const MODES = [
   { id: "uncommitted", label: "Uncommitted" },
   { id: "committed", label: "Committed" },
   { id: "base", label: "vs main" },
-  { id: "guide", label: "Guided review" },
 ];
 const BASES = ["origin/main", "origin/master", "main", "master"];
 // Shared, so the select's popup (another copy of this mod) can set it.
@@ -55,7 +53,6 @@ export default class Changes extends View {
   init(_props, cx) {
     this.files = []; this.rows = []; this.diffWidth = 0; this.message = ""; this.handle = cx.focus_handle();
     this.mode = modeOf();
-    this.guide = new Guide();
     this.input = InputState.new({ placeholder: "Commit message" });
     this.input.on("change", (_e, cx) => {
       const hadMessage = Boolean(this.message.trim());
@@ -83,7 +80,7 @@ export default class Changes extends View {
   }
 
   refresh(cx) {
-    if (this.loading || this.busy || this.mode === "guide") return;
+    if (this.loading || this.busy) return;
     const { cwd, on } = location(), context = key(), mode = this.mode;
     if (context !== this.context || mode !== this.listed) {
       this.context = context; this.listed = mode; this.root = null; this.files = []; this.open = null; this.base = null;
@@ -181,7 +178,7 @@ export default class Changes extends View {
   modeMenu(t) {
     const on = modeOf(), ref = props()?.baseRef;
     return v_flex().w_full().p(5).bg(t.popover).text_size(12.8)
-      .children(MODES.filter((m) => m.id !== "guide" || guideRef()?.id).map((m) => h_flex().id(`mode-${m.id}`).h(31).px(8).gap(9).rounded(7).items_center().text_color(t.foreground)
+      .children(MODES.map((m) => h_flex().id(`mode-${m.id}`).h(31).px(8).gap(9).rounded(7).items_center().text_color(t.foreground)
         .hover((el) => el.bg(t.hover))
         .on_click(() => { setShared("changes.mode", m.id); closeOverlay(props().overlay); })
         .child(div().flex_1().child(modeLabel(m.id, ref)))
@@ -234,13 +231,10 @@ export default class Changes extends View {
     cx.notify();
   }
 
-  // mark: in a guided review, the line number is a button that comments on the line.
-  diffRow({ kind, number, text, spans }, t, mark) {
+  diffRow({ kind, number, text, spans }, t) {
     if (kind === "@") return div().w_full().px(12).h(20).flex_none().truncate().bg(t.raised).text_color(t.dim).child(text);
-    // Rows draw inside a virtual list, where handlers throw: the list's on_item_click takes the click.
-    const gutter = div().w(30).flex_none().text_right().text_color(mark?.on ? t.accent : t.dim).child(number === undefined ? "" : String(number));
-    return h_flex().w_full().h(20).flex_none().gap(10).when(kind === "+", (e) => e.bg(t.ansi2 + "18")).when(kind === "-", (e) => e.bg(t.ansi1 + "18")).when(Boolean(mark?.on), (e) => e.bg(t.accent + "26"))
-      .when(Boolean(mark), (e) => e.cursor_pointer().hover((s) => s.bg(t.accent + "14")))
+    const gutter = div().w(30).flex_none().text_right().text_color(t.dim).child(number === undefined ? "" : String(number));
+    return h_flex().w_full().h(20).flex_none().gap(10).when(kind === "+", (e) => e.bg(t.ansi2 + "18")).when(kind === "-", (e) => e.bg(t.ansi1 + "18"))
       .child(gutter)
       .child(spans
         ? h_flex().flex_1().min_w(0).overflow_hidden().whitespace_nowrap().children(spans.map((s) => div().flex_none().text_color(s.color ?? t.foreground).child(s.text)))
@@ -251,17 +245,15 @@ export default class Changes extends View {
     if (props()?.modeMenu) return this.modeMenu(theme());
     if (modeOf() !== this.mode) { this.mode = modeOf(); this.loading = false; this.refresh(cx); }
     else if (key() !== this.context) this.refresh(cx);
-    if (this.mode === "guide") this.guide.load(cx, diffRows);
     const uncommitted = this.mode === "uncommitted";
     const empty = uncommitted ? "No uncommitted changes" : this.mode === "committed" ? "No commits on this branch" : "Nothing differs from main";
     const t = theme(), add = this.files.reduce((n, f) => n + f.add, 0), del = this.files.reduce((n, f) => n + f.del, 0);
     // A select, like Plannotator's diff picker: the button opens this mod's menu as a popup.
     const select = h_flex().id("mode-select").h(28).pl(12).pr(9).gap(6).flex_none().items_center().rounded_full().border_1().border_color(t.border).text_size(12).cursor_pointer()
       .hover((s) => s.bg(t.hover))
-      .on_click(() => openOverlay({ mod: "changes-plus", kind: "popup", width: 190, height: guideRef()?.id ? 143 : 112, props: { modeMenu: true, baseRef: this.base?.ref } }))
+      .on_click(() => openOverlay({ mod: "changes-plus", kind: "popup", width: 190, height: 112, props: { modeMenu: true, baseRef: this.base?.ref } }))
       .child(div().child(modeLabel(this.mode, this.base?.ref)))
       .child(svg("mods/workspace-chrome/chevron-down.svg").size(12).text_color(t.dim));
-    if (this.mode === "guide") return this.guide.render(t, cx, select, (r, t, mark) => this.diffRow(r, t, mark));
     const enabled = Boolean(this.message.trim() && this.root && !this.busy && !this.loading);
     return v_flex().id("changes").size_full().min_h(0).overflow_hidden().bg(t.background).text_color(t.foreground).text_size(13).track_focus(this.handle)
       .on_key_down((e, cx) => {

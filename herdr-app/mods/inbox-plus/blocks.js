@@ -5,8 +5,7 @@ import { settings } from "herdr";
 // Block-level comments. TextView.markdown has no selection event, so a text is split into
 // blocks (heading, paragraph, list item, table row, quote, callout, each line of a fenced
 // code block) and each is drawn as its own row with a "+" that shows on hover. A comment
-// shows under its block. This file is copied as-is into changes-plus (guide overviews):
-// keep both in step.
+// shows under its block.
 
 const short = (s) => (s.length > 300 ? `${s.slice(0, 300)}…` : s);
 

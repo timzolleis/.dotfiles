@@ -8,11 +8,10 @@ import { defineTool, type ExtensionAPI, type ExtensionContext } from "@earendil-
 import { Type } from "typebox";
 
 /**
- * The Herdr Inbox: messages, questions and guided reviews from pi to the person,
- * shown by the herdr-app `inbox` mod and the `changes-plus` guide view.
+ * The Herdr Inbox: messages and questions from pi to the person, shown by the
+ * herdr-app `inbox-plus` mod.
  *
- * One JSON file per item in `<herdr-app home>/data/inbox/items/<id>.json` (a guide's
- * patch beside it as `<id>.patch`). This extension writes items; the mods write the
+ * One JSON file per item in `<herdr-app home>/data/inbox/items/<id>.json`. This extension writes items; the mods write the
  * person's answer, read and archive marks into the same file. An answer to an item
  * this session sent comes back as a follow-up message, once.
  */
@@ -28,14 +27,13 @@ type Answer = { key: string; picked?: string[]; text?: string; skipped?: boolean
 // Something only the person can do; the answer says whether they did.
 type Action = { key: string; text: string; detail?: string; withdrawn?: boolean };
 type VerifyStep = { key: string; text: string };
-// A comment on one block of a message, a chapter overview or an attached file.
-// target: "body" | "chapter:<n>" | "file:<path>"; block counts from 0; line is set for code files.
+// A comment on one block of a message or an attached file.
+// target: "body" | "file:<path>"; block counts from 0; line is set for code files.
 type Annotation = { target: string; block: number; quote: string; text: string; line?: number };
-type Comment = { section?: number; file?: string; line?: number; side?: "old" | "new"; code?: string; text: string };
 type Item = {
 	v: 1;
 	id: string;
-	kind: "message" | "guide" | "verify" | "reply";
+	kind: "message" | "verify" | "reply";
 	created_at: string;
 	from: { terminal?: string; session: string; name?: string; cwd: string; root?: string; branch?: string };
 	subject: string;
@@ -46,7 +44,6 @@ type Item = {
 	verify?: { url?: string; steps: VerifyStep[] };
 	attachments?: string[];
 	reply_to?: string;
-	guide?: unknown;
 	withdrawn_at?: string;
 	state: "open" | "answered" | "done";
 	read_at?: string | null;
@@ -58,8 +55,6 @@ type Item = {
 		verify?: Array<{ key: string; result: "pass" | "fail"; note?: string }>;
 		annotations?: Annotation[];
 		note?: string;
-		verdict?: "approve" | "changes";
-		comments?: Comment[];
 	};
 };
 
@@ -70,9 +65,8 @@ const git = (cwd: string, args: string[]) =>
 
 const newId = () => `ibx_${Date.now().toString(36)}${randomBytes(4).toString("hex")}`;
 
-async function writeItem(item: Item, patch?: string) {
+async function writeItem(item: Item) {
 	await mkdir(ITEMS, { recursive: true });
-	if (patch !== undefined) await writeFile(join(ITEMS, `${item.id}.patch`), patch);
 	const tmp = join(ITEMS, `.${item.id}.json.tmp`);
 	await writeFile(tmp, `${JSON.stringify(item, null, 1)}\n`);
 	await rename(tmp, join(ITEMS, `${item.id}.json`));
@@ -92,38 +86,10 @@ async function allItems(): Promise<Item[]> {
 	return items.filter((i): i is Item => !!i);
 }
 
-// The branch's whole change, as a PR would show it: merge-base with the base ref
-// against the working tree, untracked files included. The base is the one asked for,
-// else the parent slice branch (git config branch.<b>.herdrParent), else main.
-async function branchPatch(root: string, branch: string | undefined, base?: string): Promise<{ patch: string; base: string } | undefined> {
-	const parent = !base && branch ? (await git(root, ["config", "--get", `branch.${branch}.herdrParent`]))?.trim() : undefined;
-	const refs = base ? [base] : [...(parent ? [parent, `origin/${parent}`] : []), "origin/main", "origin/master", "main", "master"];
-	for (const ref of refs) {
-		const base = (await git(root, ["merge-base", ref, "HEAD"]))?.trim();
-		if (!base) continue;
-		const tracked = (await git(root, ["diff", "--no-color", "--no-ext-diff", base])) ?? "";
-		const untracked = ((await git(root, ["ls-files", "--others", "--exclude-standard", "-z"])) ?? "").split("\0").filter(Boolean);
-		const fresh = await Promise.all(
-			untracked.map(
-				(path) =>
-					new Promise<string>((resolve) =>
-						execFile("git", ["-C", root, "diff", "--no-color", "--no-index", "--", "/dev/null", path], { maxBuffer: 16 * 1024 * 1024 }, (_e, stdout) => resolve(stdout ?? "")),
-					),
-			),
-		);
-		return { patch: tracked + fresh.join(""), base: ref };
-	}
-	return undefined;
-}
-
-// An item still waiting on the person: an open question, action, verify or guide.
+// An item still waiting on the person: an open question, action or verify.
 function needsPerson(item: Item): boolean {
 	if (item.answer || item.archived_at || item.withdrawn_at || item.kind === "reply") return false;
-	return item.kind === "guide" || item.kind === "verify" || item.questions.some((q) => !q.withdrawn) || Boolean(item.actions?.some((a) => !a.withdrawn));
-}
-
-function patchFiles(patch: string): string[] {
-	return [...patch.matchAll(/^diff --git a\/(.+?) b\/(.+)$/gm)].map((m) => (m[2] === "dev/null" ? m[1] : m[2]));
+	return item.kind === "verify" || item.questions.some((q) => !q.withdrawn) || Boolean(item.actions?.some((a) => !a.withdrawn));
 }
 
 // `:::question`, `:::question-multi`, `:::question-text` and `:::action` blocks in a
@@ -181,14 +147,6 @@ export function formatAnswer(item: Item): string {
 	const a = item.answer!;
 	if (item.kind === "reply") return [`Herdr Inbox: the person replied${item.thread ? ` in "${item.thread}"` : ""} (to ${item.reply_to ?? item.id})`, "", a.note ?? ""].join("\n");
 	const lines = [`Herdr Inbox: the person answered "${item.subject}" (${item.id})`];
-	if (item.kind === "guide") lines.push("", `Review: ${a.verdict === "approve" ? "Looks good" : a.verdict === "changes" ? "Changes requested" : "Commented"}`);
-	for (const c of a.comments ?? []) {
-		if (c.line !== undefined && c.file) {
-			lines.push("", `\`${c.file}:${c.line}\`${c.side === "old" ? " (removed line)" : ""}`);
-			if (c.code?.trim()) lines.push(quoted(c.code));
-			lines.push(c.text);
-		} else lines.push(`- ${c.file ? `\`${c.file}\`` : c.section !== undefined ? `Chapter ${c.section + 1}` : "General"}: ${c.text}`);
-	}
 	for (const [i, ans] of (a.answers ?? []).entries()) {
 		const q = item.questions.find((x) => x.key === ans.key);
 		lines.push("", `Q${i + 1}. ${q?.prompt ?? ans.key}`);
@@ -207,7 +165,7 @@ export function formatAnswer(item: Item): string {
 			lines.push(`- [${r?.result === "pass" ? "x" : " "}] ${step.text}: ${r ? (r.result === "pass" ? "pass" : "FAIL") : "not checked"}${r?.note ? ` (${r.note})` : ""}`);
 		}
 	}
-	const where = (t: string) => (t === "body" ? "the message" : t.startsWith("chapter:") ? `the overview of chapter ${Number(t.slice(8)) + 1}` : `\`${t.slice(5)}\``);
+	const where = (t: string) => (t === "body" ? "the message" : `\`${t.slice(5)}\``);
 	for (const n of a.annotations ?? []) {
 		lines.push("", n.line !== undefined && n.target.startsWith("file:") ? `\`${n.target.slice(5)}:${n.line}\`` : `On ${where(n.target)}:`);
 		lines.push(quoted(n.quote), n.text);
@@ -326,7 +284,6 @@ export default function (pi: ExtensionAPI) {
 				"Use inbox_send with the same thread name for every message of one work stream (default: the branch).",
 				"Only a question, action or verify pings the person; a plain message is a quiet update. Put questions in the body as :::question / :::question-multi / :::question-text blocks (first line the prompt, then context lines, `- [ ] choice` lines, `Recommended: <label>`) and things only they can do as :::action blocks. Use verify for steps they check in a running app. Use supersedes to withdraw a question you no longer need.",
 				"Use inbox_steps to keep the thread's plan (todo, doing, done, waiting) current.",
-				"Use inbox_guide, not inbox_send, to hand over a finished code change for review.",
 			],
 			parameters: Type.Object({
 				subject: Type.String({ description: "One line, plain text" }),
@@ -383,70 +340,6 @@ export default function (pi: ExtensionAPI) {
 				void updateNow();
 				const asks = [questions.length && `${questions.length} question(s)`, actions.length && `${actions.length} action(s)`, params.verify && `${params.verify.steps.length} verify step(s)`].filter(Boolean);
 				const text = `Sent to the Herdr Inbox (${item.id})${asks.length ? `, ${asks.join(", ")}; the answer arrives as a message` : " as a quiet update"}${withdrawn.length ? `; withdrew ${withdrawn.join(", ")}` : ""}.`;
-				return { content: [{ type: "text", text }], details: { id: item.id } };
-			},
-		}),
-	);
-
-	pi.registerTool(
-		defineTool({
-			name: "inbox_guide",
-			label: "Inbox: guided review",
-			description:
-				"Hand the person a guided review of a finished code change in Herdr: chapters ordered by importance, each with an overview and the files it covers. It opens in the Changes panel, where they step through it and approve or request changes; their verdict and comments arrive as a message. Without patch, the branch's whole change against main is sent (committed, uncommitted and untracked). Every changed file goes in exactly one chapter or in unplacedFiles; diffs[].file is the exact path from the diff. Chapters: implementation heart first, consequences next, glue last; 2-6 usually, 10 at most. Overviews: 2-6 short plain sentences on what changed, why, and what it implies; no verdicts, no em-dashes, no emoji.",
-			promptSnippet: "Hand over a finished code change as a guided review the person steps through in Herdr",
-			parameters: Type.Object({
-				title: Type.String(),
-				intent: Type.String({ description: "1-2 sentences: why the change exists" }),
-				sections: Type.Array(
-					Type.Object({
-						title: Type.String({ description: "Concept-level, never a file name" }),
-						overview: Type.String({ description: "Markdown, 2-6 sentences" }),
-						diffs: Type.Array(Type.Object({ file: Type.String(), summary: Type.String({ description: "1-2 sentences on this file's change" }) })),
-					}),
-					{ minItems: 1, maxItems: 10 },
-				),
-				unplacedFiles: Type.Optional(Type.Array(Type.String())),
-				body: Type.Optional(Type.String({ description: "A short note shown with it in the Inbox" })),
-				thread: Type.Optional(Type.String({ description: "Default: the branch (the session name on main)" })),
-				base: Type.Optional(Type.String({ description: "Ref to diff against; default: the parent slice branch (git config branch.<b>.herdrParent), else main" })),
-				patch: Type.Optional(Type.String({ description: "Unified diff to review; default: git diff <merge-base with base>, untracked files too" })),
-			}),
-			async execute(_id, params, _signal, _onUpdate, ctx) {
-				const from = await origin(ctx.cwd);
-				let patch = params.patch;
-				let base: string | undefined;
-				if (!patch) {
-					if (!from.root) throw new Error("not in a git repository; pass patch");
-					const made = await branchPatch(from.root, from.branch, params.base);
-					if (!made) throw new Error(params.base ? `cannot diff against ${params.base}; pass another base or patch` : "no main branch to diff against; pass patch");
-					({ patch, base } = made);
-				}
-				const files = patchFiles(patch);
-				if (!files.length) throw new Error("the patch has no file diffs");
-				const placed = params.sections.flatMap((s) => s.diffs.map((d) => d.file));
-				const unknown = placed.filter((f) => !files.includes(f));
-				const twice = placed.filter((f, i) => placed.indexOf(f) !== i);
-				if (unknown.length) throw new Error(`not in the patch: ${unknown.join(", ")}. Changed files: ${files.join(", ")}`);
-				if (twice.length) throw new Error(`placed twice: ${[...new Set(twice)].join(", ")}`);
-				const unplaced = files.filter((f) => !placed.includes(f));
-				const item: Item = {
-					v: 1,
-					id: newId(),
-					kind: "guide",
-					created_at: new Date().toISOString(),
-					from,
-					subject: params.title,
-					thread: threadOf(params.thread, from.branch),
-					body: params.body ?? "",
-					questions: [],
-					guide: { title: params.title, intent: params.intent, sections: params.sections, unplacedFiles: unplaced, base, files },
-					state: "open",
-					read_at: null,
-				};
-				await writeItem(item, patch);
-				void updateNow();
-				const text = `Guided review sent to the Herdr Inbox (${item.id}): ${params.sections.length} chapters, ${files.length} files${unplaced.length ? `, ${unplaced.length} under Everything else` : ""}. The verdict arrives as a message.`;
 				return { content: [{ type: "text", text }], details: { id: item.id } };
 			},
 		}),
