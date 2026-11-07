@@ -8,7 +8,7 @@ export default class WorkspaceStatus extends View {
   hint(t) {
     const mac = window()?.platform === "macos";
     const mod = { cmd: mac ? "⌘" : "Ctrl+", ctrl: mac ? "⌃" : "Ctrl+", shift: mac ? "⇧" : "Shift+", alt: mac ? "⌥" : "Alt+", option: mac ? "⌥" : "Alt+" };
-    const b = keys().find((k) => k.section === "global" && k.action === "app.palette");
+    const b = keys().find((k) => k.section === "global" && k.action === "mod.open:cmdk-plus");
     const parts = b && b.keys.endsWith("--") ? [...b.keys.slice(0, -2).split("-"), "-"] : b?.keys.split("-");
     const key = parts && parts.map((p) => mod[p.toLowerCase()] ?? p.toUpperCase()).join("");
     return key ? `${key}  commands` : "commands";
@@ -45,6 +45,6 @@ export default class WorkspaceStatus extends View {
         .when(needs > 0, el => el.child(div().text_color(t.blocked).child(`· ${needs} needs you`))))
       .child(h_flex().gap(4).items_center().children(this.background(space).map((x) => this.chip(x, t))))
       .child(div().flex_1())
-      .child(div().id("palette").text_color(t.dim).on_click(() => run("app.palette")).child(this.hint(t)));
+      .child(div().id("palette").text_color(t.dim).on_click(() => run("mod.open", { name: "cmdk-plus" })).child(this.hint(t)));
   }
 }

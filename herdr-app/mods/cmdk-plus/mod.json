@@ -1,0 +1,1 @@
+{ "place": "none", "title": "Command bar", "overlay": { "kind": "popup", "at": "top", "offset": 60, "width": 640, "height": 0.8 } }
