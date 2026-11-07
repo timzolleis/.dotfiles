@@ -44,7 +44,6 @@
           "background": "background",
           "radius": 10,
           "border": { "width": 1, "color": "border" },
-          "shadow": "sm",
           "resizable": false,
           "children": [
             { "id": "tabs", "type": "block", "size": { "px": 42 }, "window_drag": true, "content": { "mod": "tabs-plus" } },
