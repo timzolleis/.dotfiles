@@ -1,10 +1,9 @@
 import { execFile } from "node:child_process";
-import { defineTool, type ExtensionAPI, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { Type } from "typebox";
+import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
 
 /**
- * Says in the Herdr agents list who this agent is and what it does now, through the
- * `herdr.role`, `herdr.task`, `herdr.branch` and `herdr.now` labels of its own terminal.
+ * Says in the Herdr agents list who this agent is, through the
+ * `herdr.role`, `herdr.task` and `herdr.branch` labels of its own terminal.
  */
 
 const TERMINAL = process.env.HC_TERMINAL_ID;
@@ -75,32 +74,21 @@ export default function (pi: ExtensionAPI) {
 		return { action: "continue" };
 	});
 
+	// ~/.config/herdr-app/AGENTS.md is rewritten by the app on every start and runs to 1000 lines
+	// (about 15k tokens); inside that folder pi would load all of it into every session.
+	// Send an outline and let the agent read the section it needs.
+	pi.on("before_agent_start", async (event) => {
+		for (const file of event.systemPromptOptions.contextFiles ?? []) {
+			if (!file.path.endsWith("/herdr-app/AGENTS.md") || file.content.length < 8000) continue;
+			const outline = file.content
+				.split("\n")
+				.flatMap((line, index) => (/^#{1,3} /.test(line) ? [`${index + 1}: ${line}`] : []))
+				.join("\n");
+			file.content = `The Herdr app's interface docs are in ${file.path} (${file.content.split("\n").length} lines), not loaded here. Before changing layouts, keys, commands, settings or mods, read the sections you need with read (offset/limit) from this outline (line: heading):\n\n${outline}`;
+		}
+	});
+
 	pi.on("session_shutdown", async () => {
 		await writeLabels({ "herdr.now": "" });
 	});
-
-	pi.registerTool(
-		defineTool({
-			name: "agent_status",
-			label: "Agent status",
-			description: "Show in the Herdr agents list what this agent works on (task) and what it does right now (now).",
-			promptSnippet: "Set the task and current step shown for this agent in the Herdr agents list",
-			promptGuidelines: [
-				"Use agent_status to set task when the person gives you a new piece of work: 2-6 words naming it, like a ticket title.",
-				"Use agent_status to set now when you start a new step; keep it under 8 words.",
-			],
-			parameters: Type.Object({
-				task: Type.Optional(Type.String({ description: "What this agent works on, stable, under 60 chars" })),
-				now: Type.Optional(Type.String({ description: "The current step, under 8 words; empty clears it" })),
-			}),
-			async execute(_id, params, _signal, _onUpdate, ctx) {
-				if (params.task !== undefined) {
-					taskFromUser = true;
-					await showTask(ctx, params.task);
-				}
-				if (params.now !== undefined) await writeLabels({ "herdr.now": params.now });
-				return { content: [{ type: "text", text: "ok" }], details: {} };
-			},
-		}),
-	);
 }

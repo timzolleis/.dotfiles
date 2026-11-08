@@ -1,42 +1,100 @@
 {
   "id": "root",
   "type": "row",
-  "cloned_from": { "name": "main", "version": "0.1.13" },
+  "cloned_from": {
+    "name": "main",
+    "version": "0.1.13"
+  },
   "preview": "layouts/tim.svg",
   "titlebar": "none",
-  "traffic_lights": [12, 16],
-  "theme": { "light": "linear-light", "dark": "linear" },
+  "traffic_lights": [
+    12,
+    16
+  ],
+  "theme": {
+    "light": "linear-light",
+    "dark": "linear"
+  },
   "ui_font": "Geist",
   "background": "canvas",
-  "terminal_padding": [12, 14],
+  "terminal_padding": [
+    12,
+    14
+  ],
   "children": [
     {
       "id": "sidebar",
       "type": "column",
-      "size": { "px": 260 },
+      "size": {
+        "px": 260
+      },
       "min": 44,
       "max": 480,
       "background": "chrome",
       "resizable": false,
       "children": [
-        { "id": "brand", "type": "block", "size": { "px": 46 }, "window_drag": true, "content": { "mod": "workspace-chrome-plus" } },
+        {
+          "id": "brand",
+          "type": "block",
+          "size": {
+            "px": 46
+          },
+          "window_drag": true,
+          "content": {
+            "mod": "workspace-chrome-plus"
+          }
+        },
         {
           "id": "sidebar-lists",
           "type": "column",
           "children": [
-            { "id": "spaces", "type": "block", "size": { "weight": 1.1 }, "min": 90, "content": { "mod": "spaces-plus" } },
-            { "id": "agents", "type": "block", "size": { "weight": 1.3 }, "min": 90, "content": { "mod": "agents-plus" } },
-            { "id": "inbox", "type": "block", "size": { "weight": 0.5 }, "min": 90, "content": { "mod": "inbox-plus", "props": { "view": "side" } } }
+            {
+              "id": "spaces",
+              "type": "block",
+              "size": {
+                "weight": 1.1
+              },
+              "min": 90,
+              "content": {
+                "mod": "spaces-plus"
+              }
+            },
+            {
+              "id": "agents",
+              "type": "block",
+              "size": {
+                "weight": 1.3
+              },
+              "min": 90,
+              "content": {
+                "mod": "agents-plus"
+              }
+            }
           ]
         },
-        { "id": "sidebar-footer", "type": "block", "size": { "px": 69 }, "content": { "mod": "workspace-chrome-plus", "props": { "footer": true } } }
+        {
+          "id": "sidebar-footer",
+          "type": "block",
+          "size": {
+            "px": 69
+          },
+          "content": {
+            "mod": "workspace-chrome-plus",
+            "props": {
+              "footer": true
+            }
+          }
+        }
       ]
     },
     {
       "id": "work",
       "type": "column",
       "resizable": false,
-      "padding": [8, 8],
+      "padding": [
+        8,
+        8
+      ],
       "children": [
         {
           "id": "work-card",
@@ -44,14 +102,30 @@
           "background": "background",
           "radius": 10,
           "padding": 3,
-          "border": { "width": 1, "color": "border" },
+          "border": {
+            "width": 1,
+            "color": "border"
+          },
           "resizable": false,
           "children": [
-            { "id": "tabs", "type": "block", "size": { "px": 42 }, "window_drag": true, "content": { "mod": "tabs-plus" } },
+            {
+              "id": "tabs",
+              "type": "block",
+              "size": {
+                "px": 42
+              },
+              "window_drag": true,
+              "content": {
+                "mod": "tabs-plus"
+              }
+            },
             {
               "id": "work-body",
               "type": "row",
-              "divider": { "width": 1, "color": "border" },
+              "divider": {
+                "width": 1,
+                "color": "border"
+              },
               "children": [
                 {
                   "id": "center",
@@ -68,20 +142,34 @@
                           "radius": 8,
                           "background": "background",
                           "lone": false,
-                          "border": { "width": 1, "color": "border" },
-                          "focus": { "width": 1, "color": "accent" },
-                          "header": { "content": { "mod": "pane-plus" }, "height": 28, "position": "top", "reveal": "always" }
+                          "border": {
+                            "width": 1,
+                            "color": "border"
+                          },
+                          "focus": {
+                            "width": 1,
+                            "color": "accent"
+                          },
+                          "header": {
+                            "content": {
+                              "mod": "pane-plus"
+                            },
+                            "height": 28,
+                            "position": "top",
+                            "reveal": "always"
+                          }
                         }
                       }
-                    },
-                    { "id": "inbox-screen", "type": "block", "content": { "mod": "inbox-plus", "props": { "view": "screen" } } }
+                    }
                   ]
                 },
                 {
                   "id": "panel",
                   "type": "column",
                   "hidden": true,
-                  "size": { "px": 400 },
+                  "size": {
+                    "px": 400
+                  },
                   "min": 280,
                   "max": 1100,
                   "children": [
@@ -90,9 +178,20 @@
                       "type": "stack",
                       "active": "changes",
                       "children": [
-                        { "id": "files", "type": "block", "content": { "mod": "files-plus" } },
-                        { "id": "changes", "type": "block", "content": { "mod": "changes-plus" } },
-                        { "id": "inbox-panel", "type": "block", "content": { "mod": "inbox-plus", "props": { "view": "panel" } } }
+                        {
+                          "id": "files",
+                          "type": "block",
+                          "content": {
+                            "mod": "files-plus"
+                          }
+                        },
+                        {
+                          "id": "changes",
+                          "type": "block",
+                          "content": {
+                            "mod": "changes-plus"
+                          }
+                        }
                       ]
                     }
                   ]
@@ -101,7 +200,16 @@
             }
           ]
         },
-        { "id": "status", "type": "block", "size": { "px": 30 }, "content": { "mod": "status-plus" } }
+        {
+          "id": "status",
+          "type": "block",
+          "size": {
+            "px": 30
+          },
+          "content": {
+            "mod": "status-plus"
+          }
+        }
       ]
     }
   ]

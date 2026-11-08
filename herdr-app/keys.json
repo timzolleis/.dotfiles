@@ -72,7 +72,6 @@
     "cmd-backspace": "send:\u0015"
   },
   "layout:tim": {
-    "cmd-i": "tabs-plus.inbox",
     "cmd-e": "tabs-plus.changes",
     "cmd-shift-e": "tabs-plus.files"
   }

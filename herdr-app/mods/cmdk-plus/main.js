@@ -1,24 +1,22 @@
 // Cmd-K command bar. Opens as a popup (mod.open:cmdk-plus). One input, one list.
 // Empty query: Needs you, Recent, Actions. Typing: one fuzzy-ranked list under group
-// headers (agents, spaces and tabs, inbox, commands, layouts). ">" first: commands only.
+// headers (agents, spaces and tabs, commands, layouts). ">" first: commands only.
 //
-// Energy: the index is built once, in init (the inbox folder is read once, with fs, no exec).
+// Energy: the index is built once, in init.
 // render() only draws: it never ranks or reads. Ranking runs when the query changes, and
 // only the rows that fit are drawn. No timers, loops, frames or transitions.
 
 import { View, div, svg, image } from "gpui-kit";
 import { v_flex, h_flex, InputState, Input } from "gpui-base";
-import { agents, spaces, terminals, commands, layouts, keys, layout, focused, run, theme, props, closeOverlay, openOverlay, shared, setShared, window, appHome, readTextFile } from "herdr";
-import * as fs from "fs/promises";
+import { agents, spaces, terminals, commands, layouts, keys, layout, focused, run, theme, props, closeOverlay, openOverlay, shared, setShared, window } from "herdr";
 
 const HEAD = 30, ROW = 34, LIST_MAX = 408;
-const CAP = { agents: 6, nav: 8, inbox: 6, commands: 10, layouts: 4 };
+const CAP = { agents: 6, nav: 8, commands: 10, layouts: 4 };
 const GROUPS = {
   needs: "Needs you", recent: "Recent", actions: "Actions",
-  agents: "Agents", nav: "Spaces and tabs", inbox: "Inbox", commands: "Commands", layouts: "Layouts",
+  agents: "Agents", nav: "Spaces and tabs", commands: "Commands", layouts: "Layouts",
 };
 const ICON = (n) => `mods/workspace-chrome/${n}.svg`;
-const INBOX_ICON = "mods/inbox-plus/inbox.svg";
 
 function find(node, id) {
   if (node?.id === id) return node;
@@ -143,30 +141,6 @@ function runsOf(text, idx) {
   return out;
 }
 
-// ---- inbox, as inbox-plus reads it ----
-const liveQuestions = (i) => (i.questions ?? []).filter((q) => !q.withdrawn);
-const liveActions = (i) => (i.actions ?? []).filter((a) => !a.withdrawn);
-function needOf(item) {
-  if (item.archived_at) return "archived";
-  if (item.kind === "reply") return "reply";
-  if (item.answer || item.withdrawn_at) return "done";
-  if (item.kind === "verify") return "verify";
-  if (liveQuestions(item).length) return "ask";
-  if (liveActions(item).length) return "act";
-  return item.read_at ? "done" : "update";
-}
-const ASKS = ["ask", "act", "verify"];
-const base = (p) => String(p ?? "").split("/").filter(Boolean).pop() ?? "";
-function openInboxItem(id) {
-  setShared("inbox.selected", id);
-  const center = find(layout(), "center");
-  if (center?.active === "inbox-screen") return;
-  if (find(layout(), "panel-body")) {
-    run("layout.select", { stack: "panel-body", child: "inbox-panel" });
-    run("layout.show", { id: "panel" });
-  } else if (find(layout(), "inbox-screen")) run("layout.select", { stack: "center", child: "inbox-screen" });
-}
-
 // ---- where I have been: tab ids, newest first, kept across opens ----
 function remember(...tabIds) {
   const old = shared("cmdk.recent") ?? [];
@@ -185,7 +159,6 @@ export default class CmdK extends View {
     this.at = 0;
     this.top = 0;
     this.wheel = 0;
-    this.inbox = [];
     this.build();
     this.rows = this.rank();
     this.input = InputState.new({ placeholder: "Search, or type > for commands" });
@@ -200,30 +173,6 @@ export default class CmdK extends View {
     this.input.focus();
     cx.timer.after(150, () => this.input.focus());
     this.handle = cx.focus_handle();
-    // The inbox folder, once.
-    cx.spawn(async (cx) => {
-      try {
-        const dir = `${appHome()}/data/inbox/items`;
-        const names = (await fs.readdir(dir).catch(() => [])).filter((n) => n.endsWith(".json") && !n.startsWith("."));
-        const out = [];
-        for (const n of names) {
-          const text = await readTextFile(`${dir}/${n}`).catch(() => null);
-          if (!text) continue;
-          try {
-            const i = JSON.parse(text), need = needOf(i);
-            if (need === "archived" || need === "reply") continue;
-            const stopped = need === "ask" && liveQuestions(i).some((q) => q.stopped);
-            out.push({ id: i.id, subject: i.subject ?? "", thread: i.thread ?? "", who: i.from?.name || base(i.from?.root), terminal: i.from?.terminal, need, stopped, created_at: i.created_at ?? "" });
-          } catch {}
-        }
-        out.sort((a, b) => b.created_at.localeCompare(a.created_at));
-        this.inbox = out;
-        this.build();
-        this.rows = this.rank();
-        this.at = Math.min(this.at, Math.max(0, this.selectable().length - 1));
-      } catch {}
-      cx.notify();
-    });
   }
 
   close() {
@@ -240,11 +189,10 @@ export default class CmdK extends View {
     const tl = new Map(terminals().map((x) => [x.address, x.labels ?? {}]));
     const here = activeTab();
     const go = (fn) => () => { this.close(); fn(); };
-    const items = { needs: [], agents: [], nav: [], inbox: [], actions: [], commands: [], layouts: [] };
+    const items = { needs: [], agents: [], nav: [], actions: [], commands: [], layouts: [] };
     this.tabItem = new Map();
 
     // agents
-    const asked = new Set(this.inbox.filter((i) => i.need === "ask").map((i) => i.terminal));
     for (const a of ags) {
       const labels = tl.get(a.address) ?? {};
       const sp = ss.find((s) => s.id === a.space);
@@ -259,7 +207,7 @@ export default class CmdK extends View {
         go: go(() => { remember(here, a.tab); run("pane.focus", { pane: a.pane }); }),
       };
       items.agents.push(it);
-      if (a.status === "blocked" && !asked.has(a.address)) items.needs.push({ ...it, id: `need:${a.address}`, pill: "Needs you" });
+      if (a.status === "blocked") items.needs.push({ ...it, id: `need:${a.address}`, pill: "Needs you" });
     }
 
     // spaces and tabs
@@ -282,19 +230,6 @@ export default class CmdK extends View {
       }
     }
 
-    // inbox
-    for (const i of this.inbox) {
-      const asks = ASKS.includes(i.need);
-      const tag = i.stopped ? "Blocks agent" : { ask: "Asks", act: "To do", verify: "Verify" }[i.need];
-      const it = {
-        id: `inbox:${i.id}`, group: "inbox", label: i.subject || "Untitled", sub: [i.who, i.thread].filter(Boolean).join(" · "),
-        hay: `${i.subject} ${i.thread} ${i.who}`, icon: INBOX_ICON, pill: asks ? tag : null, dimmed: i.need === "done",
-        go: go(() => openInboxItem(i.id)),
-      };
-      items.inbox.push(it);
-      if (asks) items.needs.push(it);
-    }
-
     // curated actions, for the current space
     const space = ss.find((s) => s.active);
     const panelOk = (id) => Boolean(find(lay, "panel-body")?.children?.some((c) => c.id === id));
@@ -304,7 +239,6 @@ export default class CmdK extends View {
     if (space) items.actions.push(act("worktree", "New worktree", ICON("branch"), "", () => openOverlay({ mod: "worktree", kind: "dialog", width: 460, height: 280, props: { space: space.id, folder: focused()?.cwd ?? space.folder, action: "new" } }), "branch git"));
     if (panelOk("changes")) items.actions.push(act("changes", "Show Changes", ICON("git-compare"), "tabs-plus.changes", showPanel("changes"), "diff git"));
     if (panelOk("files")) items.actions.push(act("files", "Show Files", ICON("files"), "tabs-plus.files", showPanel("files"), "tree folder"));
-    if (find(lay, "inbox-screen")) items.actions.push(act("inbox", "Show Inbox", INBOX_ICON, "tabs-plus.inbox", () => run("layout.select", { stack: "center", child: "inbox-screen" }), "messages"));
     if (find(lay, "sidebar")) items.actions.push(act("sidebar", "Toggle sidebar", ICON("panel-left"), "layout.toggle:sidebar", () => run("layout.toggle", { id: "sidebar" }), "hide show"));
     items.actions.push(act("layout", "Switch layout", ICON("layers"), "layout.switch", () => run("layout.switch")));
     items.actions.push(act("settings", "Settings", ICON("settings"), "app.settings", () => run("app.settings"), "preferences"));
@@ -356,7 +290,6 @@ export default class CmdK extends View {
       const groups = [
         ["agents", ranked(I.agents, CAP.agents)],
         ["nav", ranked(I.nav, CAP.nav)],
-        ["inbox", ranked(I.inbox, CAP.inbox)],
         ["commands", ranked([...I.actions, ...I.commands], CAP.commands)],
         ["layouts", ranked(I.layouts, CAP.layouts)],
       ].filter(([, l]) => l.length);

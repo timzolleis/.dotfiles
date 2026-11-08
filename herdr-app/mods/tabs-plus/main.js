@@ -25,10 +25,6 @@ function togglePanel(id) {
   if (panel && !panel.hidden && body?.active === id) run("layout.hide", { id: "panel" });
   else { run("layout.select", { stack: "panel-body", child: id }); run("layout.show", { id: "panel" }); }
 }
-function toggleInbox() {
-  const screen = find(layout(), "center")?.active === "inbox-screen";
-  run("layout.select", { stack: "center", child: screen ? "main" : "inbox-screen" });
-}
 
 export default class Tabs extends View {
   init(_props, cx) {
@@ -37,8 +33,7 @@ export default class Tabs extends View {
     cx.spawn(async (cx) => {
       for (;;) {
         const c = await nextCommand();
-        if (c === "inbox") toggleInbox();
-        else if (c === "files" || c === "changes") togglePanel(c);
+        if (c === "files" || c === "changes") togglePanel(c);
         cx.notify();
       }
     });
@@ -95,7 +90,6 @@ export default class Tabs extends View {
           const from = this.pressed; this.pressed = null;
           if (from !== null && from !== i) run("tab.move", { id: shown[from].id, index: space.tabs.findIndex(x => x.id === c.id) + 1 });
           else run("tab.select", { id: c.id });
-          if (find(layout(), "center")?.active === "inbox-screen") run("layout.select", { stack: "center", child: "main" });
         })
         .on_mouse_down("right", (_e, cx) => { cx.stop_propagation(); openOverlay({ mod: "menu", kind: "popup", width: 200, props: { tab: "tab", target: { id: c.id, space: space.id } } }); })
         .when(Boolean(program?.icon), el => el.child(program.tint ? svg(program.icon).size(14).text_color(t.muted) : image(program.icon).size(14)))
@@ -111,7 +105,8 @@ export default class Tabs extends View {
       ? Math.max(10, (root.traffic_lights[0] + 64) / settings().zoom - (sidebar?.hidden ? 0 : sidebar?.size?.px ?? 0))
       : 10;
     const panel = find(root, "panel"), body = find(root, "panel-body");
-    const enabled = shared("workspace.panels") ?? ["files", "changes"];
+    // The welcome stored only ["changes"] in shared "workspace.panels"; this layout always offers both.
+    const enabled = ["files", "changes"];
     this.syncPanel(space, panel, body, enabled);
     const panelButton = (id, label, icon) => {
       const on = panel && !panel.hidden && body?.active === id;
@@ -121,17 +116,7 @@ export default class Tabs extends View {
         .tooltip(tip(label, `tabs-plus.${id}`))
         .on_click(() => togglePanel(id)).child(svg(icon).size(14)).child(label);
     };
-    const center = find(root, "center"), screen = center?.active === "inbox-screen", needs = Number(shared("inbox.needs") ?? 0), updates = Number(shared("inbox.updates") ?? 0);
     const pill = (id) => h_flex().id(id).h(28).flex_none().items_center().rounded_full().border_1().border_color(t.border).text_size(12.5).font_medium();
-    const inboxButton = pill("inbox-button").px(11).gap(7)
-      .bg(screen ? t.selected : t.background).text_color(screen || needs > 0 ? t.foreground : t.muted)
-      .hover(s => s.bg(screen ? t.selected : t.hover).text_color(t.foreground)).on_mouse_down("left", stop)
-      .tooltip(tip(screen ? "Back to the terminals" : "Inbox", "tabs-plus.inbox"))
-      .on_click(toggleInbox)
-      .child(svg("mods/inbox/inbox.svg").size(14)).child("Inbox")
-      .when(needs > 0, el => el.child(div().text_size(12).font_semibold().text_color(t.blocked).child(String(needs))))
-      // Updates wait quietly: a dim count, only when nothing needs the person.
-      .when(needs === 0 && updates > 0, el => el.child(div().text_size(12).text_color(t.dim).child(String(updates))));
     return h_flex().size_full().min_w(0).px(10).pl(lightsPadding).gap(2).items_center().bg(t.background).border_b(1).border_color(t.border)
       .on_mouse_up("left", () => { this.pressed = null; })
       .on_scroll_wheel(e => { if (Math.abs(e.delta.y) >= 1) run(e.delta.y > 0 ? "tab.prev" : "tab.next"); })
@@ -144,8 +129,6 @@ export default class Tabs extends View {
       .child(pill("tab-new").w(28).justify_center().text_color(t.muted).hover(s => s.bg(t.hover).text_color(t.foreground)).on_mouse_down("left", stop)
         .tooltip(tip("New tab", "tab.new"))
         .on_click(() => openOverlay({ mod: "new-menu", kind: "popup", width: 250, height: 512 })).child(svg("mods/workspace-chrome/plus.svg").size(14)))
-      .child(div().w(4))
-      .child(inboxButton)
       .child(div().w(4))
       .child(pill("panels").px(1).gap(1)
         .when(enabled.includes("files"), el => el.child(panelButton("files", "Files", "mods/files/file.svg")))

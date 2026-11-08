@@ -22,7 +22,9 @@ const TAB_ADOPTION_TIMEOUT_MS = 5_000;
 const FINAL_REPLY_CONTRACT =
 	"\n\nFinal reply: at most 10 lines: what changed, what is left, and any decision for whoever launched you. They see your commits, diff and PR without you listing them.";
 const SUB_AGENT_ENV = ["PLANNOTATOR_INBOX_TOOL=0", "PLANNOTATOR_AGENT_TOOL=0", "PI_SUBAGENT=1"];
-const SUB_AGENT_EXCLUDED_TOOLS = "inbox_send,inbox_read";
+// Reasoning is about 40% of output tokens; sub-agents get a narrower task than the person's own session.
+const SUB_AGENT_THINKING = "medium";
+const WARM_WHILE_WAITING_MS = 45 * 60_000;
 const SHOT_PATTERN = /\bpnpm\s+(?:-s\s+)?shot\b|\bshot\s+(?:publish|outline|flow)\b/;
 const AGENT_NAME = /^[a-z][a-z0-9_-]{0,31}$/;
 const WORKTREE_ROOT = join(homedir(), ".herdr/worktrees");
@@ -589,14 +591,12 @@ function piArguments({
 	sessionId,
 	model,
 	thinking,
-	subAgent,
-}: Pick<Launch, "name" | "sessionId" | "model" | "thinking"> & { subAgent: boolean }): string[] {
+}: Pick<Launch, "name" | "sessionId" | "model" | "thinking">): string[] {
 	return [
 		"--session-id", sessionId,
 		"--name", name,
 		...(model ? ["--model", model] : []),
 		...(thinking ? ["--thinking", thinking] : []),
-		...(subAgent ? ["--exclude-tools", SUB_AGENT_EXCLUDED_TOOLS] : []),
 	];
 }
 
@@ -779,6 +779,7 @@ async function liveTerminalsInside(checkoutPath: string): Promise<string[]> {
 
 export default function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT === "1") return;
+	if (!process.env.HC_TERMINAL_ID) return;
 	const launches = new Map<string, Launch>();
 	const reports = new Map<string, Report>();
 	const watchers = new Map<string, ChildProcess>();
@@ -967,7 +968,12 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("cache_warming_decision", (_event, ctx) => {
-		if ([...launches.values()].some(isRunning)) return { action: "warm" as const };
+		// A miss on a 200k context costs about 12 refreshes: warm while an agent works, not for hours.
+		const waiting = [...launches.values()].filter(isRunning);
+		if (waiting.length > 0) {
+			const since = Math.min(...waiting.map((launch) => launch.launchedAt));
+			return { action: Date.now() - since < WARM_WHILE_WAITING_MS ? ("warm" as const) : ("stop" as const) };
+		}
 		if (ctx.isIdle()) return { action: "stop" as const };
 		return undefined;
 	});
@@ -983,7 +989,7 @@ export default function (pi: ExtensionAPI) {
 	const namespace = {
 		name: "herdr",
 		description:
-			"Herdr: pi sub-agents and orchestrators, git worktrees (each its own Herdr space, provisioned by ship in a ship project), and terminals (herdr-core). Sub-agent completion arrives as a message; never wait or poll for it.",
+			"Herdr: pi sub-agents and orchestrators, git worktrees (each its own Herdr space, provisioned by ship in a ship project), and terminals (herdr-core). Sub-agent completion arrives as a message; never wait or poll for it. Tools: subagent_launch, subagent_status, subagent_send, subagent_stop, worktree_create, worktree_list, worktree_remove, pane_list, pane_open, pane_run, pane_read, pane_wait, pane_close, dev_server. Read a declaration with describeTool(name) before the first call.",
 	};
 
 	pi.registerTool(
@@ -991,12 +997,12 @@ export default function (pi: ExtensionAPI) {
 			name: "subagent_launch",
 			label: "Launch sub-agent",
 			description:
-				"Start a pi agent in its own herdr-core terminal with a brief. It gets a new tab named after it (name) in your space, also when cwd is a slice worktree; tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has the Inboxes and these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles.",
+				"Start a pi agent in its own herdr-core terminal with a brief. It gets a new tab named after it (name) in your space, also when cwd is a slice worktree; tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles.",
 			parameters: Type.Object({
 				name: Type.String({ description: "Unique terminal name, [a-z][a-z0-9_-]{0,31}; also pi's session name" }),
 				cwd: Type.String({ description: "Absolute working directory" }),
 				model: Type.Optional(Type.String({ description: "pi --model, e.g. anthropic/claude-sonnet-5-5; default the user's" })),
-				thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default the user's" })),
+				thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default medium for sub-agents, the user's for orchestrators" })),
 				briefFile: Type.Optional(Type.String({ description: "Path of the brief to send; or pass prompt" })),
 				prompt: Type.Optional(Type.String({ description: "Brief text; or pass briefFile" })),
 				tab: Type.Optional(Type.String({ description: "Group: a tab of this name holds the agents; default a tab named after the agent" })),
@@ -1004,7 +1010,7 @@ export default function (pi: ExtensionAPI) {
 				role: Type.Optional(Type.Union([Type.Literal("impl"), Type.Literal("review")], { description: "Default impl; orchestrators are always orchestrator" })),
 				task: Type.Optional(Type.String({ description: "What it works on, shown in the agents list; default the brief's first line, at most 60 chars" })),
 				pane: Type.Optional(Type.String({ description: "Existing shell terminal at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
-				orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (Inboxes, sub-agents, worktrees, terminals) and a terminal that stays open; default false" })),
+				orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (sub-agents, worktrees, terminals) and a terminal that stays open; default false" })),
 				keepOpen: Type.Optional(Type.Boolean({ description: "Keep the terminal open and settle its tab after it finishes; default true. false closes it" })),
 			}),
 			outputSchema: Type.Object({ name: Type.String(), pane: Type.String(), session: Type.Optional(Type.String()) }),
@@ -1028,7 +1034,7 @@ export default function (pi: ExtensionAPI) {
 					name: params.name,
 					cwd: params.cwd,
 					model: params.model,
-					thinking: params.thinking,
+					thinking: params.thinking ?? (orchestrator ? undefined : SUB_AGENT_THINKING),
 					sessionId: randomUUID(),
 					keepOpen: orchestrator ? true : params.keepOpen ?? true,
 					orchestrator,
@@ -1045,7 +1051,7 @@ export default function (pi: ExtensionAPI) {
 					const briefPath = join(tmpdir(), "pi-subagents", `${params.name}-${draft.sessionId}.md`);
 					await mkdir(dirname(briefPath), { recursive: true });
 					await writeFile(briefPath, prompt);
-					const args = piArguments({ ...draft, subAgent: false }).map(shellQuote).join(" ");
+					const args = piArguments(draft).map(shellQuote).join(" ");
 					await hc(["send", params.pane, `${agentEnv.map((pair) => pair.replace(/=(.*)$/s, (_, value) => `=${shellQuote(value)}`)).join(" ")} pi ${args} -- "$(cat ${shellQuote(briefPath)})"`]);
 					terminal = shell.address;
 					turnAtLaunch = shell.turn;
@@ -1056,7 +1062,7 @@ export default function (pi: ExtensionAPI) {
 						workspace: params.workspace ?? (await callerPlacement()).space,
 						otherSpaceTab: params.name,
 					});
-					const piArgs = piArguments({ ...draft, subAgent: !orchestrator });
+					const piArgs = piArguments(draft);
 					const argv = [
 						"env", ...agentEnv, ...(orchestrator ? [] : SUB_AGENT_ENV),
 						"zsh", "-lic", 'exec pi "$@"', "pi", ...piArgs, "--", prompt,
