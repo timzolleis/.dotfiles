@@ -20,12 +20,15 @@
     "+codemode"
   ],
   "modelThinkingLevels": {
-    "anthropic/claude-fable-5-1": "high",
-    "anthropic/claude-opus-5-5": "high"
+    "anthropic/claude-fable-5-1": "medium",
+    "anthropic/claude-opus-5-5": "medium"
   },
   "extensionChangelogVersions": {
     "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.47.0",
     "{\"source\":\"npm:@gotgenes/pi-anthropic-auth\",\"scope\":\"user\"}": "3.4.4"
   },
-  "cacheWarming": "idle"
+  "cacheWarming": "idle",
+  "codemode": {
+    "inlineBudget": 0
+  }
 }
