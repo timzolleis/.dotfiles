@@ -1,6 +1,7 @@
 ---
 name: web-animation-design
 description: Design and implement web animations. Use when choosing easing, duration, springs, enter/exit or gesture motion, reduced-motion handling, or fixing animation that feels janky.
+disable-model-invocation: true
 ---
 
 # Web Animation Design

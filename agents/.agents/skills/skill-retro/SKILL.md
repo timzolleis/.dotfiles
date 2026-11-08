@@ -42,7 +42,7 @@ Never propose prose for a rule a check can carry. Never propose adding without n
 
 ## 4. Report
 
-One Inbox message in the thread `<skill> retro`, 40 to 80 lines:
+One chat message, 40 to 80 lines:
 
 1. Numbers: period, repositories, use cases built, lines and files per use case, sessions that read the skill, corrections, review comments by class.
 2. Rules broken, most first, each with its citations.

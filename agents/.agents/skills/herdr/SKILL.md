@@ -29,7 +29,6 @@ The installed binaries own the syntax. Read `hc --skill` before driving terminal
 | Tab | one agent, named after its job | a space starts with one tab, its orchestrator's; a reviewer set shares one tab |
 | Pane | one terminal | never split an agent into another agent's tab |
 | Background terminal | setup, dev server | hidden (no `herdr.space` label); the status bar shows and peeks them |
-| Inbox | what needs the person | decide, verify, do; updates are quiet |
 
 Never change the person's view (`layout.*`, `space.select`, `tab.select`, focus) unless they ask: they work in this window. A screenshot that needs another view switches, shoots and switches back in one command.
 
@@ -39,7 +38,8 @@ The person's own mods are the `-plus` ones in `~/.config/herdr-app/mods`, with t
 
 In pi, the codemode namespace `herdr` wraps the commands below; prefer it when present. `describeNamespace("herdr")` lists its tools and arguments. `workspace` is a space id; `pane` and `rootPane` are terminal addresses (`t7`). Agents launched with it report back as a message that starts your turn: never wait on, poll, or read them.
 
-- Delegate: `tools.subagent_launch({ name, cwd, prompt, task, role })`. It opens a new tab named after the agent in your space (`tab` groups a set, which reports in one message). `task` (default the brief's first line) and `role` (`impl` | `review`) show in the agents list. Add `model` and `thinking` only when the user names them.
+- Delegate: `tools.subagent_launch({ name, cwd, prompt, task, role })`. It opens a new tab named after the agent in your space (`tab` groups a set, which reports in one message). `task` (default the brief's first line) and `role` (`impl` | `review`) show in the agents list. Add `model` and `thinking` only when the user names them; sub-agents default to `thinking: medium`.
+- Scope each brief to about 50 turns of work, one slice or one review lens. Agents that run 130+ turns carry 300k+ of context and cost $10-20 each; they compact themselves at 200k, which still loses detail. Split by slice, hand over through commits, and start a fresh agent for the next round.
 - A finished agent's terminal stays open and its tab settles (folded into `+N` in the tab bar) so the person can read it. `subagent_send({ name, text })` steers a running or finished agent. `subagent_stop` only when the user asks or the work is merged.
 - A stream with its own orchestrator, when the user asks for one:
 
@@ -54,11 +54,10 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 - An orchestrator keeps its terminal and its tools, outlives you, and reports each time it settles; its reports show in your chat without starting a turn, except errors and exits.
 - `worktree_remove({ workspace })` or `({ path })` for a slice closes the space, deletes the checkout and runs `ship down`. Only when the user asks; it refuses an unmerged slice without `force`.
 
-## Identity and the Inbox
+## Identity
 
-- `agent_status({ task, now })`: set `task` (2-6 words, a ticket title) when you take a new piece of work, `now` when a step starts. The agents list shows both.
-- `inbox_send` for a decision only the person can make (`:::question` blocks, your pick as `Recommended:`), something only they can do (`:::action`), a check in the running app (`verify: { url, steps }`), or finished long work. `inbox_steps` keeps the thread's plan current. `thread` defaults to the branch. `supersedes` withdraws questions that no longer apply.
-- Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person; each slice reaches the Inbox only after a reviewer agent passed it; anything the person can see gets a verify item.
+- `agent_status({ task })`: set `task` (2-6 words, a ticket title) when you take a new piece of work. The agents list shows it. `now` is optional; skip it.
+- Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person; each slice reaches them only after a reviewer agent passed it.
 
 ## Terminals and addresses
 
