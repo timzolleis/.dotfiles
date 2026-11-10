@@ -1,6 +1,7 @@
 import { execFile, spawn, type ChildProcess } from "node:child_process";
 import { randomBytes, randomUUID } from "node:crypto";
 import { copyFile, mkdir, readdir, readFile, realpath, stat, writeFile } from "node:fs/promises";
+import { connect } from "node:net";
 import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import {
@@ -45,6 +46,8 @@ const INSTALL_COMMANDS: Record<PackageManager, string> = {
 const TASK_LIMIT = 60;
 const SETUP_WAIT_SECONDS = 1800;
 const SHELL_NAMES = new Set(["zsh", "bash", "fish", "sh", "-zsh", "-bash", "-fish"]);
+const HC_CORE_PROBE_TIMEOUT_MS = 1000;
+const terminalsEndingOnQuit: Set<string> = ((globalThis as any)[Symbol.for("herdr-subagents.terminalsEndingOnQuit")] ??= new Set<string>());
 
 type AgentRole = "impl" | "review" | "orchestrator";
 type PackageManager = "pnpm" | "npm" | "yarn" | "bun";
@@ -322,7 +325,26 @@ async function runTerminal({
 	return started.address;
 }
 
+async function isHcCoreReachable(): Promise<boolean> {
+	if ((await commandOutput("hc", ["-V"], homedir())) === undefined) return false;
+	const session = process.env.HC_SESSION || "default";
+	const socketPath =
+		process.env.HC_SOCKET ||
+		join(process.env.XDG_STATE_HOME || join(homedir(), ".local/state"), "herdr-core", session, `${session}.sock`);
+	return new Promise((resolve) => {
+		const socket = connect(socketPath);
+		const answer = (reachable: boolean) => {
+			socket.destroy();
+			resolve(reachable);
+		};
+		socket.setTimeout(HC_CORE_PROBE_TIMEOUT_MS, () => answer(false));
+		socket.once("connect", () => answer(true));
+		socket.once("error", () => answer(false));
+	});
+}
+
 async function closeTerminal(terminal: string): Promise<boolean> {
+	terminalsEndingOnQuit.delete(terminal);
 	const info = await hcTerminal(terminal);
 	if (!info) return false;
 	if (info.state === "live") await hc(["kill", terminal]).catch(() => {});
@@ -777,9 +799,10 @@ async function liveTerminalsInside(checkoutPath: string): Promise<string[]> {
 	return inside;
 }
 
-export default function (pi: ExtensionAPI) {
+export default async function (pi: ExtensionAPI) {
 	if (process.env.PI_SUBAGENT === "1") return;
-	if (!process.env.HC_TERMINAL_ID) return;
+	const insideHerdr = !!process.env.HC_TERMINAL_ID;
+	if (!insideHerdr && !(await isHcCoreReachable())) return;
 	const launches = new Map<string, Launch>();
 	const reports = new Map<string, Report>();
 	const watchers = new Map<string, ChildProcess>();
@@ -797,6 +820,7 @@ export default function (pi: ExtensionAPI) {
 
 	const watchTurns = (launch: Launch, sinceTurn: number) => {
 		stopWatching(launch.name);
+		if (!insideHerdr) terminalsEndingOnQuit.add(launch.terminal);
 		const child = spawn("hc", ["events", "--json", "--terminal", launch.terminal], { stdio: ["ignore", "pipe", "ignore"] });
 		watchers.set(launch.name, child);
 		const isCurrent = () => watchers.get(launch.name) === child;
@@ -956,7 +980,6 @@ export default function (pi: ExtensionAPI) {
 			if (entry.customType === LAUNCH_ENTRY && entry.data.terminal) launches.set(entry.data.name, entry.data);
 			if (entry.customType === REPORTED_ENTRY) reported.set(entry.data.name, { outcome: entry.data.outcome, turn: entry.data.turn });
 		}
-		if (!process.env.HC_TERMINAL_ID) return;
 		for (const launch of launches.values()) {
 			const last = reported.get(launch.name);
 			if (last) reports.set(launch.name, { name: launch.name, outcome: last.outcome, reply: "", session: launch.session });
@@ -978,47 +1001,62 @@ export default function (pi: ExtensionAPI) {
 		return undefined;
 	});
 
-	pi.on("session_shutdown", async () => {
+	pi.on("session_shutdown", async (event) => {
 		for (const child of watchers.values()) child.kill();
 		watchers.clear();
 		if (batchTimer) clearTimeout(batchTimer);
 		batchTimer = undefined;
 		pending.splice(0);
+		if (event.reason === "quit") await Promise.all([...terminalsEndingOnQuit].map(closeTerminal));
 	});
 
 	const namespace = {
 		name: "herdr",
-		description:
-			"Herdr: pi sub-agents and orchestrators, git worktrees (each its own Herdr space, provisioned by ship in a ship project), and terminals (herdr-core). Sub-agent completion arrives as a message; never wait or poll for it. Tools: subagent_launch, subagent_status, subagent_send, subagent_stop, worktree_create, worktree_list, worktree_remove, pane_list, pane_open, pane_run, pane_read, pane_wait, pane_close, dev_server. Read a declaration with describeTool(name) before the first call.",
+		description: insideHerdr
+			? "Herdr: pi sub-agents and orchestrators, git worktrees (each its own Herdr space, provisioned by ship in a ship project), and terminals (herdr-core). Sub-agent completion arrives as a message; never wait or poll for it. Tools: subagent_launch, subagent_status, subagent_send, subagent_stop, worktree_create, worktree_list, worktree_remove, pane_list, pane_open, pane_run, pane_read, pane_wait, pane_close, dev_server. Read a declaration with describeTool(name) before the first call."
+			: "Pi sub-agents in hidden herdr-core terminals. Completion arrives as a message; never wait or poll for it. Tools: subagent_launch, subagent_status, subagent_send, subagent_stop. Read a declaration with describeTool(name) before the first call.",
 	};
+
+	const sharedLaunchFields = {
+		name: Type.String({ description: "Unique terminal name, [a-z][a-z0-9_-]{0,31}; also pi's session name" }),
+		cwd: Type.String({ description: "Absolute working directory" }),
+		model: Type.Optional(Type.String({ description: "pi --model, e.g. anthropic/claude-sonnet-5-5; default the user's" })),
+		briefFile: Type.Optional(Type.String({ description: "Path of the brief to send; or pass prompt" })),
+		prompt: Type.Optional(Type.String({ description: "Brief text; or pass briefFile" })),
+		task: Type.Optional(Type.String({ description: "What it works on, shown in the agents list; default the brief's first line, at most 60 chars" })),
+	};
+	const herdrLaunchParameters = Type.Object({
+		...sharedLaunchFields,
+		thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default medium for sub-agents, the user's for orchestrators" })),
+		tab: Type.Optional(Type.String({ description: "Group: a tab of this name holds the agents; default a tab named after the agent" })),
+		workspace: Type.Optional(Type.String({ description: "Override the space id; default your own space" })),
+		role: Type.Optional(Type.Union([Type.Literal("impl"), Type.Literal("review")], { description: "Default impl; orchestrators are always orchestrator" })),
+		pane: Type.Optional(Type.String({ description: "Existing shell terminal at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
+		orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (sub-agents, worktrees, terminals) and a terminal that stays open; default false" })),
+		keepOpen: Type.Optional(Type.Boolean({ description: "Keep the terminal open and settle its tab after it finishes; default true. false closes it" })),
+	});
+	const plainLaunchParameters = Type.Object({
+		...sharedLaunchFields,
+		thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default medium" })),
+		role: Type.Optional(Type.Union([Type.Literal("impl"), Type.Literal("review")], { description: "Default impl" })),
+		keepOpen: Type.Optional(Type.Boolean({ description: "Keep the terminal open after it finishes; default true. false closes it" })),
+	});
 
 	pi.registerTool(
 		defineTool({
 			name: "subagent_launch",
 			label: "Launch sub-agent",
-			description:
-				"Start a pi agent in its own herdr-core terminal with a brief. It gets a new tab named after it (name) in your space, also when cwd is a slice worktree; tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles.",
-			parameters: Type.Object({
-				name: Type.String({ description: "Unique terminal name, [a-z][a-z0-9_-]{0,31}; also pi's session name" }),
-				cwd: Type.String({ description: "Absolute working directory" }),
-				model: Type.Optional(Type.String({ description: "pi --model, e.g. anthropic/claude-sonnet-5-5; default the user's" })),
-				thinking: Type.Optional(Type.String({ description: "pi --thinking: off|minimal|low|medium|high|xhigh|max; default medium for sub-agents, the user's for orchestrators" })),
-				briefFile: Type.Optional(Type.String({ description: "Path of the brief to send; or pass prompt" })),
-				prompt: Type.Optional(Type.String({ description: "Brief text; or pass briefFile" })),
-				tab: Type.Optional(Type.String({ description: "Group: a tab of this name holds the agents; default a tab named after the agent" })),
-				workspace: Type.Optional(Type.String({ description: "Override the space id; default your own space" })),
-				role: Type.Optional(Type.Union([Type.Literal("impl"), Type.Literal("review")], { description: "Default impl; orchestrators are always orchestrator" })),
-				task: Type.Optional(Type.String({ description: "What it works on, shown in the agents list; default the brief's first line, at most 60 chars" })),
-				pane: Type.Optional(Type.String({ description: "Existing shell terminal at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
-				orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (sub-agents, worktrees, terminals) and a terminal that stays open; default false" })),
-				keepOpen: Type.Optional(Type.Boolean({ description: "Keep the terminal open and settle its tab after it finishes; default true. false closes it" })),
-			}),
+			description: insideHerdr
+				? "Start a pi agent in its own herdr-core terminal with a brief. It gets a new tab named after it (name) in your space, also when cwd is a slice worktree; tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles."
+				: "Start a pi agent in its own hidden herdr-core terminal with a brief; hc attach <pane> shows it. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; others that settle within 60 s are batched. Its terminal stays open; keepOpen false closes it. subagent_send steers it. It has these tools off and ends when this pi quits, not on /reload or a session switch.",
+			parameters: insideHerdr ? herdrLaunchParameters : (plainLaunchParameters as unknown as typeof herdrLaunchParameters),
 			outputSchema: Type.Object({ name: Type.String(), pane: Type.String(), session: Type.Optional(Type.String()) }),
 			exposure: "codemode",
 			namespace,
 			async execute(_id, params) {
-				ownTerminal();
 				if (!AGENT_NAME.test(params.name)) throw new Error(`invalid agent name: ${params.name}`);
+				if (!insideHerdr && (params.tab || params.workspace || params.pane || params.orchestrator))
+					throw new Error("tab, workspace, pane and orchestrator need Herdr; this pi runs outside it (HC_TERMINAL_ID is unset)");
 				if (params.pane && !params.orchestrator)
 					throw new Error("pane needs orchestrator: a sub-agent's env is set when its terminal starts; pass workspace instead");
 				if ((params.briefFile === undefined) === (params.prompt === undefined)) throw new Error("pass exactly one of briefFile and prompt");
@@ -1056,18 +1094,18 @@ export default function (pi: ExtensionAPI) {
 					terminal = shell.address;
 					turnAtLaunch = shell.turn;
 				} else {
-					const where = await placement({
+					const where = insideHerdr ? await placement({
 						cwd: params.cwd,
 						tab: agentTabName({ name: params.name, tab: params.tab }),
 						workspace: params.workspace ?? (await callerPlacement()).space,
 						otherSpaceTab: params.name,
-					});
+					}) : undefined;
 					const piArgs = piArguments(draft);
 					const argv = [
 						"env", ...agentEnv, ...(orchestrator ? [] : SUB_AGENT_ENV),
 						"zsh", "-lic", 'exec pi "$@"', "pi", ...piArgs, "--", prompt,
 					];
-					terminal = await runTerminal({ cwd: params.cwd, where, name: params.name, argv, parent: orchestrator ? "self-outlived" : "self" });
+					terminal = await runTerminal({ cwd: params.cwd, where, name: params.name, argv, parent: !insideHerdr ? "none" : orchestrator ? "self-outlived" : "self" });
 				}
 
 				const launch: Launch = { ...draft, terminal, turnAtLaunch };
@@ -1149,7 +1187,9 @@ export default function (pi: ExtensionAPI) {
 		defineTool({
 			name: "subagent_stop",
 			label: "Stop sub-agent",
-			description: "End a sub-agent's terminal and close its pane, running or not. No completion message follows.",
+			description: insideHerdr
+				? "End a sub-agent's terminal and close its pane, running or not. No completion message follows."
+				: "End a sub-agent's terminal, running or not. No completion message follows.",
 			parameters: Type.Object({ name: Type.String() }),
 			outputSchema: Type.Object({ name: Type.String(), closed: Type.Boolean() }),
 			exposure: "codemode",
@@ -1169,6 +1209,8 @@ export default function (pi: ExtensionAPI) {
 			},
 		}),
 	);
+
+	if (!insideHerdr) return;
 
 	pi.registerTool(
 		defineTool({
