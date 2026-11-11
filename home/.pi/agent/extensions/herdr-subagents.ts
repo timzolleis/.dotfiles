@@ -62,6 +62,7 @@ interface Launch {
 	session?: string;
 	keepOpen: boolean;
 	orchestrator?: boolean;
+	split?: boolean;
 	group?: string;
 	headAtLaunch?: string;
 	turnAtLaunch: number;
@@ -955,7 +956,7 @@ export default async function (pi: ExtensionAPI) {
 		if (report.terminalClosed) {
 			stopWatching(launch.name);
 			await closeTerminal(launch.terminal);
-		} else if (insideHerdr && !launch.orchestrator) await settleTabOfTerminal(launch.terminal).catch(() => {});
+		} else if (insideHerdr && !launch.orchestrator && !launch.split) await settleTabOfTerminal(launch.terminal).catch(() => {});
 		queue(launch, report);
 	};
 
@@ -1032,6 +1033,7 @@ export default async function (pi: ExtensionAPI) {
 		workspace: Type.Optional(Type.String({ description: "Override the space id; default your own space" })),
 		role: Type.Optional(Type.Union([Type.Literal("impl"), Type.Literal("review")], { description: "Default impl; orchestrators are always orchestrator" })),
 		pane: Type.Optional(Type.String({ description: "Existing shell terminal at its prompt to start in, e.g. a worktree's rootPane; orchestrators only" })),
+		split: Type.Optional(Type.Boolean({ description: "A pane in your own tab instead of its own tab, for a helper serving your current task; not with tab, workspace, pane or orchestrator; default false" })),
 		orchestrator: Type.Optional(Type.Boolean({ description: "Full tools (sub-agents, worktrees, terminals) and a terminal that stays open; default false" })),
 		keepOpen: Type.Optional(Type.Boolean({ description: "Keep the terminal open and settle its tab after it finishes; default true. false closes it" })),
 	});
@@ -1047,7 +1049,7 @@ export default async function (pi: ExtensionAPI) {
 			name: "subagent_launch",
 			label: "Launch sub-agent",
 			description: insideHerdr
-				? "Start a pi agent in its own herdr-core terminal with a brief. Its tab, named after it (name), is always in your space, also when cwd is a worktree or slice, unless workspace names another; pane with orchestrator runs it in a worktree space's rootPane instead. tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles."
+				? "Start a pi agent in its own herdr-core terminal with a brief. Its tab, named after it (name), is always in your space, also when cwd is a worktree or slice, unless workspace names another; pane with orchestrator runs it in a worktree space's rootPane instead. tab groups agents in one tab of that name (one per reviewer set, say). split true makes it a pane in your own tab instead, for a helper serving your current task (research, a review of your diff); its pane stays when it finishes, keepOpen false removes it. Never a pane in another agent's tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles."
 				: "Start a pi agent in its own hidden herdr-core terminal with a brief; hc attach <pane> shows it. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; others that settle within 60 s are batched. Its terminal stays open; keepOpen false closes it. subagent_send steers it. It has these tools off and ends when this pi quits, not on /reload or a session switch.",
 			parameters: insideHerdr ? herdrLaunchParameters : (plainLaunchParameters as unknown as typeof herdrLaunchParameters),
 			outputSchema: Type.Object({ name: Type.String(), pane: Type.String(), session: Type.Optional(Type.String()) }),
@@ -1055,8 +1057,10 @@ export default async function (pi: ExtensionAPI) {
 			namespace,
 			async execute(_id, params) {
 				if (!AGENT_NAME.test(params.name)) throw new Error(`invalid agent name: ${params.name}`);
-				if (!insideHerdr && (params.tab || params.workspace || params.pane || params.orchestrator))
-					throw new Error("tab, workspace, pane and orchestrator need Herdr; this pi runs outside it (HC_TERMINAL_ID is unset)");
+				if (!insideHerdr && (params.tab || params.workspace || params.pane || params.orchestrator || params.split))
+					throw new Error("tab, workspace, pane, orchestrator and split need Herdr; this pi runs outside it (HC_TERMINAL_ID is unset)");
+				if (params.split && (params.tab || params.workspace || params.pane || params.orchestrator))
+					throw new Error("split makes a pane in your own tab; it takes no tab, workspace, pane or orchestrator");
 				if (params.pane && !params.orchestrator)
 					throw new Error("pane needs orchestrator: a sub-agent's env is set when its terminal starts; pass workspace instead");
 				if ((params.briefFile === undefined) === (params.prompt === undefined)) throw new Error("pass exactly one of briefFile and prompt");
@@ -1076,6 +1080,7 @@ export default async function (pi: ExtensionAPI) {
 					sessionId: randomUUID(),
 					keepOpen: orchestrator ? true : params.keepOpen ?? true,
 					orchestrator,
+					split: params.split,
 					group: params.tab,
 					headAtLaunch,
 					launchedAt: Date.now(),
@@ -1094,12 +1099,18 @@ export default async function (pi: ExtensionAPI) {
 					terminal = shell.address;
 					turnAtLaunch = shell.turn;
 				} else {
-					const where = insideHerdr ? await placement({
-						cwd: params.cwd,
-						tab: agentTabName({ name: params.name, tab: params.tab }),
-						workspace: params.workspace ?? (await callerPlacement()).space,
-						otherSpaceTab: params.name,
-					}) : undefined;
+					const caller: { space?: string; tab?: string } = insideHerdr ? await callerPlacement() : {};
+					let where: Placement | undefined;
+					if (params.split) {
+						if (!caller.space || !caller.tab) throw new Error("split needs this pi in a Herdr tab; its terminal has no herdr.space or herdr.tab label");
+						where = { space: caller.space, tab: caller.tab };
+					} else if (insideHerdr)
+						where = await placement({
+							cwd: params.cwd,
+							tab: agentTabName({ name: params.name, tab: params.tab }),
+							workspace: params.workspace ?? caller.space,
+							otherSpaceTab: params.name,
+						});
 					const piArgs = piArguments(draft);
 					const argv = [
 						"env", ...agentEnv, ...(orchestrator ? [] : SUB_AGENT_ENV),

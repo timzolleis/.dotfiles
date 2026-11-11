@@ -27,7 +27,7 @@ The installed binaries own the syntax. Read `hc --skill` before driving terminal
 | Worktree | a checkout of one branch | only agents that write code get one; reviewers share the checkout |
 | Slice | a worktree of a stream's sub-branch `<branch>--<slice>` (a stacked PR) | no space of its own: its agent's tab sits in the stream's space |
 | Tab | one agent, named after its job | a space starts with one tab, its orchestrator's; a reviewer set shares one tab |
-| Pane | one terminal | never split an agent into another agent's tab |
+| Pane | one terminal | a helper serving its launcher's current task splits into the launcher's tab (`split`); never split an agent into another agent's tab |
 | Background terminal | setup, dev server | hidden (no `herdr.space` label); the status bar shows and peeks them |
 
 Never change the person's view (`layout.*`, `space.select`, `tab.select`, focus) unless they ask: they work in this window. A screenshot that needs another view switches, shoots and switches back in one command.
