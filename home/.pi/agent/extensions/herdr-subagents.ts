@@ -1047,7 +1047,7 @@ export default async function (pi: ExtensionAPI) {
 			name: "subagent_launch",
 			label: "Launch sub-agent",
 			description: insideHerdr
-				? "Start a pi agent in its own herdr-core terminal with a brief. It gets a new tab named after it (name) in your space, also when cwd is a slice worktree; tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles."
+				? "Start a pi agent in its own herdr-core terminal with a brief. Its tab, named after it (name), is always in your space, also when cwd is a worktree or slice, unless workspace names another; pane with orchestrator runs it in a worktree space's rootPane instead. tab groups agents in one tab of that name (one per reviewer set, say). Never a split in your tab. Focus is kept. pane starts it in an existing shell terminal such as worktree_create's rootPane. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; agents sharing a tab report together when the last settles, others that settle within 60 s are batched. Its terminal stays open and its tab settles so the person can read it; keepOpen false closes it. It keeps you as parent. subagent_send steers it. A sub-agent has these tools off and ends with you; an orchestrator keeps both, its terminal stays open and outlives you, and it reports each time it settles."
 				: "Start a pi agent in its own hidden herdr-core terminal with a brief; hc attach <pane> shows it. Returns at once. When it settles you get one message with its commits, diff, uncommitted files, PR and checks, and its reply capped at 15 lines; others that settle within 60 s are batched. Its terminal stays open; keepOpen false closes it. subagent_send steers it. It has these tools off and ends when this pi quits, not on /reload or a session switch.",
 			parameters: insideHerdr ? herdrLaunchParameters : (plainLaunchParameters as unknown as typeof herdrLaunchParameters),
 			outputSchema: Type.Object({ name: Type.String(), pane: Type.String(), session: Type.Optional(Type.String()) }),
@@ -1217,7 +1217,7 @@ export default async function (pi: ExtensionAPI) {
 			name: "worktree_create",
 			label: "Create worktree",
 			description:
-				"Create a git worktree for a branch in ~/.herdr/worktrees/<repo>/<branch> as its own Herdr space with ONE tab named after the task, holding rootPane (a shell, or pi when startPi is true); the person's view stays where it was. Setup (ship create --bare or install, .env copies) runs in a hidden background terminal after this returns. serve true also starts the dev server in a hidden terminal; dev_server does it later. Slices: pass parent (a branch) and branch becomes the slice name: it creates <parent>--<branch> based on parent, records the parent, makes NO space and returns { path, branch }; start the slice agent with subagent_launch({ cwd: path }). Pass startPi false to keep rootPane a free shell for subagent_launch({ pane: rootPane, orchestrator: true }).",
+				"Create a git worktree for a branch in ~/.herdr/worktrees/<repo>/<branch> as its own Herdr space with ONE tab named after the task, holding rootPane (a shell, or pi when startPi is true), for a stream the person asked for; the person's view stays where it was. space false makes NO space and returns { path, branch }: for work you delegate to a sub-agent whose tab stays with you, subagent_launch({ cwd: path }). Setup (ship create --bare or install, .env copies) runs in a hidden background terminal after this returns. serve true also starts the dev server hidden; dev_server does it later. Slices: pass parent (a branch) and branch becomes the slice name: it creates <parent>--<branch> based on parent, records the parent, makes NO space and returns { path, branch }. Pass startPi false to keep rootPane a free shell for subagent_launch({ pane: rootPane, orchestrator: true }).",
 			parameters: Type.Object({
 				cwd: Type.String({ description: "Any directory in the repository" }),
 				branch: Type.String({ description: "Branch to check out; created when missing. With parent: the slice name" }),
@@ -1226,6 +1226,7 @@ export default async function (pi: ExtensionAPI) {
 				task: Type.Optional(Type.String({ description: "Space and tab name; default the branch without prefix, title-cased" })),
 				serve: Type.Optional(Type.Boolean({ description: "Start the dev server in a hidden terminal once setup is done; default false" })),
 				startPi: Type.Optional(Type.Boolean({ description: "Start pi in the tab; default true" })),
+				space: Type.Optional(Type.Boolean({ description: "false: no space and no rootPane; rejects task and startPi; default true" })),
 			}),
 			outputSchema: Type.Object({
 				workspace: Type.Optional(Type.String()),
@@ -1237,6 +1238,8 @@ export default async function (pi: ExtensionAPI) {
 			namespace,
 			async execute(_id, params) {
 				ownTerminal();
+				if (params.space === false && (params.task !== undefined || params.startPi !== undefined))
+					throw new Error("task and startPi name and fill a space's tab; space false makes no space");
 				const checkout = await gitCheckout(params.cwd);
 				if (!checkout) throw new Error(`${params.cwd} is not in a git repository`);
 				const { top, main } = checkout;
@@ -1252,6 +1255,12 @@ export default async function (pi: ExtensionAPI) {
 
 				if (params.parent) {
 					await startCheckoutSetup({ main, path, branch, space: (await callerPlacement()).space });
+					return reply({ path, branch });
+				}
+				if (params.space === false) {
+					const callerSpace = (await callerPlacement()).space;
+					const setupTerminal = await startCheckoutSetup({ main, path, branch, space: callerSpace });
+					if (params.serve) await startDevTerminal({ main, path, branch, space: callerSpace, setupTerminal });
 					return reply({ path, branch });
 				}
 				const task = params.task ?? taskFromBranch(branch);
@@ -1275,7 +1284,7 @@ export default async function (pi: ExtensionAPI) {
 		defineTool({
 			name: "worktree_list",
 			label: "List worktrees",
-			description: "The repository's linked worktrees as a tree: slices nest under their parent. Each has branch, space id (none for slices), dirty, merged (into its parent, else the default branch) and ship workspace.",
+			description: "The repository's linked worktrees as a tree: slices nest under their parent. Each has branch, space id (none for slices and space false), dirty, merged (into its parent, else the default branch) and ship workspace.",
 			parameters: Type.Object({ cwd: Type.String({ description: "Any directory in the repository" }) }),
 			outputSchema: Type.Object({ worktrees: Type.Array(Type.Any()) }),
 			exposure: "codemode",
@@ -1322,7 +1331,7 @@ export default async function (pi: ExtensionAPI) {
 				"Remove a worktree: closes its space (when it has one) and every terminal running in it, hidden ones too, and deletes the checkout folder; uncommitted work in it is lost. In a ship project ship then tears the rest down (route, database, registry); the branch stays when it holds unpushed commits. A slice not merged into its parent is refused unless force. Only when the user asked for it.",
 			parameters: Type.Object({
 				workspace: Type.Optional(Type.String({ description: "The worktree's space id" })),
-				path: Type.Optional(Type.String({ description: "The worktree's folder; for slices, which have no space" })),
+				path: Type.Optional(Type.String({ description: "The worktree's folder; for a checkout without a space (slice, space false)" })),
 				force: Type.Optional(Type.Boolean({ description: "Remove even with uncommitted changes or an unmerged slice" })),
 			}),
 			outputSchema: Type.Object({ workspace: Type.Optional(Type.String()), path: Type.String(), removed: Type.Boolean() }),

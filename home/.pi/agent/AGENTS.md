@@ -8,7 +8,7 @@ Speak in plain technical english. Lead with the point, do not use long prose. Us
 
 ## Working in Herdr
 When `HC_TERMINAL_ID` is set you run in the Herdr app. The person watches the window as well as the chat, so keep both readable:
-- One work stream, one space: start feature work with `worktree_create({ task })` (a worktree under `~/.herdr/worktrees`, its own space with one tab; setup and the dev server run hidden). Parallel writers in a stream get slices (`parent`), not spaces. Never build a feature in the main checkout: other agents work there.
+- One work stream, one space: a stream the person asked for starts with `worktree_create({ task })` (a worktree under `~/.herdr/worktrees`, its own space with one tab; setup and the dev server run hidden). Work you delegate gets `worktree_create({ space: false })`, and its agent's tab stays in your space. Parallel writers in a stream get slices (`parent`), not spaces. Never build a feature in the main checkout: other agents work there.
 - Name what you start after its job: branch `feat/data-export-3`, agents `impl-export-api`, `review-export-api`. Each agent gets its own tab; a reviewer set shares one (`tab` on `subagent_launch`) and reports together.
 - Never change the person's view (layout, space, tab, focus) unless they ask.
 - Start agents and terminals with the `herdr` tools, not raw `hc run`: those miss the space and tab labels, the report and the sub-agent rules. Reports arrive as messages: never wait, sleep or poll for them.
