@@ -119,13 +119,14 @@ The inverse of the decode: one row shape from each state, exhaustive over the st
 // absence/infrastructure/prisma-absence-repository.ts
 const absenceRowFromState = (absence: Absence): Prisma.AbsenceUncheckedCreateInput =>
   Match.valueTags(absence, {
-    DraftAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "draft", activatedAt: null, archivedAt: null }),
-    ActiveAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "active", activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: null }),
-    ArchivedAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: "archived", activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: DateTime.toDateUtc(absence.archivedAt) }),
+    DraftAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: AbsenceStatus.draft, activatedAt: null, archivedAt: null }),
+    ActiveAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: AbsenceStatus.active, activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: null }),
+    ArchivedAbsence: (absence) => ({ ...absenceColumnsFromFields(absence), status: AbsenceStatus.archived, activatedAt: DateTime.toDateUtc(absence.activatedAt), archivedAt: DateTime.toDateUtc(absence.archivedAt) }),
   })
 ```
 
 - `Match.valueTags` over the states: a new state doesn't compile until it has a row shape.
+- `AbsenceStatus.draft` (the enum Prisma generates), not `"draft"`: `Match.valueTags` infers each branch on its own, so a bare literal widens to `string` and the row type rejects it.
 - Every column is written, from the state. The state carries `updatedAt` and `evolve` sets it from the event, so the row is `after` and nothing else ([model.md](model.md#evolve)).
 - Convert every `DateTime.Utc` with `DateTime.toDateUtc`.
 
@@ -185,19 +186,57 @@ const deleteAbsence = Effect.fn("PrismaAbsenceRepository.deleteAbsence")(
 
 Opt-in. By default the use case writes, then publishes: a crash in between loses the event. Add this only when a host must never lose one.
 
-The host owns a `Transaction` port in `shared/`. The writes and `publishDomainEvent` require it, the publish becomes an outbox row, and the use case runs both inside one transaction:
+The host owns two ports in `shared/`: `Transactions.runInTransaction`, and an outbox that takes the event instead of `DomainEvents`. The outbox requires `Transaction`, which only `runInTransaction` provides:
 
 ```ts
-updateAbsence(input: UpdateAbsenceInput): Effect.Effect<void, AbsenceChangedConcurrentlyError, Transaction>
-publishDomainEvent(event: DomainEvent): Effect.Effect<void, never, Transaction>
+// shared/transaction.ts
+// Proof that an effect runs inside a database transaction. Only runInTransaction provides it.
+export class Transaction extends Context.Service<Transaction, {}>()("Transaction") {}
 
-// the use case
-yield* absenceRepository.updateAbsence({ before: absence, after: evolveAbsence({ absence, event }) }).pipe(
-  Effect.andThen(domainEvents.publishDomainEvent(event)),
-  transactions.runInTransaction,
-)
+// Owned by the host: it opens the transaction its adapters share.
+export class Transactions extends Context.Service<Transactions, {
+  // Commits when the effect succeeds, rolls back when it fails.
+  runInTransaction<A, E, R>(effect: Effect.Effect<A, E, R>): Effect.Effect<A, E, Exclude<R, Transaction>>
+}>()("Transactions") {}
 ```
 
-- `Transaction` in the requirements: a write or a publish outside `runInTransaction` doesn't compile.
-- `runInTransaction` opens the database transaction, provides `Transaction`, and commits when the effect succeeds. The adapters take their client from `Transaction`.
+```ts
+// shared/domain-events.ts
+export class DomainEventOutbox extends Context.Service<DomainEventOutbox, {
+  addDomainEvent(event: DomainEvent): Effect.Effect<void, never, Transaction>
+}>()("DomainEventOutbox") {}
+```
+
+```ts
+// absence/application/archive-absence-service.ts
+        // atomic: the archive and its event commit together, or neither does
+        yield* absenceRepository.updateAbsence({ before: absence, after: evolveAbsence({ absence, event }) }).pipe(
+          Effect.andThen(domainEventOutbox.addDomainEvent(event)),
+          transactions.runInTransaction,
+        )
+```
+
+- Opt in per use case. The writes don't require `Transaction`: they join a transaction when one is open, so a use case that doesn't opt in stays as it is.
+- An outbox write outside `runInTransaction` doesn't compile: its `Transaction` stays in the requirements. The adapter yields `Transaction` to put it there.
+- The use case's error union doesn't change: a domain error inside the transaction rolls it back and comes out typed.
 - The relay that delivers outbox rows belongs to the host.
+
+With `effect-prisma-generator`, `PrismaService.$transaction(effect)` already passes the transaction client through the context, so `Transaction` carries nothing and the repository adapter doesn't change:
+
+```ts
+// lib/prisma-transactions.ts
+// Every PrismaService call inside the effect joins the transaction: the generated client reads it from the context.
+// Sandboxed: the generated $transaction rethrows Cause.squash, which turns a defect into a typed failure. The whole
+// cause passes through instead; anything else it throws (the commit failed) dies.
+export const PrismaTransactions = Layer.effect(Transactions, Effect.gen(function* () {
+  const prisma = yield* PrismaService
+  return Transactions.of({
+    runInTransaction: (effect) =>
+      prisma.$transaction(effect.pipe(Effect.provideService(Transaction, Transaction.of({})), Effect.sandbox)).pipe(
+        Effect.catch((cause) => Cause.isCause(cause) ? Effect.failCause(cause) : Effect.die(cause)),
+      ),
+  })
+}))
+```
+
+- Without the sandbox, a defect or an interruption inside the transaction comes out as a typed failure: the error channel lies.

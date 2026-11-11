@@ -54,7 +54,7 @@ An adapter against a real database: the adapter's layer on a real Prisma client,
 
 ```ts
 // test/prisma-absence-repository.test.ts
-const TestLayer = PrismaAbsenceRepository.pipe(Layer.provide([PrismaLayer, HostLayer]))
+const TestLayer = PrismaAbsenceRepository.layer.pipe(Layer.provide([PrismaLayer, HostLayer]))
 
 layer(TestLayer)("PrismaAbsenceRepository", (it) => {
   it.effect("fails with ChangedConcurrently when the row changed after the find", () => Effect.gen(function* () {

@@ -60,7 +60,7 @@ export const reassignAbsenceRules: ReadonlyArray<ReassignAbsenceRule> = [
 A constraint across records ("one reported absence per person and day", "one reason per name") is a rule over the other record, loaded, not a boolean.
 
 - The repository finds it in the query: `find<Type>By<Key>` returns `Option<…>` (`findOverlappingAbsence`, `findAbsenceReasonByName`), and the value keeps its name into the rule (`reasonWithSameName`). Load the whole list only when the transition needs it anyway (positions); the rule still takes the one record.
-- One rule serves create and edit. It passes when the found record has the id of the record that gets the key: a create retried with the same id reaches the write (`AlreadyExists`), and an edit that keeps its key, or changes only its case, meets itself.
+- One rule serves create and edit. It passes when the found record has the id of the record that gets the key: a create retried with the same id reaches the write (`AbsenceChangedConcurrentlyError`: the id is taken), and an edit that keeps its key, or changes only its case, meets itself.
 - The rule never compares the found record to the actor: the actor's own record refuses like anyone's.
 - The error names the other record (`AbsenceOverlapsError { absenceId }`) only when a client acts on it; otherwise it carries the value (`AbsenceReasonNameTakenError { name }`).
 - "Same value" is the value's `Equivalence` ([model.md](model.md)), which the form uses too; the find's query must agree with it.

@@ -72,7 +72,7 @@ export class AbsenceApi extends HttpApiGroup.make("absences")
       }),
       success: AbsenceView.pipe(HttpApiSchema.status(201)),
       error: [
-        AssigneeNotInOrganizationHttpError, NotAllowedToAssignAbsenceHttpError, InvalidPeriodHttpError, AbsenceAlreadyExistsHttpError,
+        AssigneeNotInOrganizationHttpError, NotAllowedToAssignAbsenceHttpError, InvalidPeriodHttpError, AbsenceChangedConcurrentlyHttpError,
         AbsenceNotFoundHttpError, // read-back, if the absence is deleted before it
       ],
     }),
