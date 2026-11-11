@@ -25,7 +25,7 @@ The use cases of one area, with its rules, examples, lifecycle, and decisions, l
 
 ## Service
 
-One `Context.Service` per use case. Every one is the same four steps: find the narrowed state, call its transition, `evolve` the event onto the state, save. The last line is the write the event kind allows: a create has no find and calls `insertAbsence({ event, after: initialAbsence(event) })`; a change calls `updateAbsence`; a delete evolves nothing and calls `deleteAbsence({ event, before })` ([repository.md](repository.md#port)). A transition wired to the wrong write doesn't compile. A use case whose flag decides alone gates first: `if (!actor.mayManageAbsences) return yield* new NotAllowedToManageAbsencesError({ actorId: actor.userId })` before the find ([access.md](access.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
+One `Context.Service` per use case. Every one is the same five steps: find the narrowed state, call its transition, `evolve` the event onto the state, save, publish the event. The write follows the event's kind: a create has no find and calls `insertAbsence({ after: initialAbsence(event) })`; a change calls `updateAbsence({ before, after: evolveAbsence({ absence, event }) })`; a delete evolves nothing and calls `deleteAbsence({ before })` ([repository.md](repository.md#port)). An event of the wrong kind doesn't compile: `initialAbsence` takes only a creation event, `evolveAbsence` only a change event. Publish after the write, so a failed write publishes nothing; the two are not atomic unless the host opts in ([repository.md](repository.md#atomic-events)). A use case whose flag decides alone gates first: `if (!actor.mayManageAbsences) return yield* new NotAllowedToManageAbsencesError({ actorId: actor.userId })` before the find ([access.md](access.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.
 
 ```ts
 // absence/application/archive-absence-service.ts
@@ -39,12 +39,14 @@ export class ArchiveAbsenceService extends Context.Service<ArchiveAbsenceService
 }>()("ArchiveAbsenceService") {
   static layerNoDeps = Layer.effect(ArchiveAbsenceService, Effect.gen(function* () {
     const absenceRepository = yield* AbsenceRepository
+    const domainEvents = yield* DomainEvents
     return ArchiveAbsenceService.of({
       archiveAbsence: Effect.fn("ArchiveAbsenceService.archiveAbsence")(function* ({ organizationId, actor, absenceId }) {
         const now = yield* DateTime.now
         const absence = yield* absenceRepository.findActiveAbsenceById({ organizationId, absenceId })
         const event = yield* Effect.fromResult(archiveAbsence({ absence, actor, now }))
-        yield* absenceRepository.updateAbsence({ event, before: absence, after: evolveAbsence({ absence, event }) })
+        yield* absenceRepository.updateAbsence({ before: absence, after: evolveAbsence({ absence, event }) })
+        yield* domainEvents.publishDomainEvent(event)
       }),
     })
   }))
@@ -78,6 +80,7 @@ ReassignAbsenceService.reassignAbsence({ organizationId, actor, absenceId, assig
 │    : Result<AbsenceReassignedEvent, NotAllowedToEditAbsenceError | AssigneeNotInOrganizationError | NotAllowedToAssignAbsenceError | AbsenceEditWindowClosedError>
 │  └─ checkRules(reassignAbsenceRules, input)
 ├─ evolveAbsence({ absence, event }): Absence
-└─ AbsenceRepository.updateAbsence({ event, before, after })
-     : Effect<void, AbsenceChangedConcurrentlyError>
+├─ AbsenceRepository.updateAbsence({ before, after })
+│    : Effect<void, AbsenceChangedConcurrentlyError>
+└─ DomainEvents.publishDomainEvent(event): Effect<void>
 ```

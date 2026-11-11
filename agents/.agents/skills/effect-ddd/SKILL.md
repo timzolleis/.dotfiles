@@ -45,7 +45,7 @@ Answer the domain column first, with the user, before any type name; it holds in
 
 1. **The domain is pure**: states, transitions, rules, events, errors. No services, no I/O, no transport.
 2. **One schema per state.** A transition accepts only the states that allow it, so a wrong state doesn't compile.
-3. **A transition is a pure function**: input → `Result<Event, …errors>`; `evolve` applies the event to the state ([model.md](model.md)). A use case only loads, calls the transition, evolves, and saves. The repository stores the evolved state and never interprets an event ([repository.md](repository.md)).
+3. **A transition is a pure function**: input → `Result<Event, …errors>`; `evolve` applies the event to the state ([model.md](model.md)). A use case only loads, calls the transition, evolves, saves, and publishes the event. The repository stores the evolved state and never sees an event ([repository.md](repository.md)).
 4. **With permissions, each is a flag on the actor.** A flag that decides alone, without state or ownership, is a gate: the use case checks it first, before any find, and fails with the module's `NotAllowedTo…Error`. A flag the decision combines with state or ownership ("the creator, or anyone permitted") is a rule in the transition's list, so a gate never turns "creator OR permitted" into "creator AND permitted". A read rule filters by visibility; it never rejects. Without an access model there is no actor until a rule or a reader of the event needs the user ([access.md](access.md)).
 5. **The domain stays truthful.** Retries and idempotency are softened at the HTTP edge with `catchTag`.
 6. **Decode at every edge**, with no branching or `Effect.die` before the decode.
@@ -102,7 +102,8 @@ AbsenceController.archiveAbsence({ params })
 │  ├─ archiveAbsence({ absence, actor, now })
 │  │  └─ checkRules(archiveAbsenceRules, input)
 │  ├─ evolveAbsence({ absence, event })
-│  └─ AbsenceRepository.updateAbsence({ event, before, after })
+│  ├─ AbsenceRepository.updateAbsence({ before, after })
+│  └─ DomainEvents.publishDomainEvent(event)
 ├─ AbsenceViews.getAbsenceById({ organizationId, visibility, absenceId })
 └─ any domain error → absenceHttpErrorFromAbsenceError(error)
 ```
@@ -121,7 +122,7 @@ A PR that adds a part no use case in it reads (an actor flag, a find, an error) 
 | Adding an id, state, value object, transition, event, or domain error; anything with time | [model.md](model.md) |
 | Adding a rule, or deciding where a constraint lives | [rules.md](rules.md) |
 | Permissions, the actor, who sees what, tenant scope | [access.md](access.md) |
-| Loading state for a transition or saving the evolved state | [repository.md](repository.md) |
+| Loading state for a transition, saving the evolved state, or making an event atomic with its write | [repository.md](repository.md) |
 | A read for a client: a get, a list, a filter | [views.md](views.md) |
 | An endpoint, middleware, HTTP error, controller, or retry | [http.md](http.md) |
 | Web code that shows, edits, or checks domain values | [client.md](client.md) |
@@ -142,8 +143,9 @@ A **call tree** is the one format for a call path, in discussion and in a PR; pr
 + ├─ archiveAbsence({ absence, actor, now })
 + │    : Result<AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError>
 + ├─ evolveAbsence({ absence, event }): Absence
-+ └─ AbsenceRepository.updateAbsence({ event, before, after })
-+      : Effect<void, AbsenceChangedConcurrentlyError>
++ ├─ AbsenceRepository.updateAbsence({ before, after })
++ │    : Effect<void, AbsenceChangedConcurrentlyError>
++ └─ DomainEvents.publishDomainEvent(event): Effect<void>
 ```
 
 - The root is the entry point; each call is `Owner.method(args)`, indented under its caller with `├─`, `└─`, `│`.

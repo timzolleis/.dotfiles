@@ -11,7 +11,7 @@ Usual places (defaults, not a checklist):
 | the repository's writes or a visibility `where` | the adapter against a real database: a stale insert, a stale update, a stale delete, and nothing else for the writes |
 | a boundary instant | `DateTime.makeUnsafe`; test at the boundary and 1 ms after |
 
-Usually no test: single rules apart from their transition, use cases that only load → call → publish, controllers, schemas. The types prove them.
+Usually no test: single rules apart from their transition, use cases that only load → call → save → publish, controllers, schemas. The types prove them.
 
 ## Setup
 
@@ -42,14 +42,13 @@ An adapter against a real database: the adapter's layer on a real Prisma client,
 const TestLayer = PrismaAbsenceRepository.pipe(Layer.provide([PrismaLayer, HostLayer]))
 
 layer(TestLayer)("PrismaAbsenceRepository", (it) => {
-  it.effect("fails with ChangedConcurrently and publishes nothing when the row changed after the find", () => Effect.gen(function* () {
+  it.effect("fails with ChangedConcurrently when the row changed after the find", () => Effect.gen(function* () {
     yield* reset
     const absence = yield* insertAbsenceRow(makeActiveAbsence({ updatedAt: DateTime.makeUnsafe("2026-10-01T00:00:00Z") }))
     const before = { ...absence, updatedAt: DateTime.makeUnsafe("2026-09-30T00:00:00Z") }
     const event = archivedEvent(absence)
     const absenceRepository = yield* AbsenceRepository
-    expect(yield* outcome(absenceRepository.updateAbsence({ event, before, after: evolveAbsence({ absence: before, event }) }))).toBe("AbsenceChangedConcurrentlyError")
-    expect(host.publishedEvents).toHaveLength(0)
+    expect(yield* outcome(absenceRepository.updateAbsence({ before, after: evolveAbsence({ absence: before, event }) }))).toBe("AbsenceChangedConcurrentlyError")
   }))
 })
 ```

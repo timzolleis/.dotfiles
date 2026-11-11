@@ -117,7 +117,7 @@ What the story does not hold: signatures, ports, call trees, per-file tables, ho
 
 ## The PR
 
-A PR is one slice: the use case rows and views agreed for it ([Delivery](SKILL.md#delivery)). Its body is the story's diff when it has one, the example rows it makes true, and the call tree when the path isn't the plain find → decide → evolve → save; a PR with no story diff names the rule it serves. It is done when: every example row of its rules has its test, named as the row; the row's `Code` and the rules' symbols are filled in; `state` is right; the host's checks pass. Nothing else is written down.
+A PR is one slice: the use case rows and views agreed for it ([Delivery](SKILL.md#delivery)). Its body is the story's diff when it has one, the example rows it makes true, and the call tree when the path isn't the plain find → decide → evolve → save → publish; a PR with no story diff names the rule it serves. It is done when: every example row of its rules has its test, named as the row; the row's `Code` and the rules' symbols are filled in; `state` is right; the host's checks pass. Nothing else is written down.
 
 ## Checking a story
 
