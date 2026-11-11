@@ -52,7 +52,7 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 - Slices: `worktree_create({ cwd, parent: <stream branch>, branch: "api" })` makes `<parent>--api` with no space and returns `{ path, branch }`; launch the slice agent with `subagent_launch({ cwd: path, ... })`. `worktree_list({ cwd })` shows streams with their slices, dirty and merged.
 - A bare worktree has `DATABASE_URL=` empty: anything that needs the database fails until `ship create <project> <branch>` upgrades it with its own clone.
 - An orchestrator keeps its terminal and its tools, outlives you, and reports each time it settles; its reports show in your chat without starting a turn, except errors and exits.
-- `worktree_remove({ workspace })` or `({ path })` for a checkout without a space closes the space, deletes the checkout and runs `ship down`. Only when the user asks; it refuses an unmerged slice without `force`.
+- `worktree_remove({ workspace })`, or `({ path })` for a checkout without a space (a slice, `space: false`), closes the space if it has one, deletes the checkout and runs `ship down`. Only when the user asks; it refuses an unmerged slice without `force`.
 
 ## Identity
 
