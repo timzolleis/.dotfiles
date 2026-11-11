@@ -955,7 +955,7 @@ export default async function (pi: ExtensionAPI) {
 		if (report.terminalClosed) {
 			stopWatching(launch.name);
 			await closeTerminal(launch.terminal);
-		} else if (!launch.orchestrator) await settleTabOfTerminal(launch.terminal).catch(() => {});
+		} else if (insideHerdr && !launch.orchestrator) await settleTabOfTerminal(launch.terminal).catch(() => {});
 		queue(launch, report);
 	};
 
