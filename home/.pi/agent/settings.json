@@ -1,5 +1,5 @@
 {
-  "lastChangelogVersion": "1.5.0",
+  "lastChangelogVersion": "1.5.2",
   "theme": "light/dark",
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-5-5",
@@ -14,6 +14,13 @@
   },
   "showCacheMissNotices": true,
   "quietStartup": true,
+  "compaction": {
+    "modelOverrides": {
+      "anthropic/claude-opus-5-5": {
+        "reserveTokens": 700000
+      }
+    }
+  },
   "hideThinkingBlock": false,
   "tuiMode": "regular",
   "defaultTools": [
@@ -21,7 +28,8 @@
   ],
   "modelThinkingLevels": {
     "anthropic/claude-fable-5-1": "medium",
-    "anthropic/claude-opus-5-5": "medium"
+    "anthropic/claude-opus-5-5": "medium",
+    "anthropic/claude-fable-5-2": "medium"
   },
   "extensionChangelogVersions": {
     "{\"source\":\"npm:pi-web-access\",\"scope\":\"user\"}": "0.47.0",
