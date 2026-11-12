@@ -69,6 +69,7 @@ export const absenceActorFromPermissions = ({ userId, organizationId, permission
 ```
 
 - The domain never sees a permission key, role, or `CurrentActor`.
+- The adapter lives in `infrastructure/` while only the server builds the actor. When the web also needs a flag (to show or hide a control), it moves to the module root (`absence/absence-permissions.ts`), outside the four layers: the browser must not import `infrastructure/`, and the domain must not hold the keys. Both sides call the one function.
 - One shape for every module: `<type>ActorFromPermissions({ userId, organizationId, permissions, …facts })`, `permissions: Pick<Permissions, "hasPermission">` (a test passes a fake), local helper `hasPermission`.
 - Keys are the host's typed key union (`PermissionKey`); a module declares no key type of its own, so a removed or misspelled key fails the type check.
 - Identity/access owns the keys, roles, and role → permission; the module owns the adapter.
