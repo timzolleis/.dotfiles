@@ -11,7 +11,7 @@ Rows apply when the host has the concept ([access.md](access.md)).
 | Constraint depends on | Example | Place |
 |---|---|---|
 | Tenant membership | the actor is a member of the route's organization | the host's tenant check at the edge (`OrganizationMemberMiddleware`, [http.md](http.md)); never the domain |
-| A permission alone | may export; may manage data sources | a flag on the actor; the use case checks it before the find and fails with `NotAllowedTo…Error`. Not a rule: a rule list of one gate is ceremony |
+| A permission alone | may export; may manage data sources | a flag on the actor; a one-line rule in the transition reads it and fails with `NotAllowedTo…Error` (`onlyPermittedCanShareRule`). The use case holds no check, so the find runs first: a missing record answers not found before the permission is read |
 | A permission with state or ownership | may edit someone else's active absence, or is its creator | a flag on the actor, set by the permission adapter; a rule decides |
 | Visibility | sees absences they're involved in; with a read permission, all | the visibility rule (`absenceVisibilityFromReader`); views filter by it |
 | State | archived can't be edited | the narrowing find; the input's state type accepts only allowed states |
