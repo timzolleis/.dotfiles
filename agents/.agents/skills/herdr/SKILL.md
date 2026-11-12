@@ -57,7 +57,7 @@ await tools.subagent_launch({ name, cwd: wt.path, pane: wt.rootPane, orchestrato
 ## Identity
 
 - `agent_status({ task })`: set `task` (2-6 words, a ticket title) when you take a new piece of work. The agents list shows it. `now` is optional; skip it.
-- Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person; each slice reaches them only after a reviewer agent passed it.
+- Gates for a stream (effect-ddd: the story is the plan, slices are stacked PRs): the story is designed live with the person. Launch a reviewer agent only when the person asks for one.
 
 ## Terminals and addresses
 
