@@ -78,16 +78,11 @@ export const isPeriodOngoingAt = ({ period, now }: { readonly period: Period; re
 
 ## Transitions
 
-One named input type per transition; the transition and its rules take the same type.
+One named input type per transition; the transition and its rules take the same type. Each input type sits directly above its transition, never in a block at the top of the file: the reader sees what a transition takes without scrolling.
 
 ```ts
 // absence/domain/absence.ts
-export type ReassignAbsenceInput = {
-  readonly absence: EditableAbsence; readonly actor: AbsenceActor
-  readonly assigneeId: UserId; readonly assigneeIsOrganizationMember: boolean; readonly now: DateTime.Utc
-}
 export type ArchiveAbsenceInput = { readonly absence: ActiveAbsence; readonly actor: AbsenceActor; readonly now: DateTime.Utc }
-// …one input per transition
 export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
   AbsenceArchivedEvent, NotAllowedToEditAbsenceError | AbsenceOngoingError
 > => Result.gen(function* () {
@@ -97,6 +92,13 @@ export const archiveAbsence = (input: ArchiveAbsenceInput): Result.Result<
     occurredOn: input.now,
   })
 })
+
+export type ReassignAbsenceInput = {
+  readonly absence: EditableAbsence; readonly actor: AbsenceActor
+  readonly assigneeId: UserId; readonly assigneeIsOrganizationMember: boolean; readonly now: DateTime.Utc
+}
+export const reassignAbsence = (input: ReassignAbsenceInput): Result.Result<…> => …
+// …each further input above its transition
 ```
 
 - The `absence` field's type is the state that allows the transition: passing a `DraftAbsence` to `archiveAbsence` doesn't compile.
