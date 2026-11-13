@@ -2,9 +2,7 @@
 
 A rule is one business constraint of a command: a pure function over the input its `decide` hands it, returning `Result<void, E>`. Each decide runs its rules in order. Many constraints aren't rules; place a constraint before writing it.
 
-The example names rules policies (`checkPolicies`, `…Policy`, `absence-policy.ts`); write `checkRules`, `…Rule`, `absence-rule.ts`.
-
-Not a policy: an Event Storming policy ("whenever X, do Y") is an event subscriber, and a permission gate is forbidden ([access.md](access.md)).
+A rule is not an Event Storming policy ("whenever X, do Y"), which is an event subscriber, nor a permission gate, which is forbidden ([access.md](access.md)).
 
 ## Where a constraint lives
 
@@ -26,17 +24,17 @@ Rows apply when the host has the concept ([access.md](access.md)).
 ## Running rules
 
 ```ts
-// absence/domain/absence-policy.ts
-type PolicyError<Policy> = Policy extends (input: never) => Result.Result<void, infer Error> ? Error : never
+// lib/check-rules.ts
+type RuleError<Rule> = Rule extends (input: never) => Result.Result<void, infer Error> ? Error : never
 
 // The first rejection wins.
-export const checkPolicies = <Input, const Policies extends ReadonlyArray<(input: NoInfer<Input>) => Result.Result<void, unknown>>>(
-  policies: Policies,
+export const checkRules = <Input, const Rules extends ReadonlyArray<(input: NoInfer<Input>) => Result.Result<void, unknown>>>(
+  rules: Rules,
   input: Input,
-): Result.Result<void, PolicyError<Policies[number]>> => {
-  for (const policy of policies) {
-    const policyResult = policy(input)
-    if (Result.isFailure(policyResult)) return policyResult as Result.Result<void, PolicyError<Policies[number]>>
+): Result.Result<void, RuleError<Rules[number]>> => {
+  for (const rule of rules) {
+    const ruleResult = rule(input)
+    if (Result.isFailure(ruleResult)) return ruleResult as Result.Result<void, RuleError<Rules[number]>>
   }
   return Result.succeed(undefined)
 }
@@ -44,8 +42,8 @@ export const checkPolicies = <Input, const Policies extends ReadonlyArray<(input
 
 ```ts
 // absence/domain/absence.ts
-        yield* checkPolicies(
-          [onlyCreatorOrPermittedCanEditPolicy, assigneeMustBeInOrganizationPolicy, assigneeMustBeSelfOrRelatedPolicy, editOnlyInFirstHourPolicy],
+        yield* checkRules(
+          [onlyCreatorOrPermittedCanEditRule, assigneeMustBeInOrganizationRule, assigneeMustBeSelfOrRelatedRule, editOnlyInFirstHourRule],
           { absence, actor: command.actor, assigneeId: command.assigneeId, assigneeIsOrganizationMember: command.assigneeIsOrganizationMember, now },
         )
 ```
@@ -70,12 +68,12 @@ A constraint across records ("one reported absence per person and day", "one rea
 ## Writing a rule
 
 ```ts
-// absence/domain/absence-policy.ts
+// absence/domain/absence-rule.ts
 const isActingUser = (input: { readonly actor: AbsenceActor; readonly userId: UserId }) => input.userId === input.actor.userId
 const isAbsenceCreator = (input: { readonly absence: EditableAbsence; readonly actor: AbsenceActor }) =>
   isActingUser({ actor: input.actor, userId: input.absence.creatorId })
 …
-export const onlyCreatorOrPermittedCanEditPolicy = (input: { readonly absence: EditableAbsence; readonly actor: AbsenceActor }) => {
+export const onlyCreatorOrPermittedCanEditRule = (input: { readonly absence: EditableAbsence; readonly actor: AbsenceActor }) => {
   const notAllowedToEditAbsence = () => Result.fail(new NotAllowedToEditAbsenceError({
     absenceId: input.absence.absenceId, actorId: input.actor.userId, absenceState: input.absence._tag,
   }))

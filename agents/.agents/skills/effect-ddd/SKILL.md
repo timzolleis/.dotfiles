@@ -82,7 +82,7 @@ shared/       ports owned by other modules
 absence/      one folder per layer: domain/, application/, view/, infrastructure/, http/
 ```
 
-A module is one core type: its id, aggregate, rules, errors, and repository. A second core type with its own id and events (a membership inside an organization) is its own module, even when it exists only inside the first; what crosses between them is an event and a policy, never a second write in the first's repository. A host with several bounded contexts nests modules under their context (`administration/absence/`), names the contexts and their dependencies in its `CONTEXT.md`, and lets a context reach another only through a port in its own `shared/`.
+A module is one core type: its id, aggregate, rules, errors, and repository. A second core type with its own id and events (a membership inside an organization) is its own module, even when it exists only inside the first; what crosses between them is an event and its subscriber, never a second write in the first's repository. A host with several bounded contexts nests modules under their context (`administration/absence/`), names the contexts and their dependencies in its `CONTEXT.md`, and lets a context reach another only through a port in its own `shared/`.
 
 Imports point inward. `domain/` imports only `domain/`, `lib/` and `shared/`; `application/` and `view/` import those too, never each other. `infrastructure/` imports any layer but `http/`, and `http/` imports any layer. Only the host's wiring imports `http/`. A module reaches another only through a port in `shared/`, or another module's id.
 

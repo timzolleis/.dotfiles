@@ -92,7 +92,7 @@ One record per command, `{ from, event, decide, evolve }`, keyed by the command'
       from: [ActiveAbsence],
       event: AbsenceArchivedEvent,
       decide: ({ absence, command, now }) => Result.gen(function* () {
-        yield* checkPolicies([onlyCreatorOrPermittedCanEditPolicy, cannotArchiveWhileOngoingPolicy], { absence, actor: command.actor, now })
+        yield* checkRules([onlyCreatorOrPermittedCanEditRule, cannotArchiveWhileOngoingRule], { absence, actor: command.actor, now })
         return AbsenceArchivedEvent.make({
           absenceId: absence.absenceId, organizationId: absence.organizationId, actorId: command.actor.userId, occurredOn: now,
         })
