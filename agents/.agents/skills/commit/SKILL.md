@@ -1,5 +1,6 @@
 ---
 name: commit
+disable-model-invocation: true
 description: Commit all staged, unstaged, and untracked changes as one or more coherent conventional commits. Use when the user asks to commit the working tree.
 ---
 
