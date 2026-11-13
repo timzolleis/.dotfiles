@@ -3,6 +3,7 @@ import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-a
 
 const PLAN_APPROVED_CHANNEL = "plannotator:plan-approved";
 const IMPL_MODEL = "anthropic/claude-opus-5-5";
+const READ_CODE_STYLE = "Read ~/.agents/skills/code-style/SKILL.md completely before the first edit.";
 const RUN_HERE = "Run here (compact first)";
 const HAND_TO_OPUS = "Hand to Opus in a worktree";
 
@@ -22,13 +23,13 @@ function reviewerNotesSection(feedback: string | undefined): string {
 }
 
 function executePromptFromPlan(event: PlanApprovedEvent, planPath: string): string {
-	return `The plan at ${planPath} is approved. Read it again and implement it step by step. Test as you go.${reviewerNotesSection(event.feedback)}`;
+	return `The plan at ${planPath} is approved. Read it again and implement it step by step. ${READ_CODE_STYLE} Test as you go.${reviewerNotesSection(event.feedback)}`;
 }
 
 function orchestratorPromptFromPlan(event: PlanApprovedEvent, planPath: string): string {
 	return `The plan at ${planPath} is approved. Hand it to an implementation agent; do not implement it yourself:
 1. worktree_create({ space: false }) on a branch named after the plan's job.
-2. subagent_launch an impl agent in that worktree, named after the job (impl-<job>), model ${IMPL_MODEL}. Brief: implement the approved plan at ${planPath} (absolute path in the main checkout), test it, and commit on the branch.${reviewerNotesSection(event.feedback)}
+2. subagent_launch an impl agent in that worktree, named after the job (impl-<job>), model ${IMPL_MODEL}. Brief: implement the approved plan at ${planPath} (absolute path in the main checkout), test it, and commit on the branch. The brief also says: "${READ_CODE_STYLE}"${reviewerNotesSection(event.feedback)}
 Then end your turn; its report arrives as a message.`;
 }
 
