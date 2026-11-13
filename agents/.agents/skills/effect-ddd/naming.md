@@ -9,9 +9,9 @@ Beyond general naming, Effect features name each part by its role:
 | Thing | Pattern | Example |
 |---|---|---|
 | State | `<Phase><Type>` | `DraftAbsence` |
-| States a transition accepts | the fact they share; what they allow only when no fact names them | `EditableAbsence` (draft or active) |
-| Transition, its input | `<verb><Type>`, `<Verb><Type>Input` | `archiveAbsence`, `ArchiveAbsenceInput` |
-| Rule type, list | `<Verb><Type>Rule`, `<verb><Type>Rules` | `ArchiveAbsenceRule`, `archiveAbsenceRules` |
+| States a command accepts | the fact they share; what they allow only when no fact names them | `EditableAbsence` (draft or active) |
+| Aggregate | the core type | `Absence` |
+| Command | `<Verb><Type>Command` | `ArchiveAbsenceCommand`, `DraftAbsenceCommand` |
 | Single rule | the rule as a sentence + `Rule`, without the subject (the file names it); "Permitted" = the actor holds the flag | `cannotArchiveWhileOngoingRule`, `onlyPermittedCanCreateRule`; not `mayCreateRule`, `uniqueNameRule` |
 | Event | `<Type><PastTense>Event` | `AbsenceArchivedEvent` |
 | Domain error | `<Fact>Error`; *still* = not yet, *already* = past it | `AbsenceStillDraftError` |
@@ -20,6 +20,6 @@ Beyond general naming, Effect features name each part by its role:
 | Repository find | `find<State><Type>ById`; across records `find<Type>By<Key>` | `findActiveAbsenceById`, `findAbsenceReasonByName` |
 | Equality of a value | `<Type><Field>Equivalence` | `AbsenceReasonNameEquivalence` |
 | View read | `get…` / `list…` | `getAbsenceById`, `listAbsences` |
-| Use case, command | `<Verb><Type>Service`, `<Verb><Type>Command` | `ArchiveAbsenceService`, `ArchiveAbsenceCommand` |
+| Use case, its input | `<Verb><Type>Service`, `<Verb><Type>Request` | `ArchiveAbsenceService`, `ArchiveAbsenceRequest` |
 | Translation | `<output>From<input>` | `absenceActorFromPermissions`, `absenceHttpErrorFromAbsenceError` |
 | Permission key | the host's format | `absences:update` |

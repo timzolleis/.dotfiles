@@ -10,7 +10,7 @@ export const AbsenceView = Schema.Struct({
   assigneeId: UserId,
   from: Schema.DateTimeUtc,
   to: Schema.DateTimeUtc,
-  status: Schema.Literals(["draft", "active", "archived"]),
+  status: Schema.Literals(["draft", "active", "archived", "discarded"]),
   createdAt: Schema.DateTimeUtc,
   activatedAt: Schema.NullOr(Schema.DateTimeUtc),
   archivedAt: Schema.NullOr(Schema.DateTimeUtc),
@@ -43,7 +43,7 @@ export class AbsenceViews extends Context.Service<AbsenceViews, {
 ```ts
 // absence/infrastructure/prisma-absence-views.ts
 const nonDraftOrCreatedByWhere = (userId: UserId): Prisma.AbsenceWhereInput =>
-  ({ OR: [{ status: { not: "draft" } }, { creatorId: userId }] })
+  ({ OR: [{ status: { notIn: ["draft", "discarded"] } }, { creatorId: userId }] })
 
 const absenceWhereFromFilters = ({ assigneeId, creatorId }: AbsenceListFilters): Prisma.AbsenceWhereInput => ({
   AND: [

@@ -46,12 +46,12 @@ export class OrganizationMemberMiddleware extends HttpApiMiddleware.Service<Orga
 | `POST /absences` `{ absenceId?, assigneeId, from, to }` | `createAbsence` | 201 view |
 | `PUT /absences/:absenceId/period` `{ from, to }` | `rescheduleAbsence` | 200 view |
 | `POST /absences/:absenceId/archive` | `archiveAbsence` | 200 view |
-| `DELETE /absences/:absenceId` | `deleteAbsence` | 204 |
+| `DELETE /absences/:absenceId` | `withdrawAbsence` | 204 |
 | `GET /absences/:absenceId` | `getAbsenceById` | 200 view |
 | `GET /absences?assigneeId=&creatorId=` | `listAbsences` | 200 view[] |
 
 - Endpoint names are the use case or view names.
-- A command answers with the view, read back with the actor's visibility. Delete reads nothing.
+- A command answers with the view, read back with the actor's visibility. Withdraw reads nothing.
 - List filters are `query` params, not nested routes.
 - Instants travel as ISO strings through `Schema.DateTimeUtc`'s JSON codec; no separate HTTP date schema.
 - Each endpoint declares its HTTP errors in check order: not found → wrong state → actor → rule / value → concurrency.
@@ -73,7 +73,7 @@ export class AbsenceApi extends HttpApiGroup.make("absences")
       success: AbsenceView.pipe(HttpApiSchema.status(201)),
       error: [
         AssigneeNotInOrganizationHttpError, NotAllowedToAssignAbsenceHttpError, InvalidPeriodHttpError, AbsenceChangedConcurrentlyHttpError,
-        AbsenceNotFoundHttpError, // read-back, if the absence is deleted before it
+        AbsenceNotFoundHttpError, // read-back
       ],
     }),
     HttpApiEndpoint.post("archiveAbsence", "/absences/:absenceId/archive", {

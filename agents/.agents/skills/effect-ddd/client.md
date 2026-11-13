@@ -2,7 +2,7 @@
 
 The browser renders the domain; it never implements it. Everything that interprets, validates, derives, or builds a domain value lives in the module's `domain/` and is tested there. The web imports it. What is left in the web is rendering and input handling.
 
-`domain/` is pure ([SKILL.md](SKILL.md) rule 1), so it is browser-safe: the web imports schemas, rules, transitions, and constants straight from it. `application/`, `view/`, `infrastructure/`, and `http/` never reach the browser, except the HTTP API definition for the typed client. The one file outside both is the permission adapter at the module root, when the web needs an actor flag ([access.md](access.md)).
+`domain/` is pure ([SKILL.md](SKILL.md) rule 1), so it is browser-safe: the web imports schemas, rules, the aggregate, and constants straight from it. `application/`, `view/`, `infrastructure/`, and `http/` never reach the browser, except the HTTP API definition for the typed client. The one file outside both is the permission adapter at the module root, when the web needs an actor flag ([access.md](access.md)).
 
 ## What the web takes from the domain
 
@@ -10,11 +10,11 @@ The browser renders the domain; it never implements it. Everything that interpre
 |---|---|---|
 | A value's format and its error text | the schema's check: `AbsenceReasonName = Schema.Trimmed.check(Schema.isNonEmpty({ message: "Enter a name." }))…` | decodes the input with it and shows the issue's message |
 | Limits (lengths, counts, ranges) | an exported constant the schema uses: `maxAbsenceReasonNameLength` | passes the constant to `maxLength` |
-| A refusal ("name taken", "still ongoing") | the rule and its error | calls the rule or the transition, maps the error tag to copy |
+| A refusal ("name taken", "still ongoing") | the rule and its error | calls the rule or `Absence.decide`, maps the error tag to copy |
 | Which variants exist | the union's `.cases` / the literal list | lists them from it |
 | Which fields a variant has | the variant's schema | binds inputs to its keys |
 | Who may do it | `may…` on the actor, built by the permission adapter at the module root ([access.md](access.md)) | calls the adapter with the user's permissions and reads the flag |
-| The optimistic row | the transition: `archiveAbsence({ absence, actor, now })` | applies the event's result; the server's answer replaces it |
+| The optimistic row | `Absence.decide`, then `Absence.evolve` | shows the evolved state; the server's answer replaces it |
 | "Same value" | the value's `Equivalence` ([model.md](model.md)) | compares with it |
 
 ## Rules
