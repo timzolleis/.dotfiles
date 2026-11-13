@@ -9,16 +9,7 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 ## Designing with the user
 
-Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story ([story.md](story.md)). Then each slice gets a plan for the user to review (`plans/<slice>.md`); it shows the module's shape before any code:
-
-- **Context**: the slice's use cases and the rules they run, cited from the story.
-- **Shape**: the module tree (new and changed files, one line each on what it owns), the signatures of states, transitions with their `Result`, events, errors and ports, a call tree per use case ([Call trees](#call-trees)), and the `Cost:` and `Rejected:` lines.
-- **Steps**: a checklist, one item per buildable step; plan review tracks execution by it.
-- **Verification**: the test per example row, and the host's checks.
-
-Submit it in plan mode (`plannotator_submit_plan`); outside plan mode, with the `plannotator` tool and `gate: true`. Once approved it becomes the PR body; it never goes into the story. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
-
-A story comes out of exploring with the user: talk the area through, options and recommendations, until they say to write it down. Then condense what was settled into the story ([story.md](story.md)) in one go: nothing they didn't settle, their open points in `## Open`, their reasons as the rules' why. Their edits afterwards are diffs on the story. Never hand the exploring to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change in behavior is first a change to the area's story: read [story](~/.agents/skills/story/SKILL.md) completely. Then each slice gets a plan for the user to review, in the sections of [architecture](~/.agents/skills/architecture/SKILL.md#the-plan). Here its Shape holds the signatures of states, transitions with their `Result`, events, errors and ports, and a call tree per use case ([Call trees](#call-trees)); its Verification is the test per example row.
 
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 
@@ -46,7 +37,7 @@ Each question about a use case has a domain answer, and one component it lands i
 | What is true afterwards? | outcome: "the absence is archived" | event and its fields: `AbsenceArchivedEvent` |
 | Who sees the result? | "involved members; with permission, everyone" | view, visibility rule: `AbsenceView`, `absenceVisibilityFromReader` |
 
-Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, each with its examples, tests and code ([story.md](story.md)).
+Answer the domain column first, with the user, before any type name; it holds in any codebase. The last column is this architecture's; map it to the host's components. The answers form the story: intent, use cases, numbered rules, each with its examples.
 
 ## Deciding rules
 
@@ -117,7 +108,7 @@ AbsenceController.archiveAbsence({ params })
 
 ## Delivery
 
-The story is the plan and the only document; there are no change files or specs beside it ([story.md](story.md#the-pr)). Before any code, the story is cut into slices with the user, one PR each, stacked. A slice is logically complete: a reviewer reads it as one behavior end to end (enable and disable together, not enable alone), and it fits one review sitting. The module's first slice holds its shape: the core type, the use cases that belong together, a view, the host's wiring. The exhaustive matches (`evolveAbsence` over change events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile.
+Before any code, the change is cut into slices with the user, one PR each, stacked. A slice is logically complete: a reviewer reads it as one behavior end to end (enable and disable together, not enable alone), and it fits one review sitting. The module's first slice holds its shape: the core type, the use cases that belong together, a view, the host's wiring. The exhaustive matches (`evolveAbsence` over change events, `absenceRowFromState` over states, the HTTP error mapper over errors) make a slice safe: a use case that misses a layer doesn't compile.
 
 A PR that adds a part no use case in it reads (an actor flag, a find, an error) is early; move the part to the slice with its reader.
 
@@ -135,7 +126,7 @@ A PR that adds a part no use case in it reads (an actor flag, a find, an error) 
 | Web code that shows, edits, or checks domain values | [client.md](client.md) |
 | Naming anything | [naming.md](naming.md) |
 | Writing, keeping, or judging a test | [testing.md](testing.md) |
-| Writing or changing a story | [story.md](story.md) |
+| Writing or changing a story | [story](~/.agents/skills/story/SKILL.md) |
 
 ## Call trees
 

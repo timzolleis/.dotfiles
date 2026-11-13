@@ -1,10 +1,20 @@
+---
+name: story
+disable-model-invocation: true
+description: Write or change a story, the spec of one area of the domain in the user's words.
+---
+
 # Story
 
-A **story** describes one area of the domain (a core type or a concept): its use cases and rules in the user's words, its lifecycle, and the decisions behind it. It is the current truth about the area and the only document about it; it lives where the host's `AGENTS.md` says. A change to the area is a change to its story, written once the user and the agent have explored it ([Designing with the user](SKILL.md#designing-with-the-user)), and built only once they agree.
+A **story** describes one area of the domain (a core type or a concept): its use cases and rules in the user's words, its lifecycle, and the decisions behind it. It is the current truth about the area and the only document about it; it lives where the host's `AGENTS.md` says. A change to the area is a change to its story, written once the user and the agent have explored it, and built only once they agree. A change that leaves behavior as it is (a refactor, a migration) needs no story: it gets a plan.
+
+A story comes out of exploring with the user: talk the area through, options and recommendations, until they say to write it down. Then condense what was settled into the story in one go: nothing they didn't settle, their open points in `## Open`, their reasons as the rules' why. Their edits afterwards are diffs on the story. Never hand the exploring to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
+
+Links into `effect-ddd` apply in Effect code.
 
 The user verifies a rule in one scroll: the rule, then its rows in the examples. A builder's brief names the use cases of its slice and the rules they run. Short beats complete: 60 to 120 lines. One or two examples per rule, the typical case and the refusal, plus the boundary when a value decides it. More rows hide the rule they illustrate.
 
-Signatures, call trees, file trees, endpoint tables and per-file plans are not part of the story. A slice's design goes to plan review and then into the PR body ([Designing with the user](SKILL.md#designing-with-the-user)); once built it is the code, and a copy in the story only goes stale.
+Signatures, call trees, file trees, endpoint tables and per-file plans are not part of the story. A slice's design goes to plan review and then into the PR body ([architecture](~/.agents/skills/architecture/SKILL.md#the-plan)); once built it is the code, and a copy in the story only goes stale.
 
 ## Shape
 
@@ -24,9 +34,9 @@ A member reports a period they are away, for themselves or, with permission, for
 
 ## Use cases
 
-- A member drafts an absence for themselves or a related user (rule 1). `DraftAbsenceService`
-- The creator activates their draft (rule 2). `ActivateAbsenceService`
-- A member archives an absence whose period has ended (rules 2, 3, 4). `ArchiveAbsenceService`
+- A member drafts an absence for themselves or a related user (rule 1).
+- The creator activates their draft (rule 2).
+- A member archives an absence whose period has ended (rules 2, 3, 4).
 
 Changes elsewhere: **Staffing** takes an active absence's assignee out of every day of its period (rule 5).
 
@@ -80,15 +90,15 @@ A draft is visible to its creator only; active since `activatedAt`; archived kee
 ## The parts
 
 - **Opening**: the user's goal as one quoted sentence, in their words. Then a short paragraph: the kinds of things, who acts, how it moves. Name the existing code it is modeled on, so the builder copies its shape instead of inventing one.
-- **Terms**: only the words a reader could misread, each with its meaning and its name in code. The code's names follow this table ([naming.md](naming.md)).
-- **Use cases**: one line per intent, who wants to do what ([use-cases.md](use-cases.md#cutting-use-cases)), the rules it runs, and its service once built. Then `Changes elsewhere`: existing use cases whose behavior changes, each with the rule.
-- **Rules**: numbered per story, never renumbered. Each: a bold short name, what holds, `Why:`, and the consequences nobody would guess. The reason decides the edge cases nobody listed. The user-facing message word for word. Two to four lines a rule; a rule that needs more is two rules. Cite `rule 3` within the story, `absence rule 3` across stories. Only some rules become a code rule; place each with [rules.md](rules.md).
-- **Examples**: one table of situations with roles or named people, never one table per rule; a concrete value only where it decides the case; a sentence above names the fixture. Each row is a test ([testing.md](testing.md)): a row without a test is a decision the code never checked; a test without a row is a decision the user never saw.
+- **Terms**: only the words a reader could misread, each with its meaning and its name in code. The code's names follow this table ([naming.md](~/.agents/skills/effect-ddd/naming.md)).
+- **Use cases**: one line per intent, who wants to do what ([use-cases.md](~/.agents/skills/effect-ddd/use-cases.md#cutting-use-cases)) and the rules it runs. Then `Changes elsewhere`: existing use cases whose behavior changes, each with the rule.
+- **Rules**: numbered per story, never renumbered. Each: a bold short name, what holds, `Why:`, and the consequences nobody would guess. The reason decides the edge cases nobody listed. The user-facing message word for word. Two to four lines a rule; a rule that needs more is two rules. Cite `rule 3` within the story, `absence rule 3` across stories. Only some rules become a code rule; place each with [rules.md](~/.agents/skills/effect-ddd/rules.md).
+- **Examples**: one table of situations with roles or named people, never one table per rule; a concrete value only where it decides the case; a sentence above names the fixture. Each row is a test ([testing.md](~/.agents/skills/effect-ddd/testing.md)): a row without a test is a decision the code never checked; a test without a row is a decision the user never saw.
 - **UI**, when the story has one: where it lives, the exact copy, columns and order, the empty state, what disables an action and which rule.
-- **Lifecycle**, when there is more than one state: the diagram, then one line per state saying what it guarantees. The states' names are the code's ([naming.md](naming.md)).
+- **Lifecycle**, when there is more than one state: the diagram, then one line per state saying what it guarantees. The states' names are the code's ([naming.md](~/.agents/skills/effect-ddd/naming.md)).
 - **Decisions**: everything a reader would otherwise "fix" or propose again: a name, a split, a departure from the modeled-on code, what is left out, a downside accepted (`Cost:`), an alternative turned down (`Rejected:`). One or two lines each; cite rules as `(rule n)`, never restate them.
 - **Open**: only undecided points, each with the options and a recommendation. Once the user decides, the point moves into a rule or a decision and leaves `Open`.
 
 ## The PR
 
-A PR is one slice: the use cases agreed for it ([Delivery](SKILL.md#delivery)). Its body is the story's diff when there is one, the example rows it makes true, and the call tree when the path isn't the plain find → decide → evolve → save → publish; a PR with no story diff names the rule it serves. It is done when every example row of its rules has a test and the host's checks pass.
+A PR is one slice: the use cases agreed for it. Its body is the approved plan ([architecture](~/.agents/skills/architecture/SKILL.md#the-plan)), the story's diff, and the example rows it makes true. It is done when every example row of its rules has a test and the host's checks pass.

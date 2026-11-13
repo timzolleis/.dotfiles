@@ -37,5 +37,5 @@ Because the bridges go through ports, no migration ever forces its neighbours to
 
 4. **Propose.** Rank slices by markers retired and churn first, then by smallest diff. Show at most 5 in one table and recommend one. Stop for the user's pick.
 
-5. **Record the pick.** Create a Linear issue for the slice and mark it related to the edge issues it resolves. Then explore the change with the user and write it into the area's story ([story.md](../effect-ddd/story.md)).
+5. **Record the pick.** Create a Linear issue for the slice and mark it related to the edge issues it resolves. Then explore the change with the user and write it into the area's story ([story](~/.agents/skills/story/SKILL.md), read completely).
    Complete when the issue exists and the first part of the story draft is with the user.
