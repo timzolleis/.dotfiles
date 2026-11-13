@@ -19,10 +19,6 @@ entry points AbsenceController.archiveAbsence; a job, a listener
 - Different intents: separate use cases, even when they share states and rules (reschedule and reassign).
 - A read is not a use case; it is a view ([views.md](views.md)).
 
-## Stories
-
-The use cases of one area, with its rules, examples, lifecycle, and decisions, live in its story ([story.md](story.md)).
-
 ## Service
 
 One `Context.Service` per use case. Every one is the same five steps: find the narrowed state, call its transition, `evolve` the event onto the state, save, publish the event. The write follows the event's kind: a create has no find and calls `insertAbsence({ after: initialAbsence(event) })`; a change calls `updateAbsence({ before, after: evolveAbsence({ absence, event }) })`; a delete evolves nothing and calls `deleteAbsence({ before })` ([repository.md](repository.md#port)). An event of the wrong kind doesn't compile: `initialAbsence` takes only a creation event, `evolveAbsence` only a change event. Publish after the write, so a failed write publishes nothing; the two are not atomic unless the host opts in ([repository.md](repository.md#atomic-events)). A use case holds no permission check: the transition's rule reads the actor's flag, also for a delete ([rules.md](rules.md)). Loads run in order; run them in parallel only after the narrowing find, and only when a span shows the time it saves.

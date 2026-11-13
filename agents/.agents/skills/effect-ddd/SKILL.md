@@ -9,9 +9,16 @@ The architecture for Effect 4 features, and how we design them together. Example
 
 ## Designing with the user
 
-Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story ([story.md](story.md)); its signatures and call trees are shown in the conversation, not written into the story. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
+Bring the options and a recommendation, then let the user choose. Settle what other decisions depend on first: use cases, then the lifecycle, then the rules, then names. A change too large to do inline is first a change to the area's story ([story.md](story.md)). Then each slice gets a plan for the user to review (`plans/<slice>.md`); it shows the module's shape before any code:
 
-A story comes out of exploring with the user: talk the area through, options and recommendations, until they say to write it down. Then condense what was settled into the story ([story.md](story.md)) in one go: nothing they didn't settle, their open points in `## Open`, their reasons as the rules' why. Their edits afterwards are diffs on the file. Never hand the exploring to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
+- **Context**: the slice's use cases and the rules they run, cited from the story.
+- **Shape**: the module tree (new and changed files, one line each on what it owns), the signatures of states, transitions with their `Result`, events, errors and ports, a call tree per use case ([Call trees](#call-trees)), and the `Cost:` and `Rejected:` lines.
+- **Steps**: a checklist, one item per buildable step; plan review tracks execution by it.
+- **Verification**: the test per example row, and the host's checks.
+
+Submit it in plan mode (`plannotator_submit_plan`); outside plan mode, with the `plannotator` tool and `gate: true`. Once approved it becomes the PR body; it never goes into the story. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design.
+
+A story comes out of exploring with the user: talk the area through, options and recommendations, until they say to write it down. Then condense what was settled into the story ([story.md](story.md)) in one go: nothing they didn't settle, their open points in `## Open`, their reasons as the rules' why. Their edits afterwards are diffs on the story. Never hand the exploring to a sub-agent: the user's answers are its input. Sub-agents build from what was agreed.
 
 Always ask the user; never settle an open question alone. A brief that marks decisions as made settles only those: every question it leaves open (a port's shape, an event's fields, a test seam) goes to the user with the options and a recommendation. Without a channel to ask, stop and ask in the reply rather than pick and report.
 

@@ -16,7 +16,7 @@ Usually no test: single rules apart from their transition, use cases that only f
 
 ## Setup
 
-A transition test: one `it` per example row of the story's rule block, named exactly as the row's Test cell (`situation (rule n) → outcome`), with the row's values. Decide, then evolve, then assert on the state; a refusal asserts on the error tag. No database: the test proves what the user reviewed, and the story check finds it by name ([story.md](story.md#checking-a-story)).
+A transition test: one `it` per example row of the story, named after the row's situation and outcome, with the row's values. Decide, then evolve, then assert on the state; a refusal asserts on the error tag. No database: the test proves what the user reviewed.
 
 A fixture is the events that lead to its state, folded through `initialAbsence` and `evolveAbsence`; never a state written by hand. A test then can't start from a state the domain can't reach, and every fixture runs `evolve`.
 
@@ -38,12 +38,12 @@ const alice = makeActor({ userId: aliceId })
 const absence = makeActiveAbsence({ creatorId: aliceId, period: octoberWeek })
 
 describe("archiveAbsence", () => {
-  it("archive after the last day (rule 4) → AbsenceArchivedEvent", () => {
+  it("archive after the last day → AbsenceArchivedEvent", () => {
     const event = Result.getOrThrow(archiveAbsence({ absence, actor: alice, now: DateTime.makeUnsafe("2026-10-17T00:00:00Z") }))
     assert.strictEqual(evolveAbsence({ absence, event })._tag, "ArchivedAbsence")
   })
 
-  it("archive on the last day (rule 4) → AbsenceOngoingError", () => {
+  it("archive on the last day → AbsenceOngoingError", () => {
     const result = archiveAbsence({ absence, actor: alice, now: DateTime.makeUnsafe("2026-10-16T23:59:00Z") })
     assert.strictEqual(Result.isFailure(result) ? result.failure._tag : "ok", "AbsenceOngoingError")
   })

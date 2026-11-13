@@ -20,7 +20,7 @@ Gather all four before judging anything. Each item is kept with its source (comm
 
 **Sessions**: `~/.pi/agent/sessions/<cwd-encoded>/*.jsonl` with a timestamp in the period; a session counts when a `read` tool call targeted a file of the skill. In those, each user message that corrects the agent: short, after an agent action, with "no", "don't", "why", "we said", "not", a question mark, or a rule restated. For each: which rule of the skill it restates, or none. Also count, per skill file, how often it was read.
 
-**Stories**: the host's story check (`pnpm stories check` or the like); story length; example rows per rule; use case rows without `Code`.
+**Stories**: story length; example rows per rule; example rows without a test; settled points left in `Open`.
 
 ## 2. Judgment
 
