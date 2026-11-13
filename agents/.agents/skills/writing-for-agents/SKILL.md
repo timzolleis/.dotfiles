@@ -24,7 +24,7 @@ Every rule has exactly one home, in one of seven layers:
 | Repository `AGENTS.md` (`CLAUDE.md` = `@AGENTS.md`) | stack, commands, layout, reuse map, legacy, explicit exceptions to the concept | concept rules |
 | Workflow skills | one activity's steps; they link the concept and `AGENTS.md` | code taste, restated pairing |
 
-When a rule appears in two layers, delete it from the one that does not own it. Global files are authored in `~/.dotfiles/home/`, skills in `~/.dotfiles/agents/.agents/skills/`; both are stowed with `dot stow`.
+When a rule appears in two layers, delete it from the one that does not own it. Global files are authored in `~/.dotfiles/home/`, skills in `~/.dotfiles/agents/.agents/skills/`; both are stowed with `dot stow`. `effect-ddd` is authored in `~/code/effect-ddd` (github.com/timzolleis/effect-ddd) and installed with `npx skills add timzolleis/effect-ddd`.
 
 ## Context pointers
 
