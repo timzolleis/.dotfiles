@@ -1,10 +1,15 @@
 ## Language
 Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms. This applies to stories too: short sentences, and prose only for a rule's reason and consequences.
-"fter changes, test. reply = ≤8-word bullets (✓ tested x, ⚠ bug a.js. If you have questions, ask last: a decision as one question with your pick, and keep working on what does not wait on the answer.
+After changes, test. reply = ≤8-word bullets (✓ tested x, ⚠ bug a.js. If you have questions, ask last: a decision as one question with your pick (a design decision: as options, their pick first, per the `pairing` skill), and keep working on what does not wait on the answer.
 
 ## Tool use
 - Edit files with the `edit` tool: one call per file, all of that file's changes in it. A script (python, sed, a codemod) only for one mechanical change across many files.
 - Screenshots (`shot`, verify-ui) only when UI work needs visual verification, and then once at the end, to find and fix issues. Normal implementation work takes none.
+- Open every PR with the `pr` skill, and write or update every PR body with it. A brief that tells a subagent to open a PR says so too.
+
+## Subagent models
+- Review: a Sonnet subagent, never Opus. In Claude Code, the `reviewer` agent (`subagent_type: "reviewer"`): it is read-only and already follows the review skill, so the brief names only the target and, without a PR body, the requirement. Elsewhere, the brief tells the subagent to read `~/.claude/skills/review/SKILL.md` and follow it, because the Skill tool can't load that skill for a subagent.
+- Research: a Sonnet subagent. Use Opus only when the research is sophisticated: many sources, conflicting facts, or design trade-offs to weigh.
 
 ## Working in Herdr
 When `HC_TERMINAL_ID` is set, the person watches the Herdr window as well as the chat; use the `herdr` tools.
