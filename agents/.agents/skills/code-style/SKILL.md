@@ -24,8 +24,7 @@ A name is truthful and greppable: the name alone says what a thing is or does, w
 - Name the subject: `findActiveAbsenceById`, `publishAbsenceEvent`. `findById`, `publish`, `execute` match thousands of lines. An exported name has two to four words, one of them a domain word; take the shortest that greps uniquely.
 - The context sits in the symbol, not in the folder: a search hit shows `formatDurationMs`, not the import that tells `users/diff.ts` from `orders/diff.ts`.
 - An action starts with its verb: `archiveAbsence`, `generateAbsenceId`.
-- A translation names its output and its input, `<output>From<input>`: `absenceActorFromPermissions(…)`, `dateTimeUtcFromDate(date)`, `fingerprintIntentFromPosition(position)`. `mapTo`, `toHttpError`, `absenceFrom(row)` each leave one side to the arguments or the return type.
-- A name ends in the thing it names, not in a preposition its argument completes. `residenceOf(child)` is `childResidence(child)`; `visibilityFor(reader)` is `absenceVisibilityFromReader(reader)`; `isDomainWithin(…)` is `isDomainWithinParentDomain(…)`. `Of` is the common slip.
+- A name ends in the thing it names, not in a preposition its argument completes. `residenceOf(child)` is `childResidence(child)`; `isDomainWithin(…)` is `isDomainWithinParentDomain(…)`. `Of` is the common slip.
 - Variables say what they hold: `absenceBeforeUpdate`, `previousPeriod`, not `before`, `prev`, `data`, `result`, `tmp`.
 - One thing keeps one name through every layer: `reasonWithSameName` in the find stays `reasonWithSameName` in the input, the rule, and its callback. One concept has one spelling: `organizationId` or `orgId`, never both.
 - When behavior or audience changes, rename in the same commit.
