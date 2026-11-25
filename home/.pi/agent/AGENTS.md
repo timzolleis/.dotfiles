@@ -2,9 +2,15 @@
 Speak in plain technical english. Lead with the point, do not use long prose. Use the codebase's terms. This applies to stories too: short sentences, and prose only for a rule's reason and consequences.
 After changes, test. reply = ≤8-word bullets (✓ tested x, ⚠ bug a.js. If you have questions, ask last: a decision as one question with your pick (a design decision: as options, their pick first, per the `pairing` skill), and keep working on what does not wait on the answer.
 
+## Naming
+Name each thing for what it is, so a reader knows its kind from the name.
+- No single letters or abbreviations, generics included: `<ValueSchema>`, not `<S>`.
+- A name ends in its kind when the kind isn't obvious: `trimTransformation`, `checkedRowsFilter`, `DocumentExtractionService`. Suffixes like `Service`, `Factory`, `Repository` are fine.
+- Names that differ in one word name different things. Rename one when two are too close to tell apart (`fieldValueTypes` beside `itemFieldValues`).
+
 ## Tool use
 - Edit files with the `edit` tool: one call per file, all of that file's changes in it. A script (python, sed, a codemod) only for one mechanical change across many files.
-- Screenshots (`shot`, verify-ui) only when UI work needs visual verification, and then once at the end, to find and fix issues. Normal implementation work takes none.
+- Screenshots (T3 preview) only when UI work needs visual verification, and then once at the end, to find and fix issues. Normal implementation work takes none.
 - Open every PR with the `pr` skill, and write or update every PR body with it. A brief that tells a subagent to open a PR says so too.
 
 ## Subagent models
