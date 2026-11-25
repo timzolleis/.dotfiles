@@ -34,6 +34,7 @@ Then end your turn; its report arrives as a message.`;
 }
 
 export default function (pi: ExtensionAPI) {
+	if (process.env.T3_PI_MCP_EXTENSION_PATH) return;
 	const hasHerdrTools = Boolean(process.env.HC_TERMINAL_ID) && process.env.PI_SUBAGENT !== "1";
 	let sessionCtx: ExtensionContext | undefined;
 	let handoffWaitingForIdle: PlanApprovedEvent | undefined;
