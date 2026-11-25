@@ -30,20 +30,24 @@ When a new requirement doesn't fit the design, reshape the design as if the requ
 - In a planned rewrite, aim at the end state. A broken intermediate step is fine when the plan names it.
 - A name or type with no truthful home is the signal to reshape.
 
-A redesign is the user's decision. Bring the options, what each costs, and a recommendation.
-
-A good turn: "Sharing a template needs an owner, and `SelectionTemplate` has none. Option A: add a nullable `ownerId` and check it in the three use cases that care. Option B: split into `PersonalTemplate` and `SharedTemplate`, so sharing a personal one is a transition. I recommend B: A leaves an owner-less shared template representable. B changes the repository's finds. Which do you want?"
+A redesign is the user's decision. Put it to them as options with what each costs; [pairing](~/.agents/skills/pairing/SKILL.md) says how, with a good turn.
 
 ## The plan
 
 A change that adds a module, moves a boundary, or redesigns one gets a plan the user reviews before any code (`plans/<name>.md`). A smaller change states its shape in the reply. Behavior that is new to the domain is first agreed as a story: read [story](~/.agents/skills/story/SKILL.md) completely.
 
-- **Context**: what changes and why; with a story, the use cases and rules it covers, cited from it.
-- **Shape**: the module tree (new, changed, and deleted files, one line each on what it owns); the signatures of new and changed types and functions, with their errors; a call tree per use case or entry point. Then **Decisions**, only when there is one: an alternative turned down (`Rejected:`) or a downside accepted (`Cost:`), one line each.
-- **Steps**: a checklist, one item per buildable step, removals first; plan review tracks execution by it.
+The plan is a skeleton the user edits, not a text they read. They design by changing its types and names; prose about a design they never touched leaves them owning code they can't explain. Its design decisions were settled with them first ([pairing](~/.agents/skills/pairing/SKILL.md)): the plan records them and shows no shape they see for the first time. It fits one screen, about 60 lines. A longer one means the slice is too big: cut it and plan the first part.
+
+- **Context**: two sentences at most on what changes and why; with a story, the use cases and rules it covers, cited from it.
+- **Skeleton**: one code block per new or changed file, headed by its path, holding the types and signatures with their errors and empty bodies. Deleted files as one list. One call-tree line per use case or entry point. The code states the shape; no prose repeats it.
+- **Holes** (opt in): only when the user asks to write parts themselves, mark those pieces with `// HOLE`. Otherwise the plan has none: the design-bearing pieces (a state type, a rule, a decision function, a schema) were settled with the user, and you write all the code.
+- **Decisions**, only when there is one: an alternative turned down (`Rejected:`) or a downside accepted (`Cost:`), one line each.
+- **Steps**: a checklist, one item per buildable step: removals first, then the skeleton, then the wiring; plan review tracks execution by it.
 - **Verification**: the test per behavior, and the host's checks.
 
 Submit it in plan mode (`plannotator_submit_plan`); outside plan mode, with the `plannotator` tool and `gate: true`. Build nothing until the user approves it: code written before approval gets rebuilt when they change the design. Once approved it becomes the PR body.
+
+After approval, build it. If the user opted into holes: write the skeleton with each hole stubbed so the project still typechecks, build the wiring around them, and hand over every hole as a `file:line` link, unfilled. While they write, navigate (`pairing`); then review what they wrote and finish the tests. A hole the user hands back, you write, and you name it in the handover.
 
 ## Principles
 

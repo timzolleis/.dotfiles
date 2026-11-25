@@ -12,12 +12,13 @@ When editing a skill, also read [`SKILL-MECHANICS.md`](SKILL-MECHANICS.md).
 
 ## Where a rule lives
 
-Every rule has exactly one home, in one of seven layers:
+Every rule has exactly one home, in one of eight layers:
 
 | Layer | Owns | Never contains |
 |---|---|---|
 | Global `~/.pi/agent/AGENTS.md` | style: how the agent writes and speaks, and how it uses its tools | code rules, workflow |
 | `architecture` skill | what to build, remove, or reshape in any repo: subtract first, where a piece lives, redesign over workaround, the plan the user reviews, the principles for those | how code is written, Effect patterns |
+| `pairing` skill | how the agent works with the user on design: who decides, who writes, how options are put, navigating while they write | the plan format, code rules |
 | `story` skill (user-invoked) | the story format: the spec of one area of the domain | design, signatures, plans |
 | `code-style` skill | how we write code anywhere: names, files, helpers, function signatures, tests, the red-flag check, the principles for those | what to build or reshape, Effect or DDD patterns, repository facts |
 | `effect-ddd` skill | the DDD pattern and how we build it in Effect: use cases, layers, DDD naming patterns, Effect tests, call trees | the story and plan formats, general code style, repository facts |
